@@ -37,7 +37,7 @@
             --glass-blur: blur(24px);
             --accent-warm: #ff9a9e;
             --accent-cool: #a18cd1;
-            --text-main: #fcfcfc;
+            --text-main: #d1d1e0; /* Softer off-white/lavender-grey */
             --text-muted: #b0b5c9;
             --card-radius: 28px;
             --spacing-unit: 24px;
@@ -72,8 +72,8 @@
             position: relative;
             z-index: 10;
             overflow-y: auto;
-            /* More breathing room at top */
-            padding: 100px 24px 140px; 
+            /* More breathing room at top (increased to 120px) */
+            padding: 120px 24px 140px; 
             scroll-behavior: smooth;
             display: flex;
             flex-direction: column;
@@ -81,13 +81,19 @@
 
         h1, h2, h3 { 
             font-weight: 500; 
-            letter-spacing: -0.02em; 
+            letter-spacing: -0.01em; 
             margin: 0 0 16px 0; 
-            color: #fff;
+            color: var(--text-main);
         }
         h1 { font-size: 2.8rem; margin-bottom: 8px; }
         h2 { font-size: 2rem; margin-bottom: 32px; text-align: center; opacity: 0.9; }
-        p { line-height: 1.7; color: var(--text-muted); font-size: 1.05rem; margin: 0 0 16px 0; }
+        p { 
+            line-height: 1.8; /* Increased for better readability */
+            color: var(--text-muted); 
+            font-size: 1.05rem; 
+            margin: 0 0 16px 0;
+            letter-spacing: 0.01em; /* Softer feel */
+        }
 
         /* --- Sections (Tabs) --- */
         .app-section {
@@ -100,10 +106,10 @@
             gap: var(--spacing-unit);
         }
         
-        /* Active State Animation */
+        /* Active State Animation (Slower for calmer feel) */
         .app-section.active { 
             display: flex; 
-            animation: slideUpFade 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            animation: slideUpFade 1s cubic-bezier(0.2, 0.8, 0.2, 1); 
         }
 
         /* Special alignment for Home tab */
@@ -141,9 +147,9 @@
             bottom: 32px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(20, 25, 40, 0.85);
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
+            background: rgba(20, 25, 40, 0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 100px;
             padding: 6px;
@@ -163,10 +169,10 @@
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy */
             display: flex; align-items: center; justify-content: center;
         }
-        .tab-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .tab-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
         .tab-btn.active {
             background: linear-gradient(135deg, var(--accent-warm), var(--accent-cool));
-            color: white;
+            color: var(--text-main);
             box-shadow: 0 8px 20px rgba(255, 154, 158, 0.3);
             transform: translateY(-4px) scale(1.05);
         }
@@ -175,7 +181,7 @@
         input[type="text"], textarea {
             background: rgba(0,0,0,0.25);
             border: 1px solid rgba(255,255,255,0.08);
-            color: white;
+            color: var(--text-main);
             padding: 16px 20px;
             border-radius: 16px;
             font-size: 1.1rem;
@@ -193,9 +199,18 @@
         button { 
             font-family: inherit; font-weight: 600; 
             letter-spacing: 0.5px;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.5s;
+        }
+        button:hover {
+            box-shadow: 0 0 20px rgba(161, 140, 209, 0.3);
         }
         button:active { transform: scale(0.96); }
+
+        .sanctuary-btn:hover {
+            text-shadow: 0 0 15px var(--accent-cool);
+            transform: scale(1.05) !important;
+            opacity: 1;
+        }
 
         /* --- Heartbeat Section --- */
         .heartbeat-container {
@@ -217,7 +232,7 @@
             cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             font-size: 3.5rem;
-            color: white;
+            color: var(--text-main);
             text-shadow: 0 2px 10px rgba(0,0,0,0.1);
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -315,7 +330,7 @@
         .g-card {
             background: linear-gradient(135deg, rgba(161, 140, 209, 0.1), rgba(251, 194, 235, 0.1));
             border: 1px solid rgba(255,255,255,0.1);
-            color: #fff;
+            color: var(--text-main);
             padding: 24px;
             border-radius: 20px;
             margin-top: 24px;
@@ -323,7 +338,7 @@
         }
         .g-card h4 { color: var(--accent-warm); margin-bottom: 16px; font-size: 1.2rem; }
         .g-card p { margin-bottom: 8px; font-size: 1rem; color: #ddd; }
-        .g-card strong { color: #fff; font-weight: 600; margin-right: 8px; }
+        .g-card strong { color: var(--text-main); font-weight: 600; margin-right: 8px; }
 
         /* --- Actions Grid --- */
         .grid-2 { 
@@ -377,7 +392,7 @@
             z-index: 9999;
             filter: drop-shadow(0 15px 30px rgba(0,0,0,0.4));
         }
-        .fly-away { animation: flyVoid 3s cubic-bezier(0.1, 0, 0.2, 1) forwards; }
+        .fly-away { animation: flyVoid 10s cubic-bezier(0.1, 0, 0.2, 1) forwards; }
         
         @keyframes flyVoid { 
             0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); } 
@@ -398,7 +413,7 @@
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
-        .lightbox-close { top: 20px; right: 20px; font-size: 2rem; color: white; opacity: 0.8; }
+        .lightbox-close { top: 20px; right: 20px; font-size: 2rem; color: var(--text-main); opacity: 0.8; }
         .lightbox-nav { background: rgba(255,255,255,0.1); border-radius: 50%; width: 50px; height: 50px; }
 
         /* --- Serendipity Reel --- */
@@ -446,7 +461,7 @@
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
+            color: var(--text-main);
             padding: 12px 24px;
             border-radius: 50px;
             font-size: 0.95rem;
@@ -481,7 +496,7 @@
             <img id="reel-img" src="">
         </div>
         <h3 id="reel-status" style="position:relative; z-index:2; margin-top: 30px; font-family: var(--font-heading); letter-spacing: 2px;">SHUFFLING...</h3>
-        <button id="reel-close" onclick="closeReel()" style="position:relative; z-index:2; display:none; margin-top: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 30px; border-radius: 30px; cursor: pointer;">Close ✨</button>
+        <button id="reel-close" onclick="closeReel()" style="position:relative; z-index:2; display:none; margin-top: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--text-main); padding: 10px 30px; border-radius: 30px; cursor: pointer;">Close ✨</button>
     </div>
 
     <!-- Top Nav (Simplified) -->
@@ -489,7 +504,7 @@
         <a href="index.html" style="text-decoration: none; color: rgba(255,255,255,0.6); font-weight: bold;">← Back to the Archive</a>
     </div>
     <div style="position: fixed; top: 20px; right: 20px; z-index: 100;">
-        <button onclick="showEmergencySmile()" style="background: rgba(255,255,255,0.1); border:none; color:white; padding:8px 16px; border-radius:20px; cursor:pointer;">📸 Instant Mood Upgrade</button>
+        <button onclick="showEmergencySmile()" class="sanctuary-btn" style="background: transparent; border:none; color: var(--accent-cool); padding:8px 16px; border-radius:20px; cursor:pointer; font-weight: 500; transition: all 0.5s ease;">Open a Gift ✨</button>
     </div>
 
     <!-- Main Views -->
@@ -592,9 +607,9 @@
 
                 <!-- Actions -->
                 <div class="cat-actions" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                    <button onclick="catApp.interact('pet')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: white; cursor: pointer; transition: 0.2s;">👋 Pet</button>
-                    <button onclick="catApp.interact('feed')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: white; cursor: pointer; transition: 0.2s;">🐟 Feed</button>
-                    <button onclick="catApp.interact('clean')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: white; cursor: pointer; transition: 0.2s;">🧹 Clean</button>
+                    <button onclick="catApp.interact('pet')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: var(--text-main); cursor: pointer; transition: 0.2s;">👋 Pet</button>
+                    <button onclick="catApp.interact('feed')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: var(--text-main); cursor: pointer; transition: 0.2s;">🐟 Feed</button>
+                    <button onclick="catApp.interact('clean')" style="background: rgba(255,255,255,0.1); border:none; padding: 12px; border-radius: 12px; color: var(--text-main); cursor: pointer; transition: 0.2s;">🧹 Clean</button>
                 </div>
             </div>
 
@@ -624,7 +639,7 @@
                 </div>
 
                 <!-- Constellation Canvas -->
-                <div id="constellation-container" style="position: absolute; inset: 0; z-index: 1; cursor: crosshair;">
+                <div id="constellation-container" style="position: absolute; inset: 0; z-index: 1; cursor: default;">
                     <canvas id="constellation-canvas"></canvas>
                 </div>
 
@@ -637,8 +652,8 @@
                 <div id="plucked-star-overlay" style="position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(15, 12, 41, 0.9); backdrop-filter: blur(15px); padding: 40px; text-align: center; pointer-events: none; opacity: 0; transition: opacity 0.4s ease;">
                     <div style="pointer-events: auto;">
                         <small id="plucked-prompt" style="display:block; font-size:0.7rem; opacity:0.6; text-transform:uppercase; margin-bottom:12px; letter-spacing: 2px; color: var(--accent-cool);"></small>
-                        <p id="plucked-text" style="font-family: var(--font-heading); font-style: italic; font-size: 1.4rem; color: #fff; line-height: 1.5; margin-bottom: 30px;"></p>
-                        <button onclick="closePluckedStar()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 20px; border-radius: 20px; cursor: pointer;">Return to Sky</button>
+                        <p id="plucked-text" style="font-family: var(--font-heading); font-style: italic; font-size: 1.4rem; color: var(--text-main); line-height: 1.5; margin-bottom: 30px;"></p>
+                        <button onclick="closePluckedStar()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--text-main); padding: 8px 20px; border-radius: 20px; cursor: pointer;">Return to Sky</button>
                     </div>
                 </div>
 
@@ -649,13 +664,13 @@
                             <p id="active-prompt" style="font-size: 0.8rem; color: var(--accent-cool); font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">A Discovery for the Journey:</p>
                             <textarea id="resilience-input" rows="2" placeholder="Write a note for your future self..." style="font-size: 0.9rem; text-align: left; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;"></textarea>
                             <div style="display: flex; gap: 8px;">
-                                <button onclick="cyclePrompt()" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 0.75rem;">Other Prompt</button>
+                                <button onclick="cyclePrompt()" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); padding: 8px; border-radius: 8px; cursor: pointer; font-size: 0.75rem;">Other Prompt</button>
                                 <button onclick="saveResilience()" style="flex: 2; background: linear-gradient(135deg, var(--accent-warm), var(--accent-cool)); border:none; color:white; padding: 8px; border-radius: 8px; cursor:pointer; font-size: 0.85rem;">Plant a Star ✨</button>
                                 <button onclick="toggleInputZone(false)" style="background: rgba(255,255,255,0.1); border:none; color:white; padding: 8px; border-radius: 8px; cursor:pointer;">✕</button>
                             </div>
                         </div>
                         <div id="constellation-controls" style="display: flex; justify-content: space-between; align-items: center;">
-                            <button onclick="toggleInputZone(true)" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: #fff; padding: 10px 20px; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">+ Add a Discovery</button>
+                            <button onclick="toggleInputZone(true)" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 10px 20px; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">+ Add a Discovery</button>
                             <button onclick="toggleArchive()" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; text-decoration: underline; cursor: pointer; opacity: 0.6;">History Archive</button>
                         </div>
                     </div>
@@ -917,6 +932,7 @@
             src.connect(analyser);
             analyser.connect(audioCtx.destination);
             analyser.fftSize = 64;
+            analyser.smoothingTimeConstant = 0.85; /* Smoother, more liquid waves */
             const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
             const vCanvas = document.getElementById('viz-canvas');
@@ -1385,7 +1401,6 @@
             state: {
                 love: 50, fullness: 50, bladder: 0, lastUpdated: Date.now()
             },
-            isRunAway: false,
             get el() {
                 return {
                     cat: document.getElementById('virtual-cat'),
@@ -1403,7 +1418,6 @@
                 // Rubbing Logic
                 let lastPet = 0;
                 const handleRub = (e) => {
-                    if (this.isRunAway) return;
                     const now = Date.now();
                     if (now - lastPet > 300) { 
                         lastPet = now;
@@ -1454,13 +1468,13 @@
                 this.checkAutoPoop();
             },
             interact: function(type) {
-                if (this.isRunAway || this.isPuking) return;
+                if (this.isPuking) return; // Removed isRunAway check
 
                 if (type === 'pet') {
                     if (this.state.love >= 100) {
                         this.petCount = (this.petCount || 0) + 1;
                         if (this.petCount > 5) {
-                            this.runAway();
+                            this.getSleepy(); // Replaced runAway with getSleepy
                             return;
                         }
                     } else {
@@ -1596,34 +1610,23 @@
                 this.saveState();
             },
 
-            runAway: function() {
-                this.isRunAway = true;
+            getSleepy: function() {
                 this.petCount = 0;
-                
                 const cat = this.el.cat;
                 if (cat) {
-                    cat.style.transition = 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-                    cat.style.transform = 'translateX(500px) scale(0.5)';
-                    cat.style.opacity = '0';
+                    cat.innerText = '😴';
+                    cat.style.transition = 'all 0.8s ease';
+                    cat.style.transform = 'scale(0.9)';
+                    cat.style.opacity = '0.8';
                 }
-                
-                showToast("The cat had enough attention and ran away!", "normal");
-                
+                showToast("The cat is getting sleepy... 😴", "normal");
                 setTimeout(() => {
-                    this.isRunAway = false;
                     if (cat) {
-                        cat.style.transition = 'none';
-                        cat.style.transform = 'translateX(-500px) scale(0.5)';
-                        requestAnimationFrame(() => {
-                            cat.style.transition = 'all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                            cat.style.transform = 'translateX(0) scale(1)';
-                            cat.style.opacity = '1';
-                        });
+                        cat.innerText = '🐈';
+                        cat.style.transform = 'scale(1)';
+                        cat.style.opacity = '1';
                     }
-                    this.state.love = 70; // Slightly annoyed but back
-                    this.render();
-                    this.saveState();
-                }, 8000); // Away for 8 seconds
+                }, 5000);
             },
             
             checkSuperHappy: function() {
@@ -1704,14 +1707,22 @@
         let constellationCanvas, constellationCtx;
         let constAnimationId;
         
+        // ARIES CONSTELLATION MAPPING (Normalized 0-1)
+        // Primary 3-star "Hook" descending from Right to Left
+        const ARIES_PATTERN = [
+            { x: 0.85, y: 0.20, label: "Hamal" },     // Top Right (Brightest)
+            { x: 0.65, y: 0.25, label: "Sheratan" },  // Middle
+            { x: 0.55, y: 0.45, label: "Mesarthim" }  // The "Hook" Bend
+        ];
+
         const PROMPTS = [
-            "A Discovery for the Journey:",
-            "What made you feel peaceful today?",
-            "A reminder for your future self:",
-            "What is a win no one else saw?",
-            "What would you tell yourself 2 years ago?",
-            "A strength you've recently noticed:",
-            "Something you are proud of right now:"
+            "A discovery for the journey...",
+            "A win no one else saw today:",
+            "What made you feel peaceful for 10 seconds?",
+            "A reminder for the next time it’s heavy:",
+            "What is a strength you’ve recently noticed?",
+            "Something you are proud of right now:",
+            "A promise to yourself for tomorrow:"
         ];
         let currentPromptIdx = 0;
         
@@ -1729,6 +1740,26 @@
                 handleConstellationClick({ clientX: touch.clientX, clientY: touch.clientY });
             });
 
+            // Sanctuary Affordance: Reactive Cursor
+            constellationCanvas.addEventListener('mousemove', (e) => {
+                const rect = constellationCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                let isHoveringStar = false;
+                constellationStars.forEach(star => {
+                    const d = Math.hypot(star.x - mouseX, star.y - mouseY);
+                    if (d < 30) {
+                        isHoveringStar = true;
+                        star.hovered = true;
+                    } else {
+                        star.hovered = false;
+                    }
+                });
+                
+                constellationCanvas.style.cursor = isHoveringStar ? 'pointer' : 'default';
+            });
+
             if (!constAnimationId) animateConstellation();
         }
 
@@ -1744,9 +1775,10 @@
                 constellationCanvas.width = w;
                 constellationCanvas.height = h;
                 
+                // Recalculate physical positions from stored normalized coordinates
                 constellationStars.forEach(s => {
-                    s.x = Math.random() * w;
-                    s.y = Math.random() * h;
+                    s.x = s.normX * w;
+                    s.y = s.normY * h;
                 });
             }
         }
@@ -1754,53 +1786,99 @@
         class Star {
             constructor(data) {
                 this.data = data;
-                this.x = Math.random() * constellationCanvas.width;
-                this.y = Math.random() * constellationCanvas.height;
-                this.size = Math.random() * 2 + 1.5;
-                this.baseSize = this.size;
-                this.vx = (Math.random() - 0.5) * 0.2;
-                this.vy = (Math.random() - 0.5) * 0.2;
+                this.normX = data.normX;
+                this.normY = data.normY;
+                this.isAriesAnchor = data.isAriesAnchor || false;
+                this.isBirthdayStar = data.isBirthdayStar || false;
+                
+                // Physical coordinates (updated on resize)
+                this.x = this.normX * constellationCanvas.width;
+                this.y = this.normY * constellationCanvas.height;
+                
+                this.baseSize = this.isBirthdayStar ? 4 : (this.isAriesAnchor ? 3 : 1.5);
+                this.size = this.baseSize;
+                
+                // Subtle Drift (very slow)
+                this.vx = (Math.random() - 0.5) * 0.05;
+                this.vy = (Math.random() - 0.5) * 0.05;
+                
                 this.pulse = Math.random() * Math.PI;
-                this.pulseSpeed = 0.02 + Math.random() * 0.03;
+                this.pulseSpeed = 0.01 + Math.random() * 0.02;
+                this.hovered = false;
             }
 
             update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.pulse += this.pulseSpeed;
-
-                // Bounce off edges
-                if (this.x < 0 || this.x > constellationCanvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > constellationCanvas.height) this.vy *= -1;
+                // Anchors and the Birthday Star should NOT drift
+                if (!this.isAriesAnchor && !this.isBirthdayStar) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    // Keep normalized coords in sync for resizing
+                    this.normX = this.x / constellationCanvas.width;
+                    this.normY = this.y / constellationCanvas.height;
+                }
                 
-                this.size = this.baseSize + Math.sin(this.pulse) * 1;
+                this.pulse += this.pulseSpeed;
+                const hoverScale = this.hovered ? 2.5 : 1;
+                this.size = (this.baseSize + Math.sin(this.pulse) * 1) * hoverScale;
             }
 
-            draw() {
-                const alpha = 0.4 + Math.sin(this.pulse) * 0.3;
+            draw(patternPulse = 0) {
+                // Combine individual pulse with global pattern pulse for anchors
+                let alpha = this.hovered ? 1 : (0.4 + Math.sin(this.pulse) * 0.3);
+                if (this.isAriesAnchor) {
+                    alpha = Math.max(alpha, 0.3 + patternPulse * 0.5); // Ensure anchors pulse together
+                }
                 
                 constellationCtx.beginPath();
                 constellationCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 
-                // Celestial glowing stars (Unique theme)
-                constellationCtx.shadowBlur = 15;
-                constellationCtx.shadowColor = "rgba(161, 140, 209, 0.8)";
-                constellationCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                
+                // Color logic
+                if (this.isBirthdayStar) {
+                    constellationCtx.shadowColor = "rgba(255, 209, 212, 0.9)";
+                    constellationCtx.fillStyle = `rgba(255, 209, 212, ${alpha})`;
+                } else if (this.isAriesAnchor) {
+                    const glowColor = `rgba(161, 140, 209, ${0.4 + patternPulse * 0.6})`;
+                    constellationCtx.shadowColor = glowColor;
+                    constellationCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                } else {
+                    constellationCtx.shadowColor = "rgba(161, 140, 209, 0.5)";
+                    constellationCtx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+                }
+
+                constellationCtx.shadowBlur = this.hovered ? 25 : (this.isAriesAnchor ? 15 + patternPulse * 15 : 15);
                 constellationCtx.fill();
                 constellationCtx.shadowBlur = 0; 
+
+                // Draw connecting lines for Aries pattern (Highlighted by the pulse)
+                if (this.isAriesAnchor && this.data.patternIndex < ARIES_PATTERN.length - 1) {
+                    const nextStar = constellationStars.find(s => s.data.patternIndex === this.data.patternIndex + 1);
+                    if (nextStar) {
+                        constellationCtx.beginPath();
+                        constellationCtx.moveTo(this.x, this.y);
+                        constellationCtx.lineTo(nextStar.x, nextStar.y);
+                        // Lines also pulse in visibility
+                        constellationCtx.strokeStyle = `rgba(161, 140, 209, ${0.1 + patternPulse * 0.3})`;
+                        constellationCtx.lineWidth = 1 + patternPulse * 1;
+                        constellationCtx.stroke();
+                    }
+                }
             }
         }
 
         function animateConstellation() {
             if (!constellationCtx) return;
             
-            // Performance optimization: Only draw if the tab is active
             if (document.getElementById('tab-Reflection').classList.contains('active')) {
                 constellationCtx.clearRect(0, 0, constellationCanvas.width, constellationCanvas.height);
+                
+                // Calculate periodic pulse for the pattern (every 4 seconds)
+                const now = Date.now();
+                const patternPulse = (Math.sin(now / 1000) + 1) / 2; // 0 to 1 pulse
+                
                 constellationStars.forEach(star => {
                     star.update();
-                    star.draw();
+                    // Inject pattern pulse into drawing context
+                    star.draw(patternPulse);
                 });
             }
             
@@ -1810,7 +1888,6 @@
         function handleConstellationClick(e) {
             if (!constellationCanvas) return;
             
-            // Hide the hint after first interaction
             const hint = document.getElementById('constellation-hint');
             if (hint) hint.style.opacity = '0';
 
@@ -1818,9 +1895,8 @@
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Find closest star
             let closest = null;
-            let minDist = 30; // Interaction radius
+            let minDist = 30;
 
             constellationStars.forEach(star => {
                 const d = Math.hypot(star.x - mouseX, star.y - mouseY);
@@ -1838,7 +1914,6 @@
             document.getElementById('plucked-prompt').textContent = star.data.prompt || "A Discovery:";
             document.getElementById('plucked-text').textContent = star.data.text;
             overlay.style.display = 'flex';
-            // Trigger reflow then set opacity
             setTimeout(() => overlay.style.opacity = '1', 10);
             if (navigator.vibrate) navigator.vibrate(20);
         }
@@ -1867,18 +1942,48 @@
             const user = firebase.auth().currentUser;
             if (!user) return showToast("Sign in to plant stars", "error");
 
+            const currentCount = constellationStars.length;
+            let normX, normY, isBirthdayStar = false;
+
+            if (currentCount === 10) { 
+                // The 11th star milestone
+                normX = 0.5; normY = 0.2; 
+                isBirthdayStar = true;
+            } else {
+                // Random position for new stars (pattern is assigned in loadResilience)
+                normX = 0.1 + Math.random() * 0.8;
+                normY = 0.1 + Math.random() * 0.8;
+            }
+
             const data = {
                 text: text,
                 prompt: PROMPTS[currentPromptIdx],
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                normX: normX,
+                normY: normY,
+                isBirthdayStar: isBirthdayStar
             };
 
             try {
                 await firebase.firestore().collection('user_data').doc(user.uid).collection('resilience').add(data);
                 input.value = '';
                 toggleInputZone(false);
-                showToast("A new star is born. ✨", "success");
-                loadResilience(); // Refresh
+                
+                if (isBirthdayStar) {
+                    showToast("The 11th star... your birth star. A reminder that you were born to shine, even on the heavy days. ✨", "success");
+                    if (typeof confetti !== 'undefined') {
+                        confetti({
+                            particleCount: 150,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                            colors: ['#ffd1d4', '#ff9a9e', '#a18cd1']
+                        });
+                    }
+                } else {
+                    showToast("A new star is born. ✨", "success");
+                }
+                
+                loadResilience(); 
             } catch (e) {
                 showToast("Cloud connection error", "error");
             }
@@ -1891,20 +1996,35 @@
             const historyContainer = document.getElementById('history-items-container');
 
             try {
-                const snap = await firebase.firestore().collection('user_data').doc(user.uid).collection('resilience').orderBy('timestamp', 'desc').get();
+                const snap = await firebase.firestore().collection('user_data').doc(user.uid).collection('resilience').orderBy('timestamp', 'asc').get();
                 
                 constellationStars = [];
                 historyContainer.innerHTML = '';
+                let idx = 0;
 
                 snap.forEach(doc => {
                     const data = doc.data();
+                    
+                    // FORCED PATTERN MAPPING:
+                    // We ignore stored anchor data and re-calculate based on global order.
+                    // This fixes the bug for existing users.
+                    if (idx < ARIES_PATTERN.length) {
+                        data.normX = ARIES_PATTERN[idx].x;
+                        data.normY = ARIES_PATTERN[idx].y;
+                        data.isAriesAnchor = true;
+                        data.patternIndex = idx;
+                    } else if (idx === 10) {
+                        data.isBirthdayStar = true;
+                        data.normX = 0.5; data.normY = 0.2;
+                    }
+
                     constellationStars.push(new Star(data));
                     
-                    // Archive list items
                     const el = document.createElement('div');
                     el.style.cssText = "background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; font-size: 0.85rem; border-left: 2px solid var(--accent-cool);";
                     el.innerHTML = `<small style="display:block; opacity:0.5; margin-bottom:4px;">${data.prompt}</small><span>${data.text}</span>`;
-                    historyContainer.appendChild(el);
+                    historyContainer.prepend(el); 
+                    idx++;
                 });
             } catch (e) {
                 console.warn("Resilience load failed", e);
