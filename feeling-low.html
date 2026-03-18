@@ -466,7 +466,7 @@
         }
     </style>
 </head>
-<body class="grey-mode-forced">
+<body class="grey-mode-forced feeling-low-page">
 
     <!-- Toast Container -->
     <div id="toast-container"></div>
@@ -612,8 +612,7 @@
                 <h3>Familiar Sounds ⭐️</h3>
                 <canvas id="viz-canvas"></canvas>
                 <button id="audio-play-btn" onclick="toggleAudio()" style="background:var(--accent-primary); border:none; color:white; padding:10px 25px; border-radius:20px; cursor:pointer; margin-top:10px;">▶ Play</button>
-                <audio id="calm-audio" src="assets/audio/i_lived_instrumental.mp3" crossorigin="anonymous"></audio>
-            </div>
+                <audio id="calm-audio" src="" crossorigin="anonymous"></audio>            </div>
 
             <!-- The Constellation of Self -->
             <div class="visualizer-card" style="text-align:left; position: relative; padding: 0; overflow: hidden; height: 500px; display: flex; flex-direction: column;">
@@ -1106,32 +1105,56 @@
             const jarContainer = document.querySelector('.jar-container');
             const jarLid = document.querySelector('.jar-lid');
             if(!txt || !txt.value.trim()) return;
+
+            // Create "Paper" to float away
             const paper = document.createElement('div');
             paper.className = 'vent-paper';
-            paper.innerText = txt.value.substring(0, 15) + '...';
+            paper.innerText = txt.value.substring(0, 20) + '...';
+            
             const inputRect = txt.getBoundingClientRect();
             paper.style.left = (inputRect.left + inputRect.width/2 - 40) + 'px';
             paper.style.top = (inputRect.top + inputRect.height/2 - 30) + 'px';
+            paper.style.transition = 'all 2.5s cubic-bezier(0.4, 0, 0.2, 1)'; // Slower, graceful transition
             document.body.appendChild(paper);
+
+            // Therapeutic Fade out of original text
+            txt.style.transition = 'opacity 2s ease, filter 2s ease';
             txt.style.opacity = '0';
+            txt.style.filter = 'blur(10px)';
+
             requestAnimationFrame(() => {
                 const lidRect = jarLid.getBoundingClientRect();
                 paper.classList.add('crumple');
+                
+                // Float towards jar lid
                 paper.style.left = (lidRect.left + lidRect.width/2 - 10) + 'px';
-                paper.style.top = (lidRect.top - 10) + 'px';
+                paper.style.top = (lidRect.top - 40) + 'px';
+                paper.style.opacity = '0.7';
+
                 setTimeout(() => {
                     const jarRect = jarContainer.getBoundingClientRect();
-                    paper.style.transition = 'top 0.6s cubic-bezier(0.5, 0, 0.8, 1), opacity 0.5s';
+                    // Fall into jar
+                    paper.style.transition = 'top 1.5s cubic-bezier(0.5, 0, 0.8, 1), opacity 1s';
                     paper.style.top = (jarRect.top + jarRect.height - 30) + 'px';
+                    
                     setTimeout(() => {
                         document.getElementById('jar-fire').style.opacity = '1';
-                        paper.style.transform = 'scale(0)'; paper.style.opacity = '0';
+                        paper.style.transform = 'scale(0)'; 
+                        paper.style.opacity = '0';
+                        
                         setTimeout(() => {
-                            paper.remove(); txt.value = ''; txt.style.opacity = '1';
+                            paper.remove(); 
+                            // Reset textarea with a soft message
+                            const originalPlaceholder = txt.placeholder;
+                            txt.value = '';
+                            txt.placeholder = 'Released. ✨';
+                            txt.style.filter = 'none';
+                            txt.style.opacity = '1';
                             document.getElementById('jar-fire').style.opacity = '0';
+                            setTimeout(() => { txt.placeholder = originalPlaceholder; }, 3000);
                         }, 2000);
                     }, 600);
-                }, 800);
+                }, 2000);
             });
         }
 

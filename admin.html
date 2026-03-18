@@ -368,6 +368,9 @@
             <!-- Home Video -->
             <div class="admin-section">
                 <h2>🏠 Update Home Video</h2>
+                <div id="home-current-preview" style="margin-bottom: 20px; font-size: 0.8rem; color: var(--text-muted);">
+                    Loading current config...
+                </div>
                 <div class="grid-2">
                     <div>
                         <label>Select Video (MP4/MOV):</label>
@@ -380,6 +383,7 @@
                 </div>
 
                 <button class="btn-admin" onclick="uploadHomeVideo()">Update Home Content</button>
+                <div class="progress-bar" id="home-progress"><div class="progress-fill"></div></div>
                 <span class="status" id="home-status"></span>
             </div>
 
@@ -447,19 +451,8 @@
                     if(!snap.empty) {
                         document.getElementById('auth-container').style.display = 'none';
                         document.getElementById('admin-panel').style.display = 'block';
-                        
-                        // Pre-load Letter
-                        db.collection('config').doc('letter').get().then(d => {
-                            if(d.exists) {
-                                document.getElementById('letter-input').value = d.data().text || '';
-                                document.getElementById('letter-closing-input').value = d.data().closingLine || '';
-                            }
-                        });
 
-                        // Pre-load Safe Space
-                        db.collection('config').doc('feelingLow').get().then(d => {
-                            if(d.exists) document.getElementById('alone-input').value = d.data().aloneText || '';
-                        });
+                        loadConfigs();
                     } else {
                         document.getElementById('auth-status').textContent = "Access denied: " + user.email + " is not whitelisted.";
                         auth.signOut();
@@ -467,7 +460,6 @@
                 });
             }
         });
-
         /* Image Processor (Compression & Thumbnails) */
         async function processImage(file, type = 'thumb') {
             return new Promise((resolve) => {
@@ -802,19 +794,39 @@
                 video.src = URL.createObjectURL(file);
                 video.muted = true;
                 video.playsInline = true;
+                
+                let attempt = 0;
+                const timestamps = [1, 2, 3, 0.5]; // Try these seconds
+
                 video.onloadedmetadata = () => {
-                    video.currentTime = 1; // Capture at 1 second
+                    video.currentTime = timestamps[attempt];
                 };
+
                 video.onseeked = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    canvas.toBlob((blob) => {
-                        resolve(blob);
-                        URL.revokeObjectURL(video.src);
-                    }, 'image/jpeg', 0.7);
+                    
+                    // Check if frame is too dark or too bright
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    let totalBrightness = 0;
+                    for (let i = 0; i < imageData.length; i += 40) { // Sample every 10th pixel
+                        totalBrightness += (imageData[i] + imageData[i+1] + imageData[i+2]) / 3;
+                    }
+                    const avgBrightness = totalBrightness / (imageData.length / 40);
+
+                    // If frame is almost black (<15) or almost white (>240) and we have more attempts
+                    if ((avgBrightness < 15 || avgBrightness > 240) && attempt < timestamps.length - 1) {
+                        attempt++;
+                        video.currentTime = timestamps[attempt];
+                    } else {
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                            URL.revokeObjectURL(video.src);
+                        }, 'image/jpeg', 0.8);
+                    }
                 };
                 video.onerror = () => resolve(null);
             });
@@ -941,6 +953,44 @@
             document.getElementById('mem-private').checked = false;
         }
 
+        async function loadConfigs() {
+            try {
+                // Home Config
+                const homeDoc = await db.collection('config').doc('home').get();
+                if (homeDoc.exists) {
+                    const data = homeDoc.data();
+                    const preview = document.getElementById('home-current-preview');
+                    let html = '';
+                    if (data.introVideo) html += `<div>📹 Video: <a href="${data.introVideo}" target="_blank" style="color:var(--accent-primary)">View Current</a></div>`;
+                    if (data.introVideoThumbnail) html += `<div>🖼️ Thumb: <a href="${data.introVideoThumbnail}" target="_blank" style="color:var(--accent-primary)">View Current</a></div>`;
+                    preview.innerHTML = html || 'No home assets in cloud.';
+                }
+
+                // Feeling Low Config
+                const lowDoc = await db.collection('config').doc('feelingLow').get();
+                if (lowDoc.exists) {
+                    const data = lowDoc.data();
+                    const status = document.getElementById('low-status');
+                    if (data.calmSound) status.innerHTML = `🎵 Current Audio: <a href="${data.calmSound}" target="_blank" style="color:var(--accent-primary)">Listen</a>`;
+                    document.getElementById('alone-input').value = data.aloneText || '';
+                }
+
+                // Archive Note
+                const letterDoc = await db.collection('config').doc('letter').get();
+                if (letterDoc.exists) {
+                    document.getElementById('letter-input').value = letterDoc.data().text || '';
+                    document.getElementById('letter-closing-input').value = letterDoc.data().closingLine || '';
+                }
+
+                // Secret Key
+                const secretDoc = await db.collection('config').doc('secrets').get();
+                if (secretDoc.exists) {
+                    document.getElementById('secret-key-input').value = secretDoc.data().privateKey || '';
+                }
+
+            } catch(e) { console.warn("Error loading configs", e); }
+        }
+
         async function uploadHomeVideo() {
             const videoInput = document.getElementById('home-video');
             const thumbInput = document.getElementById('home-thumb');
@@ -950,19 +1000,51 @@
             if(!videoFile) return alert("Select at least a video");
 
             const status = document.getElementById('home-status');
-            status.textContent = "Uploading...";
+            const progress = document.getElementById('home-progress').querySelector('.progress-fill');
+            document.getElementById('home-progress').style.display = 'block';
+            status.textContent = "Checking for old assets...";
+
+            // 0. Get old URLs for cleanup
+            let oldVideoUrl = null;
+            let oldThumbUrl = null;
+            try {
+                const homeDoc = await db.collection('config').doc('home').get();
+                if (homeDoc.exists) {
+                    oldVideoUrl = homeDoc.data().introVideo;
+                    oldThumbUrl = homeDoc.data().introVideoThumbnail;
+                }
+            } catch(e) { console.warn("Old assets check failed", e); }
+
+            status.textContent = "Uploading video...";
 
             // 1. Upload Video
             const vRef = storage.ref(`config/intro_video_${Date.now()}`);
-            const vSnap = await vRef.put(videoFile);
-            const vUrl = await vSnap.ref.getDownloadURL();
+            const vTask = vRef.put(videoFile);
+            
+            vTask.on('state_changed', (snap) => {
+                progress.style.width = (snap.bytesTransferred / snap.totalBytes * 100) + '%';
+            });
 
-            // 2. Upload Thumb (Optional)
+            await vTask;
+            const vUrl = await vTask.snapshot.ref.getDownloadURL();
+
+            // 2. Upload Thumb (Manual or Auto)
             let tUrl = null;
             if (thumbFile) {
+                status.textContent = "Uploading manual thumbnail...";
                 const tRef = storage.ref(`config/intro_thumb_${Date.now()}`);
                 const tSnap = await tRef.put(thumbFile);
                 tUrl = await tSnap.ref.getDownloadURL();
+            } else {
+                status.textContent = "Generating auto-thumbnail...";
+                try {
+                    const tBlob = await getVideoThumbnail(videoFile);
+                    if (tBlob) {
+                        const tRef = storage.ref(`config/intro_thumb_auto_${Date.now()}.jpg`);
+                        const tSnap = await tRef.put(tBlob);
+                        tUrl = await tSnap.ref.getDownloadURL();
+                    }
+                } catch(e) { console.warn("Auto-thumb gen failed", e); }
             }
 
             // 3. Save Config
@@ -974,7 +1056,22 @@
 
             await db.collection('config').doc('home').set(payload, { merge: true });
 
+            // 4. Cleanup Old Assets
+            status.textContent = "Cleaning up old assets...";
+            if (oldVideoUrl && oldVideoUrl.includes('firebasestorage')) {
+                try { storage.refFromURL(oldVideoUrl).delete(); } catch(e) { console.warn("Old video delete failed", e); }
+            }
+            if (oldThumbUrl && oldThumbUrl.includes('firebasestorage')) {
+                try { storage.refFromURL(oldThumbUrl).delete(); } catch(e) { console.warn("Old thumb delete failed", e); }
+            }
+
             status.textContent = "Home Content Updated!";
+            setTimeout(() => { 
+                document.getElementById('home-progress').style.display = 'none';
+                progress.style.width = '0%';
+                loadConfigs();
+            }, 2000);
+            
             videoInput.value = '';
             thumbInput.value = '';
         }

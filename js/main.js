@@ -24,7 +24,7 @@ let ALONE_TEXT = `There are moments when the world feels quiet, not because it h
 Everything you’ve ever felt—the loud laughs, the private heartbreaks, the chaos of college—is recorded here. This archive is a witness. You are not just a ghost in the machine; you are the reason all of this exists. 
 
 Take a moment. The past is still here, and so are you.`; // Default
-let CALM_SOUND_URL = `assets/audio/i_lived_instrumental.mp3`; // Default
+let CALM_SOUND_URL = ""; // Default empty, loaded from cloud
 
 var MEMORIES_DATA = [];
 var GALLERY_DATA = [];
@@ -92,7 +92,8 @@ async function startApp() {
 const resolvePath = (path, folder = '') => {
     if (!path) return '';
     if (path.startsWith('http') || path.startsWith('data:')) return path;
-    return folder ? `assets/memories_photos/${folder}/${path}` : path;
+    // Since we are cloud-only now, if it's not a URL, it's likely a missing or broken link
+    return path;
 };
 
 const getContrastYIQ = (hexcolor) => {
@@ -171,9 +172,24 @@ async function loadAllData() {
     if (homeDoc.exists) {
         const data = homeDoc.data();
         const videoEl = document.getElementById('intro-video');
+        const videoContainer = document.querySelector('.bg-video-container');
+        
         if (videoEl) {
-            if (data.introVideo) videoEl.src = data.introVideo;
-            if (data.introVideoThumbnail) videoEl.poster = data.introVideoThumbnail;
+            if (data.introVideoThumbnail) {
+                videoEl.poster = data.introVideoThumbnail;
+                if (videoContainer) {
+                    videoContainer.style.backgroundImage = `url(${data.introVideoThumbnail})`;
+                    videoContainer.style.backgroundSize = 'cover';
+                    videoContainer.style.backgroundPosition = 'center';
+                }
+            }
+            if (data.introVideo) {
+                videoEl.src = data.introVideo;
+                // Ensure video is visible only when playing to prevent flicker
+                videoEl.style.opacity = '0';
+                videoEl.style.transition = 'opacity 0.5s ease';
+                videoEl.onplaying = () => { videoEl.style.opacity = '1'; };
+            }
         }
     }
 
@@ -342,6 +358,62 @@ function initFirebaseLock() {
 function initGlobalUI() {
     const loader = document.getElementById('loader');
     if (loader) setTimeout(() => { loader.classList.add('fade-out'); setTimeout(() => loader.style.display = 'none', 600); }, 800);
+    
+    // --- Navigation Active States Fix ---
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.nav-links a');
+    const brand = document.querySelector('.nav-brand');
+    const isIndexPage = document.body.classList.contains('index-page');
+
+    if (brand) {
+        if (isIndexPage) brand.classList.add('active');
+        else brand.classList.remove('active');
+    }
+
+    navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        const isIndexLink = (href === 'index.html' || href === '/');
+        if ((isIndexPage && isIndexLink) || (!isIndexPage && !isIndexLink && currentPath.endsWith(href))) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
+
+    // --- Index Scroll Indicator Logic ---
+    if (document.body.classList.contains('index-page')) {
+        const indicator = document.querySelector('.scroll-indicator');
+        const container = document.querySelector('.hero-container');
+        if (indicator && container) {
+            container.addEventListener('scroll', () => {
+                if (container.scrollTop > 100) {
+                    indicator.classList.add('hidden');
+                } else {
+                    indicator.classList.remove('hidden');
+                }
+            });
+        }
+    }
+
+    // --- Staggered Fade-In Observer ---
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('reveal');
+            }
+        });
+    }, { threshold: 0.1 });
+
+    // This will be called whenever content is loaded (memories/gallery)
+    window.refreshRevealObserver = () => {
+        document.querySelectorAll('.memory-card, .gallery-item').forEach(el => observer.observe(el));
+    };
+
+    // --- Random Memory FAB ---
+    if (document.getElementById('gallery-grid')) {
+        initRandomMemoryFAB();
+    }
+
     const lightbox = document.getElementById('lightbox');
     if (lightbox) {
         const close = lightbox.querySelector('.lightbox-close');
@@ -638,6 +710,7 @@ function loadMemories() {
         }
     });
     
+    if (window.refreshRevealObserver) window.refreshRevealObserver();
     initMemoryScrollbar();
     initMemoryAutoScrollToggle();
 }
@@ -885,11 +958,36 @@ async function loadGallery() {
     if (sortSelect) sortGallery(sortSelect.value);
     else sortGallery('default');
 
-    // EXIF scanning is now disabled for the whole gallery to prevent timeouts.
-    // The Admin page handles this during upload now.
+    if (window.refreshRevealObserver) window.refreshRevealObserver();
 }
 
-
+function initRandomMemoryFAB() {
+    if (document.querySelector('.random-fab')) return;
+    const fab = document.createElement('button');
+    fab.className = 'random-fab';
+    fab.innerHTML = '🎲';
+    fab.title = 'Revisit a random moment';
+    fab.onclick = () => {
+        const items = document.querySelectorAll('.gallery-item, .memory-card');
+        if (items.length > 0) {
+            const randomIdx = Math.floor(Math.random() * items.length);
+            items[randomIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Subtle highlight
+            const originalTransform = items[randomIdx].style.transform;
+            const originalBoxShadow = items[randomIdx].style.boxShadow;
+            
+            items[randomIdx].style.transform = 'scale(1.05)';
+            items[randomIdx].style.boxShadow = '0 0 30px var(--accent-primary)';
+            
+            setTimeout(() => {
+                items[randomIdx].style.transform = originalTransform;
+                items[randomIdx].style.boxShadow = originalBoxShadow;
+            }, 2000);
+        }
+    };
+    document.body.appendChild(fab);
+}
 
 function sortGallery(mode) {
     galleryState.sort((a, b) => {
@@ -904,6 +1002,7 @@ function sortGallery(mode) {
         }
     });
     renderGalleryGrouped(galleryState, mode === 'default');
+    if (window.refreshRevealObserver) window.refreshRevealObserver();
 }
 
 function renderGalleryGrouped(items, isFlat = false) {
