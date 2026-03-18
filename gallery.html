@@ -35,7 +35,10 @@
 
         <!-- Controls -->
         <div class="gallery-toolbar">
-            <select id="gallery-sort" class="btn-primary" style="appearance: none; text-align: center; min-width: 140px;">
+            <!-- Media Count (Injected) -->
+            <div id="gallery-count" style="font-size: 0.9rem; color: var(--text-muted); font-family: var(--font-body); font-weight: 500; margin-right: auto;"></div>
+
+            <select id="gallery-sort" class="btn-primary" style="appearance: none; text-align: center; min-width: 140px; margin: 0;">
                 <option value="default">All Photos</option>
                 <option value="date-desc">Newest First</option>
                 <option value="date-asc">Oldest First</option>
@@ -47,9 +50,6 @@
                 <span style="font-size: 1rem; opacity: 0.7;">+</span>
             </div>
         </div>
-
-        <!-- Media Count -->
-        <div id="gallery-count" style="text-align: center; margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted); font-family: var(--font-body); font-weight: 500;"></div>
 
         <!-- Gallery Grid -->
         <div id="gallery-grid" class="gallery-grid">

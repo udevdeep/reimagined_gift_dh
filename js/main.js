@@ -1,6 +1,117 @@
 /**
- * Reimagined Gift - Main Logic
+ * THE SPARK: Silent Signal Logic
  */
+async function sendSpark() {
+    const btn = document.getElementById('pulse-btn') || document.querySelector('.spark-fab');
+    const text = document.getElementById('pulse-text');
+    const icon = document.getElementById('pulse-icon');
+    
+    if (!btn || btn.disabled || btn.classList.contains('sending')) return;
+
+    // The Spark Vibe: Simple, grounded message
+    const vibe = { 
+        msg: "Spark sent. Always in your corner. ✨", 
+        log: "Always in your corner." 
+    };
+
+    // Visual Feedback
+    btn.disabled = true;
+    btn.classList.add('sending');
+    
+    if (btn.classList.contains('spark-fab')) {
+        btn.innerHTML = "Sending... ⚡";
+    } else {
+        btn.classList.add('ripple-active');
+        if (icon) icon.textContent = "⚡";
+        if (text) text.textContent = "Catching the light...";
+    }
+    
+    // Play subtle sound
+    if (typeof SoundFX !== 'undefined') SoundFX.thump();
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+    // Fun Confetti Burst (Gold & White)
+    if (typeof confetti !== 'undefined') {
+        confetti({
+            particleCount: 40,
+            spread: 60,
+            origin: { y: 0.8 },
+            colors: ['#ffcc33', '#ffffff'],
+            ticks: 200,
+            gravity: 1.2,
+            scalar: 0.7
+        });
+    }
+
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            const db = firebase.firestore();
+            const timestamp = Date.now();
+
+            // 1. Update user totals
+            await db.collection('user_data').doc(user.uid).set({
+                lastPulse: timestamp,
+                pulseCount: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true });
+
+            // 2. Record in History
+            await db.collection('spark_history').add({
+                userId: user.uid,
+                userName: user.displayName || "Friend",
+                timestamp: timestamp
+            });
+
+            // --- THE SILENT PAGER (EmailJS) ---
+            if (typeof emailjs !== 'undefined') {
+                try {
+                    const emailConfig = await db.collection('config').doc('emailjs').get();
+                    if (emailConfig.exists) {
+                        const { serviceID, templateID, publicKey } = emailConfig.data();
+                        emailjs.init({ publicKey: publicKey });
+                        emailjs.send(serviceID, templateID, {
+                            to_name: "Devdeep",
+                            message: `A Spark from the Archive: "${vibe.log}" ✨`,
+                            time: new Date().toLocaleString(),
+                            note: "Your friend sent a spark. Just a little light for the journey. Got your back."
+                        });
+                    }
+                } catch (err) { console.error("Email failed:", err); }
+            }
+
+        } catch (e) { console.error("Spark error:", e); }
+    }
+
+    // Completed State
+    setTimeout(() => {
+        if (btn.classList.contains('spark-fab')) {
+            btn.classList.remove('sending');
+            btn.innerHTML = "Send a Spark ✨";
+            btn.disabled = false;
+            showToast("Spark sent. Always in your corner. ✨", "success");
+        } else {
+            btn.classList.remove('ripple-active');
+            if (icon) icon.textContent = "✨";
+            if (text) text.textContent = vibe.msg;
+            btn.style.borderColor = "#ffcc33";
+            btn.style.background = "rgba(255, 204, 0, 0.1)";
+            
+            setTimeout(() => {
+                btn.disabled = false;
+                if (icon) icon.textContent = "✨";
+                if (text) text.textContent = "Send a Spark";
+                btn.style.borderColor = "rgba(255,255,255,0.1)";
+                btn.style.background = "rgba(255,255,255,0.05)";
+                btn.classList.remove('sending');
+            }, 3000);
+        }
+    }, 1500);
+}
+
+async function sendPulseSignal() {
+    // Legacy support redirecting to sendSpark
+    return sendSpark();
+}
 
 /* --- DATA & STATE --- */
 // 🚨 YOU MUST REPLACE THIS WITH YOUR OWN FIREBASE CONFIG FROM CONSOLE 🚨

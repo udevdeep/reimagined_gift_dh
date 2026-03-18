@@ -254,7 +254,20 @@
 
         <div id="admin-panel" style="display: none;">
             
-            <!-- Gallery Upload -->
+            <div class="admin-section" id="pulse-monitor" style="border-color: #ffcc33; background: rgba(255, 204, 0, 0.05); display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h2 style="color: #ffcc33; margin: 0;">✨ The Spark Monitor</h2>
+                    <button class="btn-admin btn-secondary" onclick="clearSparkCounts()" style="margin: 0; padding: 8px 16px; font-size: 0.8rem; border-color: rgba(255, 204, 0, 0.3);">Clear All</button>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Connections from the archive. Always in your corner.</p>
+                
+                <div id="pulse-log" style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto; padding-right: 10px;">
+                    <!-- Sparks will be injected here -->
+                    <div style="padding: 20px; text-align: center; color: var(--text-muted); opacity: 0.5;">
+                        Waiting for a spark...
+                    </div>
+                </div>
+            </div>
             <div class="admin-section">
                 <h2>📸 Upload to Gallery</h2>
                 <label>Select Photo/Video (Multiple):</label>
@@ -387,13 +400,24 @@
                 <span class="status" id="home-status"></span>
             </div>
 
-            <!-- Secret Key -->
+            <!-- EmailJS Config -->
             <div class="admin-section">
-                <h2>🔑 Secret Key</h2>
-                <label>Current Password (for Private Access):</label>
-                <input type="text" id="secret-key-input" placeholder="e.g. bumblebee">
-                <button class="btn-admin" onclick="updateSecretKey()">Update Key</button>
-                <span class="status" id="secret-status"></span>
+                <h2>📧 EmailJS Configuration</h2>
+                <label>Public Key (API Key):</label>
+                <input type="text" id="emailjs-public-key" placeholder="e.g. qF7oK...">
+                
+                <div class="grid-2">
+                    <div>
+                        <label>Service ID:</label>
+                        <input type="text" id="emailjs-service-id" placeholder="e.g. service_...">
+                    </div>
+                    <div>
+                        <label>Template ID:</label>
+                        <input type="text" id="emailjs-template-id" placeholder="e.g. template_...">
+                    </div>
+                </div>
+                <button class="btn-admin" onclick="saveEmailJSConfig()">Save EmailJS Config</button>
+                <span class="status" id="emailjs-status"></span>
             </div>
 
             <!-- Manage Content -->
@@ -453,6 +477,7 @@
                         document.getElementById('admin-panel').style.display = 'block';
 
                         loadConfigs();
+                        initPulseMonitor(); // Real-time connection signal
                     } else {
                         document.getElementById('auth-status').textContent = "Access denied: " + user.email + " is not whitelisted.";
                         auth.signOut();
@@ -460,6 +485,102 @@
                 });
             }
         });
+
+        /* --- Pulse Monitor (Real-time Listening) --- */
+        let lastPulseTime = 0;
+
+        async function clearSparkCounts() {
+            if (!confirm("Are you sure you want to clear all spark counts and history? This will reset the counter for all users and wipe the pulse log.")) return;
+            
+            try {
+                const batch = db.batch();
+                
+                // 1. Reset user counts
+                const usersSnap = await db.collection('user_data').get();
+                usersSnap.forEach(doc => {
+                    batch.update(doc.ref, {
+                        pulseCount: 0,
+                        lastPulse: firebase.firestore.FieldValue.delete()
+                    });
+                });
+
+                // 2. Clear history (Batch limit 500)
+                const historySnap = await db.collection('spark_history').limit(400).get();
+                historySnap.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                alert("All spark data and history cleared!");
+            } catch (e) {
+                console.error("Error clearing sparks:", e);
+                alert("Failed to clear sparks: " + e.message);
+            }
+        }
+
+        function initPulseMonitor() {
+            const monitor = document.getElementById('pulse-monitor');
+            const log = document.getElementById('pulse-log');
+            
+            // Listen to spark_history (Real-time updates)
+            db.collection('spark_history').orderBy('timestamp', 'desc').limit(100).onSnapshot((snap) => {
+                const pulses = [];
+                snap.forEach(doc => {
+                    pulses.push(doc.data());
+                });
+
+                if (pulses.length > 0) {
+                    monitor.style.display = 'block';
+                    log.innerHTML = '';
+                    
+                    pulses.forEach(p => {
+                        const date = new Date(p.timestamp);
+                        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const dateStr = date.toLocaleDateString();
+                        
+                        const item = document.createElement('div');
+                        item.style.cssText = "padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--accent-warm); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;";
+                        
+                        // Newest entry gets the pulse glow
+                        if (p.timestamp === pulses[0].timestamp) {
+                            item.style.animation = "pulseGlow 2s infinite";
+                        }
+
+                        item.innerHTML = `
+                            <div>
+                                <span style="color: var(--accent-warm); font-weight: bold;">Spark Received ✨</span>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">${dateStr} at ${timeStr}</div>
+                            </div>
+                            <div style="font-size: 0.8rem; background: rgba(255, 154, 158, 0.1); padding: 4px 10px; border-radius: 20px;">
+                                By: ${p.userName || "Friend"}
+                            </div>
+                        `;
+                        log.appendChild(item);
+
+                        // Trigger visual alert if new pulse just arrived
+                        if (p.timestamp > lastPulseTime && lastPulseTime !== 0) {
+                            if (typeof SoundFX !== 'undefined') SoundFX.jackpot();
+                            showToast(`New Spark from ${p.userName || "Friend"}! ✨`, "success");
+                        }
+                    });
+                    lastPulseTime = pulses[0].timestamp;
+                } else {
+                    log.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); opacity: 0.5;">Waiting for a spark...</div>`;
+                }
+            });
+        }
+        
+        // Add PulseGlow animation
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes pulseGlow {
+                0% { box-shadow: 0 0 5px rgba(255, 154, 158, 0.2); }
+                50% { box-shadow: 0 0 20px rgba(255, 154, 158, 0.4); }
+                100% { box-shadow: 0 0 5px rgba(255, 154, 158, 0.2); }
+            }
+        `;
+        document.head.appendChild(style);
+
         /* Image Processor (Compression & Thumbnails) */
         async function processImage(file, type = 'thumb') {
             return new Promise((resolve) => {
@@ -955,6 +1076,15 @@
 
         async function loadConfigs() {
             try {
+                // EmailJS Config
+                const emailDoc = await db.collection('config').doc('emailjs').get();
+                if (emailDoc.exists) {
+                    const data = emailDoc.data();
+                    document.getElementById('emailjs-public-key').value = data.publicKey || '';
+                    document.getElementById('emailjs-service-id').value = data.serviceID || '';
+                    document.getElementById('emailjs-template-id').value = data.templateID || '';
+                }
+
                 // Home Config
                 const homeDoc = await db.collection('config').doc('home').get();
                 if (homeDoc.exists) {
@@ -1074,6 +1204,21 @@
             
             videoInput.value = '';
             thumbInput.value = '';
+        }
+
+        function saveEmailJSConfig() {
+            const pub = document.getElementById('emailjs-public-key').value.trim();
+            const serv = document.getElementById('emailjs-service-id').value.trim();
+            const temp = document.getElementById('emailjs-template-id').value.trim();
+            
+            db.collection('config').doc('emailjs').set({
+                publicKey: pub,
+                serviceID: serv,
+                templateID: temp,
+                updatedAt: Date.now()
+            }, { merge: true }).then(() => {
+                document.getElementById('emailjs-status').textContent = "Config Saved!";
+            });
         }
 
         function updateSecretKey() {

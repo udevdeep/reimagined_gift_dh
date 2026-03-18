@@ -12,6 +12,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- EmailJS SDK (Latest @emailjs/browser) -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
         /* --- Global Selection Prevention --- */
         .heart-orb, 
@@ -499,6 +501,9 @@
         <button id="reel-close" onclick="closeReel()" style="position:relative; z-index:2; display:none; margin-top: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--text-main); padding: 10px 30px; border-radius: 30px; cursor: pointer;">Close ✨</button>
     </div>
 
+    <!-- Global Spark FAB (Feeling Low Only) -->
+    <button class="spark-fab" onclick="sendSpark()" title="Send a Spark">Send a Spark ✨</button>
+
     <!-- Top Nav (Simplified) -->
     <div style="position: fixed; top: 20px; left: 20px; z-index: 100;">
         <a href="index.html" style="text-decoration: none; color: rgba(255,255,255,0.6); font-weight: bold;">← Back to the Archive</a>
@@ -518,7 +523,7 @@
             </header>
 
             <div class="heartbeat-container">
-                <div class="heart-orb" id="heart-btn">❤️</div>
+                <div class="heart-orb" id="heart-btn">💛</div>
                 <p class="heart-text">Hold to follow the rhythm</p>
             </div>
         </div>
