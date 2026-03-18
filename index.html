@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Dh Archive | From Our Time in College</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Firebase SDKs (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+</head>
+<body class="index-page">
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="loader-content">Loading the archive…</div>
+    </div>
+
+    <!-- Security Lock Overlay -->
+    <div id="lock-overlay">
+        <div class="lock-card">
+            <h2>Sign in</h2>
+            <p>Sign in to view this collection.</p>
+            <button class="btn-primary" id="google-login-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 20px;">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20">
+                Sign in with Google
+            </button>
+            <p id="lock-msg" style="margin-top:15px; font-size: 0.9rem; min-height: 1.2em;"></p>
+        </div>
+    </div>
+
+    <!-- Background Video -->
+    <div class="bg-video-container">
+        <video id="intro-video" autoplay muted loop playsinline poster="assets/gallery_photos/FE20F1DA-F363-4AAD-8CB6-B356F68544CC_1_105_c.jpeg">
+            <source src="assets/intro_video.mp4" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="index.html" class="nav-brand">dh</a>
+        <div class="nav-links">
+            <a href="memories.html">Our Timeline</a>
+            <a href="gallery.html">Evidence</a>
+            <a href="jokes.html">Jokes</a>
+            <a href="feeling-low.html" class="nav-low">Feeling Low?</a>
+        </div>
+        <button class="theme-toggle-btn" id="theme-toggle">Barbie Mode</button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container hero-container hide-scrollbar">
+        
+        <!-- Letter Section: Cinematic Narrative -->
+        <section id="archive-note-section" class="cinematic-letter">
+            <div class="cinematic-content">
+                <div class="journal-header">The Archive</div>
+                
+                <div id="letter-content" class="journal-body">
+                    <!-- Letter text will be injected here -->
+                    Loading...
+                </div>
+                
+                <div id="letter-closing-line" class="journal-closing">
+                    <!-- Closing line will be injected here -->
+                </div>
+
+                <div class="journal-footer">Documenting the moments that made us.</div>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

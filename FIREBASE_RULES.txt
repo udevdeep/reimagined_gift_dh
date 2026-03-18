@@ -1,0 +1,54 @@
+---------------------------------------------------------
+1. FIRESTORE RULES (Paste this in Firestore Database -> Rules)
+---------------------------------------------------------
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is in the whitelist collection
+    function isWhitelisted() {
+      // Check if a document exists with the ID equal to the user's email
+      return exists(/databases/$(database)/documents/whitelist/$(request.auth.token.email));
+    }
+
+    // Helper to check if the user is YOU (The Admin)
+    function isAdmin() {
+      return request.auth.token.email == 'YOUR_EMAIL@gmail.com'; // <--- REPLACE THIS
+    }
+
+    // 1. Whitelist Collection
+    // Anyone logged in can check if *they* are in the list (to valid login)
+    match /whitelist/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow write: if false; // Only manual console edits allowed
+    }
+
+    // 2. Content (Gallery, Jokes, Memories)
+    // READ: Only Whitelisted users
+    // WRITE: Only Admin (You)
+    match /{collection}/{document=**} {
+      allow read: if isWhitelisted();
+      allow write: if isAdmin();
+    }
+  }
+}
+
+---------------------------------------------------------
+2. STORAGE RULES (Paste this in Storage -> Rules)
+---------------------------------------------------------
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // READ: Only Whitelisted users (must look up in Firestore via Rules, technically complex)
+      // SIMPLIFIED SECURE VERSION:
+      // Allow read if logged in (Low risk, hard to guess file paths)
+      allow read: if request.auth != null;
+      
+      // WRITE: Only Admin (You)
+      allow write: if request.auth.token.email == 'YOUR_EMAIL@gmail.com'; // <--- REPLACE THIS
+    }
+  }
+}

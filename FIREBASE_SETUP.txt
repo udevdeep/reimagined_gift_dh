@@ -1,0 +1,41 @@
+# How to Activate Google Login
+
+To make the Google Login button work, you need to link this website to a free Firebase project.
+
+## 1. Create a Firebase Project
+1. Go to [https://console.firebase.google.com/](https://console.firebase.google.com/) and log in with your Google account.
+2. Click **"Add project"** (or "Create a project").
+3. Name it "Reimagined Gift" (or anything you like).
+4. Disable Google Analytics (optional, simpler without it).
+5. Click **"Create Project"**.
+
+## 2. Enable Google Authentication
+1. In your new project dashboard, click **"Build"** -> **"Authentication"** in the left sidebar.
+2. Click **"Get Started"**.
+3. Select **"Google"** from the list of Sign-in providers.
+4. Click **"Enable"**.
+5. Select your support email from the dropdown.
+6. Click **"Save"**.
+
+## 3. Register Your App
+1. Click the **Gear icon (Settings)** next to "Project Overview" in the top left.
+2. Scroll down to the "Your apps" section.
+3. Click the **Web icon** (</>).
+4. Nickname the app (e.g., "Gift Site").
+5. Click **"Register app"**.
+
+## 4. Get Your Config Code
+1. Firebase will show you a code block with `const firebaseConfig = { ... };`.
+2. **Copy the values** inside that object (apiKey, authDomain, etc.).
+3. Open `js/main.js` in your project.
+4. Find the `FIREBASE_CONFIG` object at the top.
+5. **Paste your values** there to replace the placeholders.
+
+## 5. Important: Authorize Your Domains
+By default, Google Login only works on `localhost`.
+1. Go back to **Authentication** -> **Settings** -> **Authorized domains**.
+2. Add your GitHub Pages domain (e.g., `yourusername.github.io`).
+3. If testing locally on a specific IP, add that too.
+
+---
+**Done!** Your "Sign in with Google" button will now work.

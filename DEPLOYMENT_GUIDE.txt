@@ -1,0 +1,46 @@
+# 🚀 How to Deploy Your Gift to GitHub Pages
+
+Since your data (photos, memories) is now in the Firebase Cloud, your website code is very small and easy to host on GitHub Pages for free.
+
+## 1. Prepare the Code
+1.  **Test Locally:** Run `python3 -m http.server` and check `localhost:8000`. 
+    *   Make sure you can log in.
+    *   Make sure Gallery/Memories load from the cloud.
+2.  **Cleanup (Recommended):** 
+    *   You can delete the heavy image files inside `assets/gallery_photos/` and `assets/memories_photos/` **IF** you have already uploaded them to Firebase Storage via the Admin Panel.
+    *   Keep the folders themselves or empty placeholders if you want, but removing the actual `.jpg/.mp4` files will make your upload to GitHub much faster.
+
+## 2. Push to GitHub
+1.  Go to [github.com](https://github.com) and create a **New Repository**.
+    *   Name it something discreet (e.g., `project-aurora` or `archive-24`).
+    *   Set it to **Public** (required for free Pages) or **Private** (if you have Pro). *Note: Since we have a login system, Public is fine, but the code is visible.*
+2.  Open your terminal in the project folder.
+3.  Run these commands:
+    ```bash
+    git init
+    git add .
+    git commit -m "Initial commit - Gift Site"
+    git branch -M main
+    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+    git push -u origin main
+    ```
+
+## 3. Activate GitHub Pages
+1.  Go to your repository **Settings** tab on GitHub.
+2.  Click **Pages** in the left sidebar.
+3.  Under **Build and deployment** -> **Source**, select **Deploy from a branch**.
+4.  Under **Branch**, select `main` and `/ (root)`.
+5.  Click **Save**.
+
+## 4. Final Security Step (Firebase)
+1.  Wait about 1-2 minutes. GitHub will give you a link (e.g., `https://yourname.github.io/project-aurora/`).
+2.  Copy that link.
+3.  Go to **Firebase Console** -> **Authentication** -> **Settings** -> **Authorized Domains**.
+4.  **Add Domain**: Paste your GitHub Pages domain (e.g., `yourname.github.io`).
+    *   *If you skip this, the Google Login button will fail on the live site.*
+
+## 5. Send Her the Link
+Send her the link. She will see the lock screen.
+*   She logs in with her Gmail.
+*   Firebase checks the whitelist.
+*   She gets access to the safe space you built.

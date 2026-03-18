@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Dh Archive | Admin</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <style>
+        body { 
+            visibility: visible; 
+            opacity: 1; 
+            padding: 40px 20px; 
+            background: var(--bg-color); 
+            color: var(--text-main);
+            user-select: auto;
+            -webkit-user-select: auto;
+        }
+        
+        .admin-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .admin-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .admin-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 24px;
+            margin-bottom: 40px;
+            border: 1px solid var(--card-border);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            box-shadow: var(--glass-shadow);
+        }
+
+        h2 { 
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+            color: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label { 
+            display: block; 
+            margin: 20px 0 8px; 
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        input[type="text"], 
+        input[type="number"], 
+        input[type="date"], 
+        input[type="datetime-local"], 
+        input[type="password"],
+        textarea, 
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            border-radius: 12px;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        textarea {
+            resize: vertical;
+            white-space: pre-wrap; /* Match site formatting */
+        }
+
+        /* Themed Textareas for Preview-like feel */
+        .themed-textarea {
+            font-family: var(--font-heading);
+            font-style: italic;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .btn-admin {
+            margin-top: 25px;
+            padding: 12px 24px;
+            background: var(--accent-primary);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: var(--font-body);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-admin:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--accent-glow);
+            opacity: 0.95;
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
+        }
+
+        .status { 
+            margin-left: 15px; 
+            font-size: 0.85rem;
+            color: var(--accent-secondary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-top: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        #auth-container {
+            text-align: center;
+            padding-top: 100px;
+        }
+
+        #login-btn {
+            background: white;
+            color: black;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        /* Video Review Modal */
+        #video-review-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .review-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 24px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--card-border);
+            box-shadow: var(--glass-shadow);
+        }
+        #review-video-player {
+            width: 100%;
+            max-height: 300px;
+            background: #000;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .manage-item {
+            transition: background 0.2s;
+        }
+        .manage-item:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-container">
+        
+        <div class="admin-header">
+            <h1>Admin Dashboard</h1>
+            <p>Manage your archive content securely.</p>
+        </div>
+
+        <!-- Video Review Modal -->
+        <div id="video-review-modal">
+            <div class="review-card">
+                <h2 id="review-title">Review Video</h2>
+                <p id="review-filename" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;"></p>
+                <video id="review-video-player" controls></video>
+                <label style="text-align: left;">Date Taken:</label>
+                <input type="datetime-local" id="review-date-input">
+                <button id="review-confirm-btn" class="btn-admin" style="width: 100%;">Confirm & Next</button>
+            </div>
+        </div>
+
+        <!-- Login -->
+        <div id="auth-container">
+            <button id="login-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20">
+                Log In with Google
+            </button>
+            <p id="auth-status" style="margin-top: 20px; color: var(--text-muted);"></p>
+        </div>
+
+        <div id="admin-panel" style="display: none;">
+            
+            <!-- Gallery Upload -->
+            <div class="admin-section">
+                <h2>📸 Upload to Gallery</h2>
+                <label>Select Photo/Video (Multiple):</label>
+                <input type="file" id="gallery-file" multiple>
+                
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                    <input type="checkbox" id="gallery-private" style="width: auto;">
+                    <label style="margin: 0;">Mark as Private?</label>
+                </div>
+                
+                <button class="btn-admin" onclick="uploadGallery()">Upload All</button>
+                <div class="progress-bar" id="gallery-progress"><div class="progress-fill"></div></div>
+                <span class="status" id="gallery-status"></span>
+            </div>
+
+            <!-- Add Memory -->
+            <div class="admin-section">
+                <h2>🧠 Add Memory</h2>
+                <label>Memory Title:</label>
+                <input type="text" id="mem-title" placeholder="e.g. That night at the beach">
+                
+                <label>Memory Description (Follows site formatting):</label>
+                <textarea id="mem-text" rows="4" placeholder="Describe the moment..."></textarea>
+                
+                <div class="grid-2">
+                    <div>
+                        <label>Date:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="date" id="mem-date">
+                            <button type="button" class="btn-admin btn-secondary" onclick="document.getElementById('mem-date').value = ''" style="margin: 0; padding: 8px 12px;">✕</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Theme Color (Optional):</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="mem-color" value="#ffffff" style="padding: 2px; height: 45px; cursor: pointer; border-radius: 8px;">
+                            <button type="button" class="btn-admin btn-secondary" onclick="document.getElementById('mem-color').value = '#ffffff'" style="margin: 0; padding: 8px 12px;">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div>
+                        <label>Images (Multiple):</label>
+                        <input type="file" id="mem-images" multiple accept="image/*">
+                    </div>
+                    <div>
+                        <label>Video (Optional):</label>
+                        <input type="file" id="mem-video" accept="video/*">
+                    </div>
+                </div>
+
+                <label>Audio Track (Optional):</label>
+                <input type="file" id="mem-audio" accept="audio/*">
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                    <input type="checkbox" id="mem-private" style="width: auto;">
+                    <label style="margin: 0;">Mark as Private?</label>
+                </div>
+
+                <button class="btn-admin" onclick="uploadMemory()">Create Memory</button>
+                <div class="progress-bar" id="mem-progress"><div class="progress-fill"></div></div>
+                <span class="status" id="mem-status"></span>
+            </div>
+
+            <!-- Edit Letter -->
+            <div class="admin-section">
+                <h2>💌 Edit Archive Note</h2>
+                <label>Note Body (Playfair Display / Serif):</label>
+                <textarea id="letter-input" class="themed-textarea" rows="10" placeholder="Write your main message..."></textarea>
+                
+                <label>Emotional Closing Line:</label>
+                <textarea id="letter-closing-input" class="themed-textarea" rows="2" placeholder="e.g. Somehow, through all the chaos, this friendship stayed."></textarea>
+                
+                <button class="btn-admin" onclick="updateLetter()">Save Archive Note</button>
+                <span class="status" id="letter-status"></span>
+            </div>
+
+            <!-- Manage Safe Space -->
+            <div class="admin-section">
+                <h2>🧘‍♀️ Resonance Archive</h2>
+                <label>'Feeling Alone' Message (Dynamic):</label>
+                <textarea id="alone-input" class="themed-textarea" rows="6" placeholder="Write something warm and timeless..."></textarea>
+                <button class="btn-admin" onclick="updateAloneText()">Save Resonance Message</button>
+                
+                <label style="margin-top: 30px;">Upload Calm Sound (Audio):</label>
+                <input type="file" id="calm-audio-file" accept="audio/*">
+                <button class="btn-admin btn-secondary" onclick="uploadCalmSound()">Update Audio</button>
+                <span class="status" id="low-status"></span>
+            </div>
+
+            <!-- Add Joke -->
+            <div class="admin-section">
+                <h2>😂 Add Joke</h2>
+                <div class="grid-2">
+                    <div>
+                        <label>Title:</label>
+                        <input type="text" id="joke-title" placeholder="e.g. The Scooter Incident">
+                    </div>
+                    <div>
+                        <label>Size Tier (1-8):</label>
+                        <input type="number" id="joke-size" value="2" min="1" max="8">
+                    </div>
+                </div>
+                <label>Text:</label>
+                <textarea id="joke-text" rows="3"></textarea>
+                <button class="btn-admin" onclick="addJoke()">Add Joke</button>
+                <span class="status" id="joke-status"></span>
+            </div>
+
+            <!-- Home Video -->
+            <div class="admin-section">
+                <h2>🏠 Update Home Video</h2>
+                <div class="grid-2">
+                    <div>
+                        <label>Select Video (MP4/MOV):</label>
+                        <input type="file" id="home-video" accept="video/*">
+                    </div>
+                    <div>
+                        <label>Select Thumbnail (Image):</label>
+                        <input type="file" id="home-thumb" accept="image/*">
+                    </div>
+                </div>
+
+                <button class="btn-admin" onclick="uploadHomeVideo()">Update Home Content</button>
+                <span class="status" id="home-status"></span>
+            </div>
+
+            <!-- Secret Key -->
+            <div class="admin-section">
+                <h2>🔑 Secret Key</h2>
+                <label>Current Password (for Private Access):</label>
+                <input type="text" id="secret-key-input" placeholder="e.g. bumblebee">
+                <button class="btn-admin" onclick="updateSecretKey()">Update Key</button>
+                <span class="status" id="secret-status"></span>
+            </div>
+
+            <!-- Manage Content -->
+            <div class="admin-section">
+                <h2>🗑️ Manage Content</h2>
+                <label>Select Collection:</label>
+                <select id="manage-collection">
+                    <option value="gallery">Gallery</option>
+                    <option value="jokes">Jokes</option>
+                    <option value="memories">Memories</option>
+                </select>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
+                    <button class="btn-admin btn-secondary" onclick="loadContentList()">Load Items</button>
+                    <button class="btn-admin btn-secondary" id="select-all-btn" onclick="toggleSelectAll()" style="display: none;">Select All</button>
+                    <button class="btn-admin" id="delete-selected-btn" onclick="deleteSelectedItems()" style="display: none; background: #ff4444; color: white;">Delete Selected (<span id="select-count">0</span>)</button>
+                </div>
+                <div id="manage-list" style="margin-top: 20px; max-height: 400px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 12px; background: rgba(0,0,0,0.1);"></div>
+            </div>
+
+            <!-- Migration Tool -->
+            <div class="admin-section" style="border-style: dashed; border-color: #ffcc00; background: rgba(255, 204, 0, 0.05);">
+                <h2 style="color: #ffcc00;">🚚 Bulk Migration</h2>
+                <p style="font-size: 0.8rem; color: #ffcc00; opacity: 0.8;">Warning: This will upload data from your local JSON files to Firestore.</p>
+                <button class="btn-admin" onclick="migrateAll()" style="background: #ffcc00; color: #000;">Start Migration</button>
+                <div id="migration-log" style="font-family: monospace; font-size: 0.75rem; margin-top: 15px; background: #000; padding: 15px; height: 120px; overflow-y: auto; border-radius: 12px; border: 1px solid #333;"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Initialize Firebase manually since main.js might skip it on admin page
+        if (!firebase.apps.length) {
+            firebase.initializeApp(FIREBASE_CONFIG);
+            try {
+                firebase.firestore().settings({ experimentalForceLongPolling: true, merge: true });
+            } catch(se) { console.warn("Firestore settings already set"); }
+        }
+        
+        const app = firebase.app(); 
+        const auth = app.auth();
+        const db = app.firestore();
+        const storage = app.storage();
+
+        /* Auth */
+        const loginBtn = document.getElementById('login-btn');
+        loginBtn.addEventListener('click', () => {
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        });
+
+        auth.onAuthStateChanged(user => {
+            if(user) {
+                db.collection('whitelist').where('email', '==', user.email).get().then(snap => {
+                    if(!snap.empty) {
+                        document.getElementById('auth-container').style.display = 'none';
+                        document.getElementById('admin-panel').style.display = 'block';
+                        
+                        // Pre-load Letter
+                        db.collection('config').doc('letter').get().then(d => {
+                            if(d.exists) {
+                                document.getElementById('letter-input').value = d.data().text || '';
+                                document.getElementById('letter-closing-input').value = d.data().closingLine || '';
+                            }
+                        });
+
+                        // Pre-load Safe Space
+                        db.collection('config').doc('feelingLow').get().then(d => {
+                            if(d.exists) document.getElementById('alone-input').value = d.data().aloneText || '';
+                        });
+                    } else {
+                        document.getElementById('auth-status').textContent = "Access denied: " + user.email + " is not whitelisted.";
+                        auth.signOut();
+                    }
+                });
+            }
+        });
+
+        /* Image Processor (Compression & Thumbnails) */
+        async function processImage(file, type = 'thumb') {
+            return new Promise((resolve) => {
+                if (!file.type.startsWith('image')) { resolve(null); return; } 
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        // Logic for high-res vs thumb
+                        const MAX_DIM = (type === 'thumb') ? 400 : 2500;
+                        if (width > height) {
+                            if (width > MAX_DIM) {
+                                height *= MAX_DIM / width;
+                                width = MAX_DIM;
+                            }
+                        } else {
+                            if (height > MAX_DIM) {
+                                width *= MAX_DIM / height;
+                                height = MAX_DIM;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const quality = (type === 'thumb') ? 0.6 : 0.85; // 85% is perfect for "Originals"
+                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        /* Video Metadata Helper (Apple & Standard) */
+        async function getVideoMetadata(file) {
+            const scanBuffer = (buffer) => {
+                // 1. Text Scan for Apple/ISO Date & Location
+                // Apple writes date as "YYYY-MM-DDTHH:MM:SS+HHMM"
+                // Location as "+27.1234+088.5678/"
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(buffer); // Best effort decode
+
+                // Regex for Apple Date
+                const dateRegex = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}/;
+                const dateMatch = text.match(dateRegex);
+                
+                // Regex for GPS (ISO 6709 standard used by Apple)
+                // Looks like: +27.5500+127.9000/
+                const gpsRegex = /([+-]\d{2,3}\.\d+)([+-]\d{2,3}\.\d+)\//;
+                const gpsMatch = text.match(gpsRegex);
+
+                let result = {};
+                
+                if (dateMatch) {
+                    console.log("Found Apple Date:", dateMatch[0]);
+                    result.date = dateMatch[0]; // ISO string works with Date constructor
+                }
+
+                if (gpsMatch) {
+                    console.log("Found GPS:", gpsMatch[0]);
+                    result.lat = parseFloat(gpsMatch[1]);
+                    result.lon = parseFloat(gpsMatch[2]);
+                }
+
+                if (result.date || result.lat) return result;
+
+                // 2. Binary Scan for 'mvhd' (Fallback Date) & '©xyz' (GPS)
+                const view = new DataView(buffer);
+                for (let i = 0; i < view.byteLength - 4; i++) {
+                    // Check for 'mvhd'
+                    if (view.getUint8(i) === 109 && view.getUint8(i+1) === 118 && view.getUint8(i+2) === 104 && view.getUint8(i+3) === 100) {
+                        const version = view.getUint8(i+4);
+                        const timeOffset = i + 4 + 1 + 3;
+                        let macTime;
+                        if(version === 1) {
+                            const high = view.getUint32(timeOffset);
+                            const low = view.getUint32(timeOffset + 4);
+                            macTime = (high * Math.pow(2, 32)) + low;
+                        } else {
+                            macTime = view.getUint32(timeOffset);
+                        }
+                        const unixTime = (macTime - 2082844800) * 1000;
+                        if (unixTime > 0 && !result.date) {
+                            result.date = new Date(unixTime).toISOString();
+                            console.log("Found mvhd Date:", result.date);
+                        }
+                    }
+
+                    // Check for '©xyz' (GPS) -> 0xA9, 120, 121, 122
+                    if (view.getUint8(i) === 0xA9 && view.getUint8(i+1) === 120 && view.getUint8(i+2) === 121 && view.getUint8(i+3) === 122) {
+                        // The string usually follows immediately or after a small header.
+                        // We'll scan the next 50 bytes for a '+' or '-' character.
+                        const subLen = Math.min(50, view.byteLength - i);
+                        const subText = decoder.decode(buffer.slice(i, i + subLen));
+                        // ISO 6709 regex: ([+-]\d+\.\d+)([+-]\d+\.\d+)
+                        const isoMatch = subText.match(/([+-]\d{2,3}\.\d+)([+-]\d{2,3}\.\d+)/);
+                        if (isoMatch && !result.lat) {
+                            console.log("Found ©xyz GPS:", isoMatch[0]);
+                            result.lat = parseFloat(isoMatch[1]);
+                            result.lon = parseFloat(isoMatch[2]);
+                        }
+                    }
+                }
+                
+                if (result.date || result.lat) return result;
+                return null;
+            };
+
+            // Scan Start
+            let blob = file.slice(0, 256 * 1024);
+            let buffer = await blob.arrayBuffer();
+            let meta = scanBuffer(buffer);
+            if (meta) return meta;
+
+            // Scan End (some cameras write meta at end)
+            if (file.size > 256 * 1024) {
+                blob = file.slice(file.size - (256 * 1024), file.size);
+                buffer = await blob.arrayBuffer();
+                meta = scanBuffer(buffer);
+                if (meta) return meta;
+            }
+
+            return {};
+        }
+
+        /* Gallery Upload */
+        let videoReviewQueue = [];
+        let reviewedDates = {};
+
+        async function uploadGallery() {
+            const fileInput = document.getElementById('gallery-file');
+            const files = Array.from(fileInput.files);
+            
+            if(files.length === 0) return alert("Select at least one file");
+
+            // Reset review state
+            videoReviewQueue = [];
+            reviewedDates = {};
+
+            // 1. Identify all videos for review
+            for (const file of files) {
+                if (file.type.startsWith('video')) {
+                    videoReviewQueue.push(file);
+                }
+            }
+
+            if (videoReviewQueue.length > 0) {
+                processVideoReviewQueue();
+            } else {
+                startGalleryUpload();
+            }
+        }
+
+        function processVideoReviewQueue() {
+            if (videoReviewQueue.length === 0) {
+                document.getElementById('video-review-modal').style.display = 'none';
+                startGalleryUpload();
+                return;
+            }
+
+            const file = videoReviewQueue[0];
+            const modal = document.getElementById('video-review-modal');
+            const player = document.getElementById('review-video-player');
+            const dateInput = document.getElementById('review-date-input');
+            const confirmBtn = document.getElementById('review-confirm-btn');
+            
+            modal.style.display = 'flex';
+            document.getElementById('review-title').textContent = `Review Video (${videoReviewQueue.length} Left)`;
+            document.getElementById('review-filename').textContent = file.name;
+            
+            const fileUrl = URL.createObjectURL(file);
+            player.src = fileUrl;
+            player.load();
+            
+            // Try to pre-fill with metadata or last modified
+            getVideoMetadata(file).then(meta => {
+                const dateToUse = meta.date ? new Date(meta.date) : new Date(file.lastModified);
+                const offset = dateToUse.getTimezoneOffset() * 60000;
+                const localISODate = new Date(dateToUse - offset).toISOString().slice(0, 16);
+                dateInput.value = localISODate;
+                
+                // Store lat/lon if found
+                if (meta.lat && meta.lon) {
+                    reviewedDates[file.name + '_lat'] = meta.lat;
+                    reviewedDates[file.name + '_lon'] = meta.lon;
+                }
+            });
+
+            confirmBtn.onclick = () => {
+                if (dateInput.value) {
+                    reviewedDates[file.name] = new Date(dateInput.value).toISOString();
+                } else {
+                    reviewedDates[file.name] = new Date(file.lastModified).toISOString();
+                }
+                URL.revokeObjectURL(fileUrl);
+                videoReviewQueue.shift();
+                processVideoReviewQueue();
+            };
+        }
+
+        async function startGalleryUpload() {
+            const fileInput = document.getElementById('gallery-file');
+            const isPrivate = document.getElementById('gallery-private').checked;
+            const files = Array.from(fileInput.files);
+            
+            const status = document.getElementById('gallery-status');
+            const progress = document.getElementById('gallery-progress').querySelector('.progress-fill');
+            document.getElementById('gallery-progress').style.display = 'block';
+            status.textContent = `Preparing ${files.length} files...`;
+
+            let completed = 0;
+            const total = files.length;
+
+            // Parallel Processing helper
+            async function uploadFile(file) {
+                let finalDate = reviewedDates[file.name] || null;
+                let lat = reviewedDates[file.name + '_lat'] || null;
+                let lon = reviewedDates[file.name + '_lon'] || null;
+
+                try {
+                    if (file.type.startsWith('image')) {
+                        // Extract EXIF first (on the original raw file)
+                        await new Promise(resolve => {
+                            EXIF.getData(file, function() {
+                                const exifDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime");
+                                if(exifDate && !finalDate) {
+                                    const [d, t] = exifDate.split(' ');
+                                    finalDate = d.replace(/:/g, '-') + 'T' + t;
+                                }
+                                const gpsLat = EXIF.getTag(this, "GPSLatitude");
+                                const gpsLon = EXIF.getTag(this, "GPSLongitude");
+                                if (gpsLat && gpsLon && !lat) {
+                                    const toDD = (dms, ref) => {
+                                        let dd = dms[0] + dms[1]/60 + dms[2]/3600;
+                                        if (ref === "S" || ref === "W") dd *= -1;
+                                        return dd;
+                                    };
+                                    lat = toDD(gpsLat, EXIF.getTag(this, "GPSLatitudeRef"));
+                                    lon = toDD(gpsLon, EXIF.getTag(this, "GPSLongitudeRef"));
+                                }
+                                resolve();
+                            });
+                        });
+                    }
+                } catch(e) { console.warn("Meta extract error", e); }
+
+                if (!finalDate) finalDate = new Date(file.lastModified).toISOString();
+
+                // 1. Process / Compress (Parallel)
+                let mainBlob = file;
+                let thumbBlob = null;
+
+                if (file.type.startsWith('image')) {
+                    [mainBlob, thumbBlob] = await Promise.all([
+                        processImage(file, 'original'),
+                        processImage(file, 'thumb')
+                    ]);
+                }
+
+                // 2. Upload to Storage
+                const timestamp = Date.now() + Math.floor(Math.random() * 1000); // Add jitter for parallel safety
+                const storageRef = storage.ref(`gallery/${timestamp}_${file.name}`);
+                const task = await storageRef.put(mainBlob);
+                const url = await task.ref.getDownloadURL();
+
+                let thumbUrl = null;
+                if (thumbBlob) {
+                    const thumbRef = storage.ref(`gallery/thumb_${timestamp}_${file.name}`);
+                    const thumbTask = await thumbRef.put(thumbBlob);
+                    thumbUrl = await thumbTask.ref.getDownloadURL();
+                }
+
+                // 3. Save to Firestore
+                await db.collection('gallery').add({
+                    src: url,
+                    thumb: thumbUrl,
+                    type: file.type.startsWith('video') ? 'video' : 'image',
+                    date: finalDate,
+                    lat: lat,
+                    lon: lon,
+                    private: isPrivate,
+                    filename: file.name,
+                    timestamp: Date.now()
+                });
+
+                completed++;
+                progress.style.width = (completed / total * 100) + '%';
+                status.textContent = `Uploaded ${completed}/${total}...`;
+            }
+
+            // Execute in batches of 5 to avoid browser/network crash
+            const CONCURRENCY = 5;
+            for (let i = 0; i < files.length; i += CONCURRENCY) {
+                const batch = files.slice(i, i + CONCURRENCY);
+                await Promise.all(batch.map(f => uploadFile(f)));
+            }
+
+            status.textContent = "All files uploaded successfully!";
+            fileInput.value = '';
+            setTimeout(() => { progress.style.width = '0%'; }, 2000);
+        }
+
+        /* Add Joke */
+        function addJoke() {
+            const title = document.getElementById('joke-title').value;
+            const text = document.getElementById('joke-text').value;
+            const tier = parseInt(document.getElementById('joke-size').value);
+            
+            db.collection('jokes').add({
+                title, text, sizeTier: tier
+            }).then(() => {
+                document.getElementById('joke-status').textContent = "Joke Added!";
+                document.getElementById('joke-title').value = '';
+                document.getElementById('joke-text').value = '';
+            });
+        }
+
+        function getVideoThumbnail(file) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = URL.createObjectURL(file);
+                video.muted = true;
+                video.playsInline = true;
+                video.onloadedmetadata = () => {
+                    video.currentTime = 1; // Capture at 1 second
+                };
+                video.onseeked = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                        URL.revokeObjectURL(video.src);
+                    }, 'image/jpeg', 0.7);
+                };
+                video.onerror = () => resolve(null);
+            });
+        }
+
+        async function uploadMemory() {
+            const title = document.getElementById('mem-title').value;
+            const text = document.getElementById('mem-text').value;
+            const date = document.getElementById('mem-date').value;
+            const themeColor = document.getElementById('mem-color').value;
+            const imageFiles = Array.from(document.getElementById('mem-images').files);
+            const videoFile = document.getElementById('mem-video').files[0];
+            const audioFile = document.getElementById('mem-audio').files[0];
+            const isPrivate = document.getElementById('mem-private').checked;
+
+            if(!title) return alert("Title is required.");
+
+            const status = document.getElementById('mem-status');
+            const progress = document.getElementById('mem-progress').querySelector('.progress-fill');
+            document.getElementById('mem-progress').style.display = 'block';
+            status.textContent = "Processing and uploading...";
+
+            let imageUrls = [];
+            let thumbUrls = [];
+            let videoUrl = null;
+            let audioUrl = null;
+
+            const totalSteps = imageFiles.length + (videoFile ? 2 : 0) + (audioFile ? 1 : 0);
+            let completedSteps = 0;
+
+            const updateProgress = () => {
+                completedSteps++;
+                progress.style.width = (completedSteps / totalSteps * 100) + '%';
+            };
+
+            // 1. Parallel Image Processing & Upload
+            await Promise.all(imageFiles.map(async (file) => {
+                const timestamp = Date.now() + Math.floor(Math.random() * 1000);
+                
+                // Process Thumb & Original in Parallel
+                const [mainBlob, thumbBlob] = await Promise.all([
+                    processImage(file, 'original'),
+                    processImage(file, 'thumb')
+                ]);
+
+                // Upload both in Parallel
+                const [mainUrl, thumbUrl] = await Promise.all([
+                    (async () => {
+                        const ref = storage.ref(`memories/${timestamp}_${file.name}`);
+                        const snap = await ref.put(mainBlob);
+                        return snap.ref.getDownloadURL();
+                    })(),
+                    (async () => {
+                        const ref = storage.ref(`memories/thumb_${timestamp}_${file.name}`);
+                        const snap = await ref.put(thumbBlob);
+                        return snap.ref.getDownloadURL();
+                    })()
+                ]);
+
+                imageUrls.push(mainUrl);
+                thumbUrls.push(thumbUrl);
+                updateProgress();
+            }));
+
+            // 2. Upload Video + Auto-Thumb
+            if(videoFile) {
+                const timestamp = Date.now();
+                // Upload Video
+                const vRef = storage.ref(`memories/${timestamp}_${videoFile.name}`);
+                const vSnap = await vRef.put(videoFile);
+                videoUrl = await vSnap.ref.getDownloadURL();
+                updateProgress();
+
+                // Generate & Upload Thumb
+                try {
+                    const tBlob = await getVideoThumbnail(videoFile);
+                    if(tBlob) {
+                        const tRef = storage.ref(`memories/vthumb_${timestamp}.jpg`);
+                        const tSnap = await tRef.put(tBlob);
+                        const tUrl = await tSnap.ref.getDownloadURL();
+                        thumbUrls.unshift(tUrl); // Add to beginning
+                    }
+                } catch(e) { console.warn("Thumb gen failed", e); }
+                updateProgress();
+            }
+
+            // 3. Upload Audio
+            if(audioFile) {
+                const ref = storage.ref(`memories/${Date.now()}_${audioFile.name}`);
+                const snap = await ref.put(audioFile);
+                audioUrl = await snap.ref.getDownloadURL();
+                updateProgress();
+            }
+
+            // 4. Save to Firestore
+            const payload = {
+                title,
+                text,
+                private: isPrivate,
+                timestamp: Date.now()
+            };
+            
+            if (date) payload.date = date;
+            if (imageUrls.length > 0) payload.images = imageUrls;
+            if (thumbUrls.length > 0) payload.thumbs = thumbUrls;
+            
+            if (themeColor && themeColor !== '#ffffff') payload.themeColor = themeColor;
+            if (videoUrl) payload.video = videoUrl;
+            if (audioUrl) payload.audio = audioUrl;
+
+            await db.collection('memories').add(payload);
+
+            status.textContent = "Memory Created Successfully!";
+            setTimeout(() => { progress.style.width = '0%'; }, 2000);
+            
+            // Clear fields
+            document.getElementById('mem-title').value = '';
+            document.getElementById('mem-text').value = '';
+            document.getElementById('mem-date').value = '';
+            document.getElementById('mem-color').value = '#ffffff';
+            document.getElementById('mem-images').value = '';
+            document.getElementById('mem-video').value = '';
+            document.getElementById('mem-audio').value = '';
+            document.getElementById('mem-private').checked = false;
+        }
+
+        async function uploadHomeVideo() {
+            const videoInput = document.getElementById('home-video');
+            const thumbInput = document.getElementById('home-thumb');
+            const videoFile = videoInput.files[0];
+            const thumbFile = thumbInput.files[0];
+            
+            if(!videoFile) return alert("Select at least a video");
+
+            const status = document.getElementById('home-status');
+            status.textContent = "Uploading...";
+
+            // 1. Upload Video
+            const vRef = storage.ref(`config/intro_video_${Date.now()}`);
+            const vSnap = await vRef.put(videoFile);
+            const vUrl = await vSnap.ref.getDownloadURL();
+
+            // 2. Upload Thumb (Optional)
+            let tUrl = null;
+            if (thumbFile) {
+                const tRef = storage.ref(`config/intro_thumb_${Date.now()}`);
+                const tSnap = await tRef.put(thumbFile);
+                tUrl = await tSnap.ref.getDownloadURL();
+            }
+
+            // 3. Save Config
+            const payload = {
+                introVideo: vUrl,
+                updatedAt: Date.now()
+            };
+            if(tUrl) payload.introVideoThumbnail = tUrl;
+
+            await db.collection('config').doc('home').set(payload, { merge: true });
+
+            status.textContent = "Home Content Updated!";
+            videoInput.value = '';
+            thumbInput.value = '';
+        }
+
+        function updateSecretKey() {
+            const key = document.getElementById('secret-key-input').value;
+            if(!key) return alert("Enter a key");
+            
+            db.collection('config').doc('secrets').set({
+                privateKey: key.trim().toLowerCase()
+            }, { merge: true }).then(() => {
+                document.getElementById('secret-status').textContent = "Secret Key Updated!";
+            });
+        }
+
+        function updateLetter() {
+            const text = document.getElementById('letter-input').value;
+            const closingLine = document.getElementById('letter-closing-input').value;
+            db.collection('config').doc('letter').set({
+                text: text,
+                closingLine: closingLine
+            }, { merge: true }).then(() => {
+                document.getElementById('letter-status').textContent = "Note Saved!";
+            });
+        }
+
+        function updateAloneText() {
+            const text = document.getElementById('alone-input').value;
+            db.collection('config').doc('feelingLow').set({
+                aloneText: text
+            }, { merge: true }).then(() => {
+                document.getElementById('low-status').textContent = "Message Saved!";
+            });
+        }
+
+        async function uploadCalmSound() {
+            const file = document.getElementById('calm-audio-file').files[0];
+            if(!file) return alert("Select an audio file.");
+            
+            document.getElementById('low-status').textContent = "Uploading audio...";
+            const ref = storage.ref(`config/calm_sound_${Date.now()}`);
+            const snap = await ref.put(file);
+            const url = await snap.ref.getDownloadURL();
+
+            await db.collection('config').doc('feelingLow').set({
+                calmSound: url
+            }, { merge: true });
+
+            document.getElementById('low-status').textContent = "Audio Updated!";
+        }
+
+        async function loadContentList() {
+            const col = document.getElementById('manage-collection').value;
+            const list = document.getElementById('manage-list');
+            list.innerHTML = 'Loading...';
+            
+            try {
+                const snap = await db.collection(col).orderBy('timestamp', 'desc').limit(50).get();
+                // If timestamp missing (old data), try without sort or catch error
+                if(snap.empty && col === 'jokes') {
+                     // Jokes might not have timestamp from migration, just get all
+                     const snap2 = await db.collection(col).limit(50).get();
+                     renderList(snap2, col);
+                     return;
+                }
+                renderList(snap, col);
+            } catch(e) {
+                console.warn("Sort failed, trying unsorted", e);
+                const snap = await db.collection(col).limit(50).get();
+                renderList(snap, col);
+            }
+        }
+
+        function renderList(snap, col) {
+            const list = document.getElementById('manage-list');
+            list.innerHTML = '';
+            
+            const selectAllBtn = document.getElementById('select-all-btn');
+            const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+            
+            if(snap.empty) { 
+                list.innerHTML = '<div style="padding: 20px; text-align: center;">No items found.</div>'; 
+                selectAllBtn.style.display = 'none';
+                deleteSelectedBtn.style.display = 'none';
+                return; 
+            }
+
+            selectAllBtn.style.display = 'inline-block';
+            selectAllBtn.textContent = 'Select All';
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = 'manage-item';
+                div.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid #333; gap: 15px;";
+                
+                // Thumbnail Logic
+                let thumbHtml = '<div style="width:40px; height:40px; background:#333; border-radius:4px;"></div>'; 
+                
+                if (col === 'gallery') {
+                    const displayPath = data.thumb || data.src;
+                    if (data.type === 'video') {
+                        thumbHtml = `<video src="${displayPath}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;" muted></video>`;
+                    } else if (displayPath) {
+                        thumbHtml = `<img src="${displayPath}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
+                    }
+                } else if (col === 'memories') {
+                    if (data.images && data.images.length > 0) {
+                        thumbHtml = `<img src="${data.images[0]}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
+                    } else if (data.video) {
+                        thumbHtml = `<div style="width:40px; height:40px; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">▶</div>`;
+                    }
+                } else if (col === 'jokes') {
+                    thumbHtml = `<div style="width:40px; height:40px; background:var(--accent-primary); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">😂</div>`;
+                }
+
+                let label = data.title || data.filename || doc.id;
+                
+                div.innerHTML = `
+                    <input type="checkbox" class="item-checkbox" data-id="${doc.id}" style="width: 20px; height: 20px; cursor: pointer;" onchange="updateSelectUI()">
+                    ${thumbHtml}
+                    <span style="flex-grow:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</span> 
+                    <button style="margin:0; background:#ff4444; font-size:0.8rem; padding: 5px 10px;" onclick="deleteItem('${col}', '${doc.id}')">Delete</button>
+                `;
+                list.appendChild(div);
+            });
+            updateSelectUI();
+        }
+
+        function updateSelectUI() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const checked = document.querySelectorAll('.item-checkbox:checked');
+            const deleteBtn = document.getElementById('delete-selected-btn');
+            const selectAllBtn = document.getElementById('select-all-btn');
+            const countEl = document.getElementById('select-count');
+
+            countEl.textContent = checked.length;
+            deleteBtn.style.display = checked.length > 0 ? 'inline-block' : 'none';
+            
+            if (checkboxes.length > 0 && checked.length === checkboxes.length) {
+                selectAllBtn.textContent = 'Deselect All';
+            } else {
+                selectAllBtn.textContent = 'Select All';
+            }
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const checked = document.querySelectorAll('.item-checkbox:checked');
+            const shouldSelect = checked.length < checkboxes.length;
+            
+            checkboxes.forEach(cb => cb.checked = shouldSelect);
+            updateSelectUI();
+        }
+
+        async function deleteSelectedItems() {
+            const col = document.getElementById('manage-collection').value;
+            const checked = document.querySelectorAll('.item-checkbox:checked');
+            if (checked.length === 0) return;
+
+            if (confirm(`Are you sure you want to delete ${checked.length} items? This cannot be undone.`)) {
+                const status = document.getElementById('gallery-status'); // Borrowing a status span
+                status.textContent = `Deleting ${checked.length} items...`;
+                
+                const batch = db.batch();
+                checked.forEach(cb => {
+                    const docRef = db.collection(col).doc(cb.dataset.id);
+                    batch.delete(docRef);
+                });
+
+                await batch.commit();
+                status.textContent = "Selected items deleted successfully!";
+                loadContentList();
+            }
+        }
+
+        async function deleteItem(col, id) {
+            if(confirm("Are you sure? This cannot be undone.")) {
+                await db.collection(col).doc(id).delete();
+                loadContentList(); // Refresh
+            }
+        }
+
+        async function migrateAll() {
+            const log = document.getElementById('migration-log');
+            const addLog = (msg) => { log.innerHTML += `<div>> ${msg}</div>`; log.scrollTop = log.scrollHeight; };
+            
+            addLog("Starting migration...");
+
+            // 1. Migrate Jokes
+            try {
+                const res = await fetch('assets/jokes/jokes.json');
+                if(res.ok) {
+                    const data = await res.json();
+                    for(const item of data) {
+                        await db.collection('jokes').add(item);
+                        addLog(`Migrated joke: ${item.title}`);
+                    }
+                }
+            } catch(e) { addLog(`Jokes error: ${e.message}`); }
+
+            // 2. Migrate Gallery
+            try {
+                const res = await fetch('assets/gallery_photos/photos.json');
+                if(res.ok) {
+                    const data = await res.json();
+                    for(const item of data) {
+                        const payload = {
+                            filename: item.file || item,
+                            date: item.date || new Date().toISOString(),
+                            private: item.private || false,
+                            type: (item.file || item).match(/\.(mp4|mov)$/i) ? 'video' : 'image',
+                            src: `assets/gallery_photos/${item.file || item}` // Temporary local path
+                        };
+                        await db.collection('gallery').add(payload);
+                        addLog(`Migrated photo metadata: ${payload.filename}`);
+                    }
+                }
+            } catch(e) { addLog(`Gallery error: ${e.message}`); }
+
+            // 3. Migrate Memories
+            try {
+                const listRes = await fetch('assets/memories_photos/memories.json');
+                if(listRes.ok) {
+                    const folders = await listRes.json();
+                    for(const folder of folders) {
+                        const metaRes = await fetch(`assets/memories_photos/${folder}/meta.json`);
+                        if(metaRes.ok) {
+                            const meta = await metaRes.json();
+                            await db.collection('memories').doc(folder).set(meta);
+                            addLog(`Migrated memory: ${meta.title}`);
+                        }
+                    }
+                }
+            } catch(e) { addLog(`Memories error: ${e.message}`); }
+
+            addLog("--- MIGRATION COMPLETE ---");
+            addLog("Note: Gallery photos in cloud still point to local assets. Use Admin Upload for full cloud hosting.");
+        }
+    </script>
+</body>
+</html>

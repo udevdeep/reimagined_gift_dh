@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside Jokes | The Dh Archive</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Firebase SDKs (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="index.html" class="nav-brand">dh</a>
+        <div class="nav-links">
+            <a href="memories.html">Our Timeline</a>
+            <a href="gallery.html">Evidence</a>
+            <a href="jokes.html" class="active">Jokes</a>
+            <a href="feeling-low.html" class="nav-low">Feeling Low?</a>
+        </div>
+        <button class="theme-toggle-btn" id="theme-toggle">Barbie Mode</button>
+    </nav>
+
+    <div class="container">
+        <header class="header-section">
+            <h1>Inside Jokes</h1>
+            <p>The jokes, the code words, and the nonsense that somehow still makes sense.</p>
+        </header>
+    </div>
+
+    <!-- Jokes Bubble Container (Fullscreen) -->
+    <div id="jokes-container" class="bubble-container">
+        <!-- Bubbles injected here -->
+    </div>
+
+    <!-- Joke View Modal (Reuse Lock styles) -->
+    <div id="joke-modal" class="lightbox">
+        <div class="lock-card">
+            <button class="lightbox-close">&times;</button>
+            <h2 id="joke-title">Joke Title</h2>
+            <p id="joke-text">Joke content goes here...</p>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
