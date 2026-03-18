@@ -108,7 +108,22 @@ const getContrastYIQ = (hexcolor) => {
 async function loadAllData() {
     const db = firebase.firestore();
     
-    // Parallel fetch all resources
+    // --- 0. PRE-LOAD FROM CACHE (Immediate UI) ---
+    const cachedHome = sessionStorage.getItem('home_cache');
+    const cachedLetter = sessionStorage.getItem('letter_cache');
+    
+    if (cachedHome) {
+        applyHomeConfig(JSON.parse(cachedHome));
+    }
+    if (cachedLetter) {
+        const data = JSON.parse(cachedLetter);
+        LETTER_TEXT = data.text || '';
+        window.LETTER_CLOSING = data.closingLine || '';
+        const content = document.getElementById('letter-content');
+        if (content) content.textContent = LETTER_TEXT;
+    }
+
+    // --- 1. PARALLEL FETCH ---
     const tasks = [
         db.collection('jokes').get().catch(() => ({empty: true})),
         db.collection('gallery').get().catch(() => ({empty: true})),
@@ -171,32 +186,22 @@ async function loadAllData() {
     // 4. CONFIGS
     if (homeDoc.exists) {
         const data = homeDoc.data();
-        const videoEl = document.getElementById('intro-video');
-        const videoContainer = document.querySelector('.bg-video-container');
-        
-        if (videoEl) {
-            if (data.introVideoThumbnail) {
-                videoEl.poster = data.introVideoThumbnail;
-                if (videoContainer) {
-                    videoContainer.style.backgroundImage = `url(${data.introVideoThumbnail})`;
-                    videoContainer.style.backgroundSize = 'cover';
-                    videoContainer.style.backgroundPosition = 'center';
-                }
-            }
-            if (data.introVideo) {
-                videoEl.src = data.introVideo;
-                // Ensure video is visible only when playing to prevent flicker
-                videoEl.style.opacity = '0';
-                videoEl.style.transition = 'opacity 0.5s ease';
-                videoEl.onplaying = () => { videoEl.style.opacity = '1'; };
-            }
-        }
+        applyHomeConfig(data);
+        sessionStorage.setItem('home_cache', JSON.stringify(data));
     }
 
     SECRET_KEY = (secretsDoc.exists && secretsDoc.data().privateKey) ? secretsDoc.data().privateKey : 'bumblebee';
     if (letterDoc.exists) {
-        LETTER_TEXT = letterDoc.data().text || '';
-        window.LETTER_CLOSING = letterDoc.data().closingLine || '';
+        const data = letterDoc.data();
+        LETTER_TEXT = data.text || '';
+        window.LETTER_CLOSING = data.closingLine || '';
+        sessionStorage.setItem('letter_cache', JSON.stringify(data));
+        
+        // Update home UI if currently on home
+        const content = document.getElementById('letter-content');
+        const closing = document.getElementById('letter-closing-line');
+        if (content) content.textContent = LETTER_TEXT;
+        if (closing) closing.textContent = window.LETTER_CLOSING || "";
     }
     
     if (lowDoc.exists) {
@@ -210,6 +215,32 @@ async function loadAllData() {
     if (aloneEl) aloneEl.textContent = ALONE_TEXT;
     const audioEl = document.getElementById('calm-audio');
     if (audioEl && audioEl.src !== CALM_SOUND_URL) audioEl.src = CALM_SOUND_URL;
+}
+
+// Helper for Home Assets
+function applyHomeConfig(data) {
+    const videoEl = document.getElementById('intro-video');
+    const videoContainer = document.querySelector('.bg-video-container');
+    
+    if (videoEl) {
+        if (data.introVideoThumbnail) {
+            videoEl.poster = data.introVideoThumbnail;
+            if (videoContainer) {
+                videoContainer.style.backgroundImage = `url(${data.introVideoThumbnail})`;
+                videoContainer.style.backgroundSize = 'cover';
+                videoContainer.style.backgroundPosition = 'center';
+            }
+        }
+        if (data.introVideo && videoEl.src !== data.introVideo) {
+            videoEl.src = data.introVideo;
+            videoEl.style.opacity = '0';
+            videoEl.style.transition = 'opacity 0.5s ease';
+            videoEl.onplaying = () => { videoEl.style.opacity = '1'; };
+            
+            // Safety: if video fails to play/load in 3s, show it anyway (it might be the thumbnail)
+            setTimeout(() => { if(videoEl.style.opacity === '0') videoEl.style.opacity = '1'; }, 3000);
+        }
+    }
 }
 
 function initTheme() {
@@ -244,9 +275,9 @@ function initFirebaseLock() {
     if (window.firebase && !firebase.apps.length) {
         try {
             firebase.initializeApp(FIREBASE_CONFIG);
-            // Stronger fix for CORS/Fetch Access Control Errors (forced)
+            // Stronger fix for CORS/Fetch Access Control Errors
             try {
-                firebase.firestore().settings({ experimentalForceLongPolling: true, merge: true });
+                firebase.firestore().settings({ experimentalForceLongPolling: true });
             } catch(se) { console.warn("Firestore settings already applied"); }
         } catch(e) {
             console.error("Firebase Init Error:", e);
@@ -499,82 +530,95 @@ function initHome() {
     if (!document.body.classList.contains('index-page')) return;
 
     const video = document.getElementById('intro-video');
-    if (video) {
-        video.play().catch(e => console.warn("Autoplay blocked, waiting for interaction", e));
-    }
-
     const content = document.getElementById('letter-content');
     const closing = document.getElementById('letter-closing-line');
     const container = document.querySelector('.hero-container');
 
-    if (content) {
+    // --- Initial Reveal from Cache ---
+    if (content && LETTER_TEXT !== "Hey...") {
         content.textContent = LETTER_TEXT;
         if (closing) closing.textContent = window.LETTER_CLOSING || "";
     }
 
-    if (container) {
-        let scrollPos = 0;
-        const speed = 0.8; 
-        let isUserScrolling = false;
-        let hasReachedEnd = false;
-        let resumeTimer = null;
-        let animationFrame = null;
+    if (video) {
+        video.play().catch(e => console.warn("Autoplay blocked, waiting for interaction", e));
+    }
 
-        // --- Navbar control for Index Page ---
-        const nav = document.querySelector('.navbar');
-        let mouseAtTop = false;
+    if (!container) return;
 
-        const updateNavVisibility = () => {
-            if (!nav) return;
-            const currentScroll = container.scrollTop;
-            if (currentScroll < 50 || mouseAtTop) {
-                nav.classList.remove('navbar-hidden');
-            } else if (currentScroll > 100) {
-                nav.classList.add('navbar-hidden');
-            }
-        };
+    let scrollPos = 0;
+    const speed = 0.8;
+    let isUserScrolling = false;
+    let hasReachedEnd = false;
+    let resumeTimer = null;
+    let animationFrame = null;
 
-        container.addEventListener('scroll', updateNavVisibility);
-        window.addEventListener('mousemove', (e) => {
-            const wasAtTop = mouseAtTop;
-            mouseAtTop = (e.clientY < 60);
-            if (wasAtTop !== mouseAtTop) updateNavVisibility();
-        });
+    // Restart autoscroll if content changes (e.g. from "Loading..." to the real letter)
+    const observer = new MutationObserver(() => {
+        if (content.textContent.length > 20) {
+            hasReachedEnd = false;
+            scrollPos = 0;
+            container.scrollTop = 0;
+        }
+    });
+    if (content) observer.observe(content, { childList: true });
 
-        // --- Autoscroll Logic ---
-        const autoScroll = () => {
-            if (!isUserScrolling && !hasReachedEnd) {
+    // --- Navbar visibility logic ---
+    const nav = document.querySelector('.navbar');
+    let mouseAtTop = false;
+
+    const updateNavVisibility = () => {
+        if (!nav) return;
+        const currentScroll = container.scrollTop;
+        if (currentScroll < 50 || mouseAtTop) {
+            nav.classList.remove('navbar-hidden');
+        } else if (currentScroll > 100) {
+            nav.classList.add('navbar-hidden');
+        }
+    };
+
+    container.addEventListener('scroll', updateNavVisibility);
+    window.addEventListener('mousemove', (e) => {
+        const wasAtTop = mouseAtTop;
+        mouseAtTop = (e.clientY < 60);
+        if (wasAtTop !== mouseAtTop) updateNavVisibility();
+    });
+
+    // --- Autoscroll Loop ---
+    const autoScroll = () => {
+        if (!isUserScrolling && !hasReachedEnd) {
+            // Only scroll if content is actually there (not just "Hey..." or "Loading...")
+            if (content && content.textContent.length > 50) {
                 scrollPos += speed;
                 container.scrollTop = scrollPos;
                 if (scrollPos + container.clientHeight >= container.scrollHeight - 2) {
                     hasReachedEnd = true;
                     return;
                 }
-                animationFrame = requestAnimationFrame(autoScroll);
             }
-        };
+            animationFrame = requestAnimationFrame(autoScroll);
+        }
+    };
 
-        const onUserInteraction = () => {
-            isUserScrolling = true;
-            clearTimeout(resumeTimer);
-            cancelAnimationFrame(animationFrame);
-            scrollPos = container.scrollTop;
-            if (!hasReachedEnd) {
-                resumeTimer = setTimeout(() => {
-                    isUserScrolling = false;
-                    requestAnimationFrame(autoScroll);
-                }, 3000);
-            }
-        };
+    const onUserInteraction = () => {
+        isUserScrolling = true;
+        clearTimeout(resumeTimer);
+        cancelAnimationFrame(animationFrame);
+        scrollPos = container.scrollTop;
+        if (!hasReachedEnd) {
+            resumeTimer = setTimeout(() => {
+                isUserScrolling = false;
+                requestAnimationFrame(autoScroll);
+            }, 3000);
+        }
+    };
 
-        container.addEventListener('wheel', onUserInteraction, { passive: true });
-        container.addEventListener('touchstart', onUserInteraction, { passive: true });
-        container.addEventListener('mousedown', onUserInteraction);
+    container.addEventListener('wheel', onUserInteraction, { passive: true });
+    container.addEventListener('touchstart', onUserInteraction, { passive: true });
+    container.addEventListener('mousedown', onUserInteraction);
 
-        setTimeout(() => requestAnimationFrame(autoScroll), 1500);
-    }
-}
-/* --- MEMORIES --- */
+    setTimeout(() => requestAnimationFrame(autoScroll), 2000);
+}/* --- MEMORIES --- */
 function loadMemories() {
     const container = document.getElementById('memories-container');
     if (!container) return;
