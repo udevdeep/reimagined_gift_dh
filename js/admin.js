@@ -99,15 +99,17 @@ function initDashboardStats() {
     const visitsCountEl = document.getElementById('total-visits-count');
     const visitLogEl = document.getElementById('visit-log');
 
-    // Watch Sparks Count
+    // 1. Total Counters (No Limit)
     db.collection('spark_history').onSnapshot(snap => {
         if (sparksCountEl) sparksCountEl.textContent = snap.size;
     });
 
-    // Watch Visits Count and Log
-    db.collection('site_visits').orderBy('timestamp', 'desc').limit(50).onSnapshot(snap => {
+    db.collection('site_visits').onSnapshot(snap => {
         if (visitsCountEl) visitsCountEl.textContent = snap.size;
-        
+    });
+
+    // 2. Visual Logs (Limited to 100 most recent for performance)
+    db.collection('site_visits').orderBy('timestamp', 'desc').limit(100).onSnapshot(snap => {
         if (visitLogEl) {
             if (snap.empty) {
                 visitLogEl.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-muted); opacity: 0.5;">No visits recorded yet...</div>`;
@@ -720,6 +722,32 @@ function loadPreviousPage() {
 }
 window.loadPreviousPage = loadPreviousPage;
 
+async function uploadFamiliarSound() {
+    const file = document.getElementById('familiar-audio-file').files[0];
+    const title = document.getElementById('familiar-title').value.trim();
+    const mood = document.getElementById('familiar-mood').value;
+    const status = document.getElementById('low-status');
+
+    if(!file || !title) return alert("Please select a file and provide a title.");
+
+    status.textContent = "Uploading song...";
+    try {
+        const timestamp = Date.now();
+        const ref = storage.ref(`familiar_sounds/${timestamp}_${file.name}`);
+        const snap = await ref.put(file);
+        const url = await snap.ref.getDownloadURL();
+
+        await db.collection('familiar_sounds').add({
+            title, mood, src: url, timestamp, filename: file.name
+        });
+
+        status.textContent = "Song added to collection! ✨";
+        document.getElementById('familiar-audio-file').value = '';
+        document.getElementById('familiar-title').value = '';
+    } catch(e) { status.textContent = "Upload failed: " + e.message; }
+}
+window.uploadFamiliarSound = uploadFamiliarSound;
+
 function renderList(snap, col) {
     const list = document.getElementById('manage-list'); list.innerHTML = '';
     const selectAllBtn = document.getElementById('select-all-btn'), deleteSelectedBtn = document.getElementById('delete-selected-btn');
@@ -728,7 +756,7 @@ function renderList(snap, col) {
     snap.forEach(doc => {
         const data = doc.data(), div = document.createElement('div');
         div.className = 'manage-item'; div.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--card-border); gap: 15px;";
-        let thumbHtml = '<div style="width:40px; height:40px; background:rgba(255,255,255,0.05); border-radius:4px;"></div>'; 
+        let thumbHtml = '<div style="width:40px; height:40px; background:rgba(255,255,255,0.05); border-radius:4px;"></div>';
         if (col === 'gallery') {
             const isVideo = data.type === 'video';
             if (isVideo && data.thumb) {
@@ -741,13 +769,21 @@ function renderList(snap, col) {
         } else if (col === 'memories') {
             if (data.images && data.images.length > 0) thumbHtml = `<img src="${data.images[0]}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
             else if (data.video) thumbHtml = `<div style="width:40px; height:40px; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">▶</div>`;
-        } else if (col === 'jokes') thumbHtml = `<div style="width:40px; height:40px; background:var(--accent-primary); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">😂</div>`;
-        div.innerHTML = `<input type="checkbox" class="item-checkbox" data-id="${doc.id}" style="width: 20px; height: 20px; cursor: pointer;" onchange="updateSelectUI()">${thumbHtml}<span style="flex-grow:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${data.title || data.filename || doc.id}</span><button class="btn-admin" style="margin:0; background:#ff4444; font-size:0.8rem; padding: 5px 10px;" onclick="deleteItem('${col}', '${doc.id}')">Delete</button>`;
+        } else if (col === 'jokes') {
+            thumbHtml = `<div style="width:40px; height:40px; background:var(--accent-primary); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">😂</div>`;
+        } else if (col === 'familiar_sounds') {
+            const icons = { calm: '🌙', happy: '☀️', nostalgic: '🎞️', comfort: '🍵' };
+            thumbHtml = `<div style="width:40px; height:40px; background:rgba(255,255,255,0.1); border-radius:4px; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">${icons[data.mood] || '🎵'}</div>`;
+        }
+
+        const displayTitle = data.title || data.filename || doc.id;
+        const moodInfo = data.mood ? `<span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${data.mood.toUpperCase()}</span>` : '';
+
+        div.innerHTML = `<input type="checkbox" class="item-checkbox" data-id="${doc.id}" style="width: 20px; height: 20px; cursor: pointer;" onchange="updateSelectUI()">${thumbHtml}<span style="flex-grow:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayTitle}${moodInfo}</span><button class="btn-admin" style="margin:0; background:#ff4444; font-size:0.8rem; padding: 5px 10px;" onclick="deleteItem('${col}', '${doc.id}')">Delete</button>`;
         list.appendChild(div);
     });
     updateSelectUI();
 }
-
 function updateSelectUI() {
     const checkboxes = document.querySelectorAll('.item-checkbox'), checked = document.querySelectorAll('.item-checkbox:checked'), deleteBtn = document.getElementById('delete-selected-btn'), selectAllBtn = document.getElementById('select-all-btn'), countEl = document.getElementById('select-count');
     if (countEl) countEl.textContent = checked.length;
@@ -761,6 +797,26 @@ function toggleSelectAll() {
     const shouldSelect = checked.length < checkboxes.length; checkboxes.forEach(cb => cb.checked = shouldSelect); updateSelectUI();
 }
 window.toggleSelectAll = toggleSelectAll;
+
+async function updateAloneText() {
+    const text = document.getElementById('alone-input').value.trim();
+    if (!text) return alert("Please enter some text.");
+    try {
+        await db.collection('config').doc('feelingLow').set({ aloneText: text, updatedAt: Date.now() }, { merge: true });
+        alert("Resonance message updated! ✨");
+    } catch (e) { alert("Failed to update: " + e.message); }
+}
+window.updateAloneText = updateAloneText;
+
+async function updateLetter() {
+    const text = document.getElementById('letter-input').value.trim();
+    const closingLine = document.getElementById('letter-closing-input').value.trim();
+    try {
+        await db.collection('config').doc('letter').set({ text, closingLine, updatedAt: Date.now() }, { merge: true });
+        alert("Home Note updated! ✨");
+    } catch (e) { alert("Failed to update: " + e.message); }
+}
+window.updateLetter = updateLetter;
 
 async function deleteSelectedItems() {
     const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');

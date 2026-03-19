@@ -46,19 +46,21 @@
         }
 
         body {
-            margin: 0; padding: 0;
+            background: #0f0c29;
             background: linear-gradient(135deg, #1e1e2f, #2d2b4e, #1b1b2f);
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            overflow: hidden;
-            height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto; /* ALLOW SCROLLING */
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
+
         
         /* Subtle Noise Texture */
         body::before {
-            content: ""; position: absolute; inset: 0;
+            content: ""; position: fixed; inset: 0;
             background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
             pointer-events: none; z-index: 1;
         }
@@ -73,12 +75,23 @@
             flex: 1;
             position: relative;
             z-index: 10;
-            overflow-y: auto;
-            /* More breathing room at top (increased to 120px) */
+            overflow-y: visible; /* Let the body handle the scrolling */
             padding: 120px 24px 140px; 
             scroll-behavior: smooth;
             display: flex;
             flex-direction: column;
+        }
+
+        .resonance-message {
+            font-family: var(--font-heading);
+            font-style: italic;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #fff;
+            opacity: 0.9;
+            text-align: center;
+            white-space: pre-wrap;
+            padding: 10px;
         }
 
         h1, h2, h3 { 
@@ -116,9 +129,11 @@
 
         /* Special alignment for Home tab */
         #tab-home.active {
-            min-height: 60vh;
-            justify-content: center; /* Vertically center content */
-            padding-top: 40px;
+            min-height: 80vh; 
+            height: auto;      
+            justify-content: flex-start; 
+            padding-top: 5vh; /* Responsive top spacing */
+            padding-bottom: 120px; /* Enough to clear tab bar but not 'too much' */
         }
 
         @keyframes slideUpFade { 
@@ -149,16 +164,36 @@
             bottom: 32px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(20, 25, 40, 0.6);
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(15, 20, 35, 0.4); /* More transparent */
+            backdrop-filter: blur(25px); /* Increased blur */
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 100px;
             padding: 6px;
             display: flex;
             gap: 8px;
             z-index: 1000;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            transition: all 0.3s ease;
+        }
+
+        /* Breathing Prompt */
+        .breathe-prompt {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--accent-cool);
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            transition: all 0.5s ease;
+        }
+        .heartbeat-container.active .breathe-prompt {
+            animation: breathePulseText 4s infinite ease-in-out;
+        }
+        @keyframes breathePulseText {
+            0%, 100% { opacity: 0.4; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
         }
         .tab-btn {
             background: transparent;
@@ -214,6 +249,39 @@
             opacity: 1;
         }
 
+        /* Mood Buttons */
+        .mood-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        .mood-btn.active {
+            background: var(--accent-cool);
+            color: white;
+            border-color: var(--accent-cool);
+            box-shadow: 0 0 15px rgba(161, 140, 209, 0.3);
+        }
+
+        .player-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: 0.2s;
+        }
+        .player-btn:hover { opacity: 1; transform: scale(1.1); }
+        .play-main {
+            font-size: 2.5rem;
+            color: var(--accent-warm);
+        }
+
         /* --- Heartbeat Section --- */
         .heartbeat-container {
             display: flex;
@@ -267,10 +335,10 @@
 
         @keyframes heartbeat {
             0% { transform: scale(1); }
-            5% { transform: scale(1.06); }
-            10% { transform: scale(1); }
-            15% { transform: scale(1.08); }
-            50% { transform: scale(1); }
+            7% { transform: scale(1.12); }  /* Peak of Lub (matches sound + vibration) */
+            15% { transform: scale(1.02); } 
+            22% { transform: scale(1.15); } /* Peak of Dub */
+            45% { transform: scale(1); }
             100% { transform: scale(1); }
         }
 
@@ -481,6 +549,42 @@
         @keyframes toastOut {
             to { opacity: 0; transform: translateY(-20px) scale(0.9); }
         }
+
+        /* Fullscreen Constellation Support */
+        .fullscreen-card {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            z-index: 9999 !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #0f0c29 !important; /* Ensure dark background */
+        }
+        
+        .fullscreen-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.6);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .fullscreen-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body class="grey-mode-forced feeling-low-page">
@@ -502,13 +606,13 @@
     </div>
 
     <!-- Global Spark FAB (Feeling Low Only) -->
-    <button class="spark-fab" onclick="sendSpark()" title="Send a Spark">Send a Spark ✨</button>
+    <!-- Moved inside the Note for You for a lower-pressure experience -->
 
     <!-- Top Nav (Simplified) -->
-    <div style="position: fixed; top: 20px; left: 20px; z-index: 100;">
+    <div id="back-link-container" style="position: fixed; top: 20px; left: 20px; z-index: 100;">
         <a href="index.html" style="text-decoration: none; color: rgba(255,255,255,0.6); font-weight: bold;">← Back to the Archive</a>
     </div>
-    <div style="position: fixed; top: 20px; right: 20px; z-index: 100;">
+    <div id="gift-btn-container" style="position: fixed; top: 20px; right: 20px; z-index: 100;">
         <button onclick="showEmergencySmile()" class="sanctuary-btn" style="background: transparent; border:none; color: var(--accent-cool); padding:8px 16px; border-radius:20px; cursor:pointer; font-weight: 500; transition: all 0.5s ease;">Open a Gift ✨</button>
     </div>
 
@@ -522,9 +626,22 @@
                 <p style="color: var(--text-muted);">You don’t have to explain it. Just be here for a second.</p>
             </header>
 
-            <div class="heartbeat-container">
+            <div class="heartbeat-container" id="hb-container">
                 <div class="heart-orb" id="heart-btn">💛</div>
                 <p class="heart-text">Hold to follow the rhythm</p>
+                <div id="breathe-txt" class="breathe-prompt">Breathe</div>
+            </div>
+
+            <div class="visualizer-card" id="alone-card" style="border-color:var(--accent-primary); cursor: pointer; transition: 0.3s; margin-top: 40px; display: flex; flex-direction: column; min-height: 80px;" onclick="toggleAloneCard(this)">
+                <h3 style="margin-bottom: 0;">A Note for You <span style="font-size:0.8rem; opacity:0.6; display: block; margin-top: 5px;">(Tap to read)</span></h3>
+                <div id="alone-content" style="display:none; margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px; width: 100%;">
+                    <div id="reassurance-text" class="resonance-message">Loading...</div>
+                    
+                    <div style="margin-top: 30px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                        <p style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 15px;">If you want to send a silent signal back...</p>
+                        <button class="spark-fab" onclick="sendSpark(); event.stopPropagation();" title="Send a Spark">Send a Spark ✨</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -627,20 +744,48 @@
         <!-- 4. Reflection (Gratitude/Audio) -->
         <div id="tab-Reflection" class="app-section">
             
-            <!-- Audio Visualizer -->
+            <!-- Familiar Sounds (Mood Collection) -->
             <div class="visualizer-card">
                 <h3>Familiar Sounds ⭐️</h3>
-                <canvas id="viz-canvas"></canvas>
-                <button id="audio-play-btn" onclick="toggleAudio()" style="background:var(--accent-primary); border:none; color:white; padding:10px 25px; border-radius:20px; cursor:pointer; margin-top:10px;">▶ Play</button>
-                <audio id="calm-audio" src="" crossorigin="anonymous"></audio>            </div>
+                
+                <div id="mood-selector" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="mood-btn active" onclick="setMood('all')">All</button>
+                    <button class="mood-btn" onclick="setMood('calm')">🌙 Calm</button>
+                    <button class="mood-btn" onclick="setMood('happy')">☀️ Happy</button>
+                    <button class="mood-btn" onclick="setMood('nostalgic')">🎞️ Nostalgic</button>
+                    <button class="mood-btn" onclick="setMood('comfort')">🍵 Comfort</button>
+                </div>
+
+                <div id="player-container" style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 20px; margin-bottom: 10px;">
+                    <div id="now-playing" style="font-size: 0.9rem; color: var(--accent-warm); margin-bottom: 15px; font-weight: 600; min-height: 1.2em;">Select a mood to start...</div>
+                    <canvas id="viz-canvas" style="width: 100%; height: 60px; margin-bottom: 15px;"></canvas>
+                    
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+                        <button class="player-btn" onclick="prevSong()" title="Previous">⏮</button>
+                        <button id="audio-play-btn" class="player-btn play-main" onclick="toggleAudio()">▶</button>
+                        <button class="player-btn" onclick="nextSong()" title="Next">⏭</button>
+                    </div>
+                </div>
+                
+                <audio id="calm-audio" src="" crossorigin="anonymous"></audio>
+            </div>
 
             <!-- The Constellation of Self -->
-            <div class="visualizer-card" style="text-align:left; position: relative; padding: 0; overflow: hidden; height: 500px; display: flex; flex-direction: column;">
+            <div id="constellation-card" class="visualizer-card" style="text-align:left; position: relative; padding: 0; overflow: hidden; height: 500px; display: flex; flex-direction: column;">
                 
                 <!-- Floating Header -->
                 <div style="position: absolute; top: 30px; left: 0; width: 100%; text-align: center; z-index: 5; pointer-events: none;">
                     <h3 style="margin: 0; font-size: 1.8rem; letter-spacing: 1px;">Your Constellation</h3>
                     <p style="font-size: 0.85rem; opacity: 0.6; margin-top: 5px; font-family: var(--font-heading); font-style: italic;">A map of your own light.</p>
+                </div>
+
+                <!-- Fullscreen Toggle Button -->
+                <div style="position: absolute; top: 20px; right: 20px; z-index: 10;">
+                    <button class="fullscreen-btn" onclick="toggleConstellationFullscreen()" title="Toggle Fullscreen">
+                        <svg id="fullscreen-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Constellation Canvas -->
@@ -691,12 +836,8 @@
                 </div>
             </div>
 
-            <div class="visualizer-card" id="alone-card" style="border-color:var(--accent-primary); cursor: pointer; transition: 0.3s;" onclick="toggleAloneCard(this)">
-                <h3>Feeling Alone? <span style="font-size:0.8rem; opacity:0.6;">(Tap to read)</span></h3>
-                <div id="alone-content" style="display:none; margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
-                    <div id="reassurance-text" class="resonance-message">Loading...</div>
-                </div>
             </div>
+
         </div>
 
     </div>
@@ -915,19 +1056,98 @@
             }, 1500);
         }
 
+        /* --- FAMILIAR SOUNDS PLAYLIST --- */
+        let allSongs = [];
+        let filteredSongs = [];
+        let currentMood = 'all';
+        let currentSongIndex = 0;
+
+        async function loadFamiliarSounds() {
+            if (!window.db) return;
+            try {
+                const snap = await db.collection('familiar_sounds').orderBy('timestamp', 'desc').get();
+                allSongs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setMood('all');
+
+                // Also ensure the reassurance text is updated from global state
+                const aloneEl = document.getElementById('reassurance-text');
+                if (aloneEl && typeof ALONE_TEXT !== 'undefined') {
+                    aloneEl.innerHTML = ALONE_TEXT.replace(/\n/g, '<br>');
+                }
+            } catch (e) { console.error("Error loading songs:", e); }
+        }
+
+        function setMood(mood) {
+            currentMood = mood;
+            currentSongIndex = 0;
+            
+            // UI Update
+            document.querySelectorAll('.mood-btn').forEach(btn => {
+                const btnMood = btn.getAttribute('onclick').match(/'(.*?)'/)[1];
+                btn.classList.toggle('active', btnMood === mood);
+            });
+
+            // Filter
+            filteredSongs = mood === 'all' ? allSongs : allSongs.filter(s => s.mood === mood);
+            
+            const info = document.getElementById('now-playing');
+            if (filteredSongs.length > 0) {
+                info.textContent = `Collection: ${mood === 'all' ? 'All Songs' : mood.toUpperCase()} (${filteredSongs.length})`;
+                prepareSong(0);
+            } else {
+                info.textContent = `No ${mood} songs found yet.`;
+                const audio = document.getElementById('calm-audio');
+                audio.pause();
+                document.getElementById('audio-play-btn').textContent = "▶";
+            }
+        }
+
+        function prepareSong(index) {
+            if (!filteredSongs[index]) return;
+            const song = filteredSongs[index];
+            const audio = document.getElementById('calm-audio');
+            const wasPlaying = !audio.paused;
+            
+            audio.src = song.src;
+            document.getElementById('now-playing').textContent = `Now Playing: ${song.title}`;
+            
+            if (wasPlaying) audio.play();
+        }
+
+        function nextSong() {
+            if (filteredSongs.length === 0) return;
+            currentSongIndex = (currentSongIndex + 1) % filteredSongs.length;
+            const audio = document.getElementById('calm-audio');
+            const wasPlaying = !audio.paused;
+            prepareSong(currentSongIndex);
+            if (wasPlaying) audio.play();
+        }
+
+        function prevSong() {
+            if (filteredSongs.length === 0) return;
+            currentSongIndex = (currentSongIndex - 1 + filteredSongs.length) % filteredSongs.length;
+            const audio = document.getElementById('calm-audio');
+            const wasPlaying = !audio.paused;
+            prepareSong(currentSongIndex);
+            if (wasPlaying) audio.play();
+        }
+
         /* --- VISUALIZER --- */
         let audioCtx, analyser, dataArray;
         function toggleAudio() {
             const audio = document.getElementById('calm-audio');
             const btn = document.getElementById('audio-play-btn');
             
+            if (filteredSongs.length === 0) return showToast("Add some songs in the admin panel first!", "normal");
+
             if(audio.paused) {
+                if (!audio.src && filteredSongs.length > 0) prepareSong(0);
                 audio.play();
-                btn.textContent = "⏸ Pause";
+                btn.textContent = "⏸";
                 if(!audioCtx) initViz(audio);
             } else {
                 audio.pause();
-                btn.textContent = "▶ Play";
+                btn.textContent = "▶";
             }
         }
         function initViz(audio) {
@@ -990,19 +1210,29 @@
         function toggleAloneCard(card) {
             const content = document.getElementById('alone-content');
             const isVisible = content.style.display === 'block';
-            content.style.display = isVisible ? 'none' : 'block';
             
+            // Re-sync text just in case cloud load was delayed
+            const aloneEl = document.getElementById('reassurance-text');
+            if (aloneEl && typeof ALONE_TEXT !== 'undefined') {
+                aloneEl.innerHTML = ALONE_TEXT.replace(/\n/g, '<br>');
+            }
+
+            content.style.display = isVisible ? 'none' : 'block';
+
             // Visual feedback
             const hint = card.querySelector('h3 span');
             if(hint) hint.textContent = isVisible ? '(Tap to read)' : '(Tap to close)';
 
             if (!isVisible) {
                 card.classList.add('resonance-card');
+                // Center the note in the viewport for easier reading
+                setTimeout(() => {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300); // Slightly longer delay to allow DOM to finish expanding
             } else {
                 card.classList.remove('resonance-card');
             }
         }
-
         /* --- PREVIOUS FEATURES (CAT/GAME) --- */
         function toggleCat() { 
             const c = document.getElementById('cat-container'); 
@@ -1079,21 +1309,40 @@
 
         /* --- HEARTBEAT HAPTIC --- */
         const heartBtn = document.getElementById('heart-btn');
+        const hbContainer = document.getElementById('hb-container');
+        const breatheTxt = document.getElementById('breathe-txt');
         let hbInterval = null;
+        let breatheInterval = null;
+
         if (heartBtn) {
             const startHeart = () => {
                 if (hbInterval) return; 
                 heartBtn.classList.add('active');
+                hbContainer.classList.add('active');
+                
+                let breatheState = 0; // 0 = Inhale, 1 = Exhale
+                const updateBreathe = () => {
+                    breatheTxt.textContent = breatheState === 0 ? "Inhale..." : "Exhale...";
+                    breatheState = (breatheState + 1) % 2;
+                };
+                updateBreathe();
+                breatheInterval = setInterval(updateBreathe, 4000); // Sync with 8s loop
+
                 const pulse = () => { 
-                    if (navigator.vibrate) navigator.vibrate([50, 100, 50, 800]); 
+                    if (navigator.vibrate) navigator.vibrate([70, 50, 70, 810]); 
                     if (typeof SoundFX !== 'undefined') SoundFX.thump();
                 };
-                pulse(); hbInterval = setInterval(pulse, 1000);
+                
+                pulse(); 
+                hbInterval = setInterval(pulse, 1000);
             };
             const stopHeart = () => {
                 heartBtn.classList.remove('active');
+                hbContainer.classList.remove('active');
                 if (hbInterval) { clearInterval(hbInterval); hbInterval = null; }
+                if (breatheInterval) { clearInterval(breatheInterval); breatheInterval = null; }
                 if (navigator.vibrate) navigator.vibrate(0);
+                breatheTxt.textContent = "Breathe";
             };
             heartBtn.addEventListener('mousedown', (e) => { if (e.button === 0) startHeart(); });
             window.addEventListener('mouseup', stopHeart);
@@ -1245,6 +1494,21 @@
                 };
                 playThump(80, 0.2, 0);      // Lub
                 playThump(60, 0.15, 0.12);   // Dub
+            },
+            spark() {
+                this.init();
+                if (!this.ctx || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+                } catch(e) {}
             }
         };
 
@@ -1709,8 +1973,132 @@
 
         /* --- THE CONSTELLATION OF SELF (ENGINE) --- */
         let constellationStars = [];
+        let shootingStars = [];
+        let nextShootingStarSpawnTime = Date.now() + 5000 + Math.random() * 10000; 
         let constellationCanvas, constellationCtx;
         let constAnimationId;
+
+        const SHOOTING_STAR_MESSAGES = [
+            "You're capable of more than you even realize. I've seen it.",
+            "The way you keep moving forward is actually inspiring. Don't stop.",
+            "You’ve got a light in you that even hard days can’t shake.",
+            "I'm always in your corner, No matter how heavy it feels.",
+            "You are enough. You are more than enough. You are everything.",
+            "Don't let a heavy day make you forget how amazing you truly are.",
+            "You make the world better just by being in it. I mean that.",
+            "You’re growing, learning, and doing better than you give yourself credit for.",
+            "You’re a masterpiece in progress. Trust yourself.",
+            "Sending you a huge hug through this star, From the universe!",
+            "I wish you could see how strong and capable you really are.",
+            "You've conquered 100% of your bad days. This one won't stop you.",
+            "You’re built different. In the best, slightly chaotic way possible.",
+            "If life tries to mess with you today… remind it who it’s dealing with.",
+            "You’ve handled worse. This is just another side quest.",
+            "Main character energy. Always. Don’t forget it.",
+            "You + determination = unstoppable combo. Science probably agrees.",
+            "Bad day? Cool. You’re still cooler.",
+            "You don’t just survive chaos… you kinda thrive in it.",
+            "Somewhere out there, today is scared of you.",
+            "You’ve got that ‘figure it out anyway’ energy. That’s rare.",
+            "Not every hero wears a cape. Some just keep going like you do.",
+            "You make things happen, even when things are messy.",
+            "This is just a plot twist. You’re still winning the story.",
+            "You’ve got more resilience than you realize, and it shows.",
+            "You don’t quit. That’s your superpower.",
+            "Even on low-energy days, you’re still doing better than you think.",
+            "You’ve got that spark. Don’t let a random day mess with it.",
+            "Chaos follows you… but somehow you’re still in charge.",
+            "You’re the kind of person who turns ‘this is bad’ into ‘handled.’",
+            "No pressure, but you’ve already proven you can deal with anything.",
+            "You’re stronger than whatever today is throwing at you. Easily.",
+            "You don’t need perfect conditions to keep going, and that’s powerful.",
+            "You’ve got momentum. Even slow steps count.",
+            "You’ve come too far to doubt yourself now.",
+            "You’re not stuck. You’re just mid-level boss fighting. Keep going."
+        ];
+
+        class ShootingStar {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                const isHorizontal = Math.random() > 0.5;
+                if (isHorizontal) {
+                    this.x = Math.random() > 0.5 ? -50 : constellationCanvas.width + 50;
+                    this.y = Math.random() * (constellationCanvas.height * 0.5);
+                    this.vx = (this.x < 0 ? 1 : -1) * (Math.random() * 2 + 2); // Slower horizontal speed
+                } else {
+                    this.x = Math.random() * constellationCanvas.width;
+                    this.y = -50;
+                    this.vx = (Math.random() - 0.5) * 1.5;
+                }
+                this.vy = Math.random() * 1.5 + 1.5; // Slower vertical speed
+                this.trail = [];
+                this.maxTrail = 35; // Longer trail for very slow stars looks better
+                this.active = true;
+                this.message = SHOOTING_STAR_MESSAGES[Math.floor(Math.random() * SHOOTING_STAR_MESSAGES.length)];
+            }
+            update() {
+                this.trail.push({x: this.x, y: this.y});
+                if (this.trail.length > this.maxTrail) this.trail.shift();
+                
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.y > constellationCanvas.height + 100 || 
+                    this.x < -100 || 
+                    this.x > constellationCanvas.width + 100) {
+                    this.active = false;
+                }
+            }
+            draw() {
+                if (!this.active) return;
+                constellationCtx.beginPath();
+                constellationCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                constellationCtx.lineWidth = 2;
+                for (let i = 0; i < this.trail.length - 1; i++) {
+                    const alpha = i / this.trail.length;
+                    constellationCtx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
+                    constellationCtx.beginPath();
+                    constellationCtx.moveTo(this.trail[i].x, this.trail[i].y);
+                    constellationCtx.lineTo(this.trail[i+1].x, this.trail[i+1].y);
+                    constellationCtx.stroke();
+                }
+                
+                constellationCtx.beginPath();
+                constellationCtx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); // Slightly larger star for easier clicking
+                constellationCtx.fillStyle = 'white';
+                constellationCtx.shadowBlur = 10;
+                constellationCtx.shadowColor = 'white';
+                constellationCtx.fill();
+                constellationCtx.shadowBlur = 0;
+            }
+        }
+
+        function toggleConstellationFullscreen() {
+            const card = document.getElementById('constellation-card');
+            const icon = document.getElementById('fullscreen-icon');
+            const backBtn = document.getElementById('back-link-container');
+            const giftBtn = document.getElementById('gift-btn-container');
+            const isFullscreen = card.classList.toggle('fullscreen-card');
+            
+            if (isFullscreen) {
+                // Change icon to "minimize"
+                icon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+                if (backBtn) backBtn.style.display = 'none';
+                if (giftBtn) giftBtn.style.display = 'none';
+            } else {
+                // Change icon back to "maximize"
+                icon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+                document.body.style.overflow = '';
+                if (backBtn) backBtn.style.display = 'block';
+                if (giftBtn) giftBtn.style.display = 'block';
+            }
+            
+            // Resize the canvas
+            setTimeout(resizeConstellation, 50);
+        }
         
         // ARIES CONSTELLATION MAPPING (Normalized 0-1)
         // Primary 3-star "Hook" descending from Right to Left
@@ -1760,6 +2148,12 @@
                     } else {
                         star.hovered = false;
                     }
+                });
+
+                // Also check shooting stars for cursor change
+                shootingStars.forEach(star => {
+                    const d = Math.hypot(star.x - mouseX, star.y - mouseY);
+                    if (d < 40) isHoveringStar = true;
                 });
                 
                 constellationCanvas.style.cursor = isHoveringStar ? 'pointer' : 'default';
@@ -1879,6 +2273,22 @@
                 // Calculate periodic pulse for the pattern (every 4 seconds)
                 const now = Date.now();
                 const patternPulse = (Math.sin(now / 1000) + 1) / 2; // 0 to 1 pulse
+
+                // Handle Shooting Stars (Rare: 15-30 seconds after previous vanishes)
+                const nowMs = Date.now();
+                if (shootingStars.length === 0 && (nowMs > nextShootingStarSpawnTime)) {
+                    shootingStars.push(new ShootingStar());
+                }
+
+                shootingStars.forEach((star, i) => {
+                    star.update();
+                    star.draw();
+                    if (!star.active) {
+                        shootingStars.splice(i, 1);
+                        // Set next random interval: 15s - 45s
+                        nextShootingStarSpawnTime = Date.now() + 15000 + Math.random() * 30000;
+                    }
+                });
                 
                 constellationStars.forEach(star => {
                     star.update();
@@ -1900,6 +2310,25 @@
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
+            // Check Shooting Stars first (they move, so check them with a wider tolerance)
+            let pluckedShootingStar = null;
+            shootingStars.forEach(star => {
+                const d = Math.hypot(star.x - mouseX, star.y - mouseY);
+                if (d < 40) {
+                    pluckedShootingStar = star;
+                }
+            });
+
+            if (pluckedShootingStar) {
+                pluckStar({
+                    data: {
+                        prompt: "A Message from the Void:",
+                        text: pluckedShootingStar.message
+                    }
+                }, true); // Pass true to indicate it's a shooting star
+                return;
+            }
+
             let closest = null;
             let minDist = 30;
 
@@ -1914,10 +2343,18 @@
             if (closest) pluckStar(closest);
         }
 
-        function pluckStar(star) {
+        function pluckStar(star, isShootingStar = false) {
             const overlay = document.getElementById('plucked-star-overlay');
             document.getElementById('plucked-prompt').textContent = star.data.prompt || "A Discovery:";
             document.getElementById('plucked-text').textContent = star.data.text;
+            
+            // Adjust overlay for shooting star if needed
+            if (isShootingStar) {
+                overlay.style.background = "rgba(25, 25, 50, 0.9)"; // Slightly different hue
+            } else {
+                overlay.style.background = "rgba(15, 12, 41, 0.9)";
+            }
+
             overlay.style.display = 'flex';
             setTimeout(() => overlay.style.opacity = '1', 10);
             if (navigator.vibrate) navigator.vibrate(20);
@@ -2052,6 +2489,7 @@
                         loadHighScore();
                         initConstellation(); // Start the engine
                         loadResilience();    // Fetch data
+                        loadFamiliarSounds(); // Load mood-based songs
                     }
                 });
             }

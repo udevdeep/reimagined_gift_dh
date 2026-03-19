@@ -28,6 +28,7 @@
   --accent-primary: #c9a573; /* Gold/Champagne */
   --accent-secondary: #d4b483;
   --accent-glow: rgba(201, 165, 115, 0.2);
+  --accent-low: #8e93b2; /* Soothing Lavender Grey */
   
   /* Interactive */
   --btn-hover: rgba(255, 255, 255, 0.08);
@@ -62,6 +63,7 @@ html.barbie-mode {
   --accent-primary: #ff1493; /* Deep Pink for better visibility */
   --accent-secondary: #c71585;
   --accent-glow: rgba(255, 20, 147, 0.25);
+  --accent-low: #8e93b2; /* Soothing Lavender Grey */
   
   /* Interactive */
   --btn-hover: rgba(255, 255, 255, 0.8);
@@ -184,53 +186,45 @@ body::after {
 
 /* --- Global Spark FAB --- */
 .spark-fab {
-    position: fixed;
-    bottom: 110px;
-    right: 24px;
-    padding: 12px 24px;
-    background: rgba(255, 204, 0, 0.1);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 204, 0, 0.2);
-    border-radius: 50px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
+    padding: 10px 22px;
+    width: 180px; /* FIXED WIDTH to prevent jumping */
+    background: rgba(201, 165, 115, 0.1); 
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(201, 165, 115, 0.2);
+    border-radius: 25px;
     cursor: pointer;
-    z-index: 1000;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
     font-weight: 500;
-    color: var(--text-main);
+    color: #c9a573;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+    margin: 20px auto;
 }
 
 .spark-fab:hover {
-    transform: scale(1.05) translateY(-5px);
-    background: rgba(255, 204, 0, 0.2);
-    border-color: rgba(255, 204, 0, 0.5);
-    box-shadow: 0 15px 40px rgba(255, 204, 0, 0.15);
+    background: rgba(201, 165, 115, 0.2);
+    box-shadow: 0 5px 15px rgba(201, 165, 115, 0.1);
 }
 
 .spark-fab.sending {
-    animation: sparkPulse 1.5s infinite;
+    opacity: 0.6;
     pointer-events: none;
-    opacity: 0.8;
-}
-
-@keyframes sparkPulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.4); }
-    70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(255, 204, 0, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+    cursor: default;
 }
 
 @media (max-width: 768px) {
     .spark-fab {
-        bottom: 100px;
-        right: 20px;
-        padding: 10px 20px;
-        font-size: 0.85rem;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 16px;
+        font-size: 0.8rem;
     }
 }
 
@@ -1553,7 +1547,20 @@ body.grey-mode-forced .nav-links a.active {
 }
 
 .nav-links a.nav-low {
-    color: var(--accent-primary); /* Adapted to new var */
+    color: var(--accent-low);
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.nav-links a.nav-low:hover, .nav-links a.nav-low.active {
+    color: var(--accent-low) !important;
+    opacity: 1;
+    text-shadow: 0 0 10px var(--accent-low);
+}
+
+.nav-links a.nav-low.active::after {
+    background: var(--accent-low) !important;
+    box-shadow: 0 0 8px var(--accent-low);
 }
 
 /* --- Heartbeat Section --- */

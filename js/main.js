@@ -19,16 +19,18 @@ async function sendSpark() {
     btn.classList.add('sending');
     
     if (btn.classList.contains('spark-fab')) {
-        btn.innerHTML = "Sending... ⚡";
+        btn.innerHTML = "Sending... ✨";
     } else {
         btn.classList.add('ripple-active');
-        if (icon) icon.textContent = "⚡";
+        if (icon) icon.textContent = "✨";
         if (text) text.textContent = "Catching the light...";
     }
     
-    // Play subtle sound
-    if (typeof SoundFX !== 'undefined') SoundFX.thump();
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    // Light shimmer sound instead of heavy thump
+    if (typeof SoundFX !== 'undefined' && SoundFX.spark) SoundFX.spark();
+    else if (window.SoundFX && window.SoundFX.spark) window.SoundFX.spark();
+    
+    // Removed vibration for lighter feel
 
     // Fun Confetti Burst (Gold & White)
     if (typeof confetti !== 'undefined') {
@@ -130,11 +132,18 @@ const LOCK_KEY = 'gift_lock_expiry';
 
 let SECRET_KEY = ""; // Fetched from cloud
 let LETTER_TEXT = `Hey...`; // Default
-let ALONE_TEXT = `There are moments when the world feels quiet, not because it has stopped, but because it is holding its breath with you. 
+let ALONE_TEXT = `There are moments when the world feels quiet, not because it has stopped, but because it is holding its breath with you.
 
-Everything you’ve ever felt—the loud laughs, the private heartbreaks, the chaos of college—is recorded here. This archive is a witness. You are not just a ghost in the machine; you are the reason all of this exists. 
+Everything you’ve ever felt—the loud laughs, the private heartbreaks, the chaos of college—is recorded here. This archive is a witness. You are not just a ghost in the machine; you are the reason all of this exists.
 
 Take a moment. The past is still here, and so are you.`; // Default
+
+// Immediate sync for Feeling Low if it's already in DOM
+document.addEventListener('DOMContentLoaded', () => {
+    const aloneEl = document.getElementById('reassurance-text');
+    if (aloneEl) aloneEl.innerHTML = ALONE_TEXT.replace(/\n/g, '<br>');
+});
+
 let CALM_SOUND_URL = ""; // Default empty, loaded from cloud
 
 var MEMORIES_DATA = [];
@@ -368,7 +377,7 @@ async function loadAllData() {
 
     // Update UI components that might already be rendered
     const aloneEl = document.getElementById('reassurance-text');
-    if (aloneEl) aloneEl.textContent = ALONE_TEXT;
+    if (aloneEl) aloneEl.innerHTML = ALONE_TEXT.replace(/\n/g, '<br>');
     const audioEl = document.getElementById('calm-audio');
     if (audioEl && audioEl.src !== CALM_SOUND_URL) audioEl.src = CALM_SOUND_URL;
 }
@@ -1383,12 +1392,12 @@ function updateMapMarkers() {
         // Strict Check: Must have Cloud URL (src) and Location
         if (item.src && item.lat && item.lon) {
             const isVideo = item.type === 'video' || item.filename.match(/\.(mp4|mov)$/i);
-            // Allow images or videos with thumbnails
-            if (!isVideo || (isVideo && item.thumb)) {
+            // STRICT: Only images on map
+            if (!isVideo) {
                 mapItems.push({
                     src: item.src,
                     thumb: item.thumb,
-                    type: isVideo ? 'video' : 'image',
+                    type: 'image',
                     lat: item.lat,
                     lon: item.lon
                 });

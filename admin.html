@@ -522,10 +522,31 @@
                     <textarea id="alone-input" rows="6"></textarea>
                     <button class="btn-admin" onclick="updateAloneText()">Save Message</button>
                     
-                    <label style="margin-top: 30px;">Update Calm Background Audio:</label>
-                    <input type="file" id="calm-audio-file" accept="audio/*">
-                    <button class="btn-admin btn-secondary" onclick="uploadCalmSound()">Upload Audio</button>
-                    <span class="status" id="low-status"></span>
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--card-border);">
+                        <h3>🎵 Familiar Sounds (Mood Collection)</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Add songs she loves and categorize them by mood.</p>
+                        
+                        <label>Song Title:</label>
+                        <input type="text" id="familiar-title" placeholder="e.g. Yellow - Coldplay">
+                        
+                        <div class="grid-2">
+                            <div>
+                                <label>Mood Category:</label>
+                                <select id="familiar-mood">
+                                    <option value="calm">🌙 Calm & Peaceful</option>
+                                    <option value="happy">☀️ Happy & Upbeat</option>
+                                    <option value="nostalgic">🎞️ Nostalgic</option>
+                                    <option value="comfort">🍵 Pure Comfort</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Audio File:</label>
+                                <input type="file" id="familiar-audio-file" accept="audio/*">
+                            </div>
+                        </div>
+                        <button class="btn-admin" onclick="uploadFamiliarSound()">Add to Collection</button>
+                        <span class="status" id="low-status"></span>
+                    </div>
                 </div>
             </section>
 
@@ -540,6 +561,7 @@
                         <option value="gallery">Gallery Photos</option>
                         <option value="memories">Archive Memories</option>
                         <option value="jokes">Inside Jokes</option>
+                        <option value="familiar_sounds">Familiar Sounds</option>
                     </select>
                     
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
