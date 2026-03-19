@@ -437,6 +437,9 @@ async function startGalleryUpload() {
         if (file.type.startsWith('image')) {
             // Process images before uploading
             [mainBlob, thumbBlob] = await Promise.all([processImage(file, 'original'), processImage(file, 'thumb')]);
+        } else if (file.type.startsWith('video')) {
+            // Generate thumbnail for video
+            thumbBlob = await getVideoThumbnail(file);
         }
 
         const timestamp = Date.now() + Math.floor(Math.random() * 1000);
@@ -597,16 +600,125 @@ function saveEmailJSConfig() {
 }
 window.saveEmailJSConfig = saveEmailJSConfig;
 
-async function loadContentList() {
-    const col = document.getElementById('manage-collection').value, list = document.getElementById('manage-list');
-    list.innerHTML = 'Loading...';
+/* --- Pagination State --- */
+let firstDoc = null;
+let lastDoc = null;
+let currentPage = 1;
+let orderField = 'timestamp'; // Default order field
+const pageSize = 50;
+
+async function loadContentList(direction = 'first') {
+    const col = document.getElementById('manage-collection').value;
+    const list = document.getElementById('manage-list');
+    const pageInfo = document.getElementById('page-info');
+
+    if (direction === 'first') {
+        currentPage = 1;
+        firstDoc = null;
+        lastDoc = null;
+        orderField = 'timestamp'; // Reset to default for new collection
+    }
+
+    list.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-muted); opacity: 0.5;">Loading archival records...</div>';
+    
     try {
-        let snap = await db.collection(col).orderBy('timestamp', 'desc').limit(50).get();
-        if(snap.empty && col === 'jokes') snap = await db.collection(col).limit(50).get();
+        const getQuery = (field, dir) => {
+            let q = db.collection(col);
+            if (field === 'timestamp') {
+                q = q.orderBy('timestamp', 'desc');
+            } else {
+                q = q.orderBy(firebase.firestore.FieldPath.documentId());
+            }
+
+            if (dir === 'next' && lastDoc) {
+                return q.startAfter(lastDoc).limit(pageSize);
+            } else if (dir === 'prev' && firstDoc) {
+                return q.endBefore(firstDoc).limitToLast(pageSize);
+            }
+            return q.limit(pageSize);
+        };
+
+        let snap;
+        try {
+            snap = await getQuery(orderField, direction).get();
+            
+            // If we tried timestamp and got nothing on first page, fallback to ID
+            if (snap.empty && direction === 'first' && orderField === 'timestamp') {
+                console.warn(`No docs with timestamp in ${col}, falling back to ID ordering.`);
+                orderField = 'id';
+                snap = await getQuery(orderField, 'first').get();
+            }
+        } catch (err) {
+            // If the query failed because of missing field, fallback to ID
+            if (err.message.includes('orderBy') || err.message.includes('timestamp')) {
+                orderField = 'id';
+                snap = await getQuery(orderField, 'first').get();
+            } else {
+                throw err;
+            }
+        }
+
+        if (!snap || snap.empty) {
+            if (direction === 'next') {
+                alert("You've reached the end of the collection.");
+                currentPage--;
+                updatePaginationUI(true, false);
+                return;
+            }
+            list.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-muted); opacity: 0.5;">No items found in this collection.</div>';
+            updatePaginationUI(false, false);
+            return;
+        }
+
+        firstDoc = snap.docs[0];
+        lastDoc = snap.docs[snap.docs.length - 1];
+
+        // Check if there is a next page using the SAME orderField
+        let hasNext = false;
+        try {
+            const nextCheckQuery = db.collection(col);
+            const finalNextQuery = (orderField === 'timestamp') 
+                ? nextCheckQuery.orderBy('timestamp', 'desc').startAfter(lastDoc).limit(1)
+                : nextCheckQuery.orderBy(firebase.firestore.FieldPath.documentId()).startAfter(lastDoc).limit(1);
+            
+            const nextCheck = await finalNextQuery.get();
+            hasNext = !nextCheck.empty;
+        } catch (e) { console.warn("Next page check failed", e); }
+
+        const hasPrev = currentPage > 1;
+        updatePaginationUI(hasPrev, hasNext);
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
+
         renderList(snap, col);
-    } catch(e) { renderList(await db.collection(col).limit(50).get(), col); }
+    } catch (e) {
+        console.error("Pagination Error:", e);
+        list.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff6b6b;">Error loading data: ${e.message}</div>`;
+    }
 }
 window.loadContentList = loadContentList;
+
+function updatePaginationUI(hasPrev, hasNext) {
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+    if (prevBtn) prevBtn.style.opacity = hasPrev ? '1' : '0.3';
+    if (nextBtn) nextBtn.style.opacity = hasNext ? '1' : '0.3';
+}
+
+function loadNextPage() {
+    currentPage++;
+    loadContentList('next');
+}
+window.loadNextPage = loadNextPage;
+
+function loadPreviousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        loadContentList('prev');
+    }
+}
+window.loadPreviousPage = loadPreviousPage;
 
 function renderList(snap, col) {
     const list = document.getElementById('manage-list'); list.innerHTML = '';
@@ -618,9 +730,14 @@ function renderList(snap, col) {
         div.className = 'manage-item'; div.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--card-border); gap: 15px;";
         let thumbHtml = '<div style="width:40px; height:40px; background:rgba(255,255,255,0.05); border-radius:4px;"></div>'; 
         if (col === 'gallery') {
-            const path = data.thumb || data.src;
-            if (data.type === 'video') thumbHtml = `<video src="${path}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;" muted></video>`;
-            else thumbHtml = `<img src="${path}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
+            const isVideo = data.type === 'video';
+            if (isVideo && data.thumb) {
+                thumbHtml = `<img src="${data.thumb}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
+            } else if (isVideo) {
+                thumbHtml = `<video src="${data.src}#t=0.1" style="width:40px; height:40px; object-fit:cover; border-radius:4px;" muted></video>`;
+            } else {
+                thumbHtml = `<img src="${data.thumb || data.src}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
+            }
         } else if (col === 'memories') {
             if (data.images && data.images.length > 0) thumbHtml = `<img src="${data.images[0]}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
             else if (data.video) thumbHtml = `<div style="width:40px; height:40px; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">▶</div>`;

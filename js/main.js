@@ -1302,10 +1302,20 @@ function renderGalleryGrouped(items, isFlat = false) {
             
             const path = item.src;
             const isVideo = item.filename.match(/\.(mp4|mov)$/i) || item.type === 'video';
-            const displayPath = item.thumb || item.src;
             
-            if (isVideo) el.insertAdjacentHTML('beforeend', `<video src="${displayPath}#t=0.1" muted style="width:100%;height:100%;object-fit:cover;"></video><div class="video-badge" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.7rem;padding:2px;border-radius:4px;">▶</div>`);
-            else el.insertAdjacentHTML('beforeend', `<img src="${displayPath}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`);
+            if (isVideo) {
+                const thumbPath = item.thumb || item.src;
+                // If we have a dedicated thumbnail (which is an image), use <img>
+                if (item.thumb) {
+                    el.insertAdjacentHTML('beforeend', `<img src="${thumbPath}" loading="lazy" style="width:100%;height:100%;object-fit:cover;"><div class="video-badge" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.7rem;padding:2px;border-radius:4px;">▶</div>`);
+                } else {
+                    // Fallback to video tag with timestamp if no thumbnail exists
+                    el.insertAdjacentHTML('beforeend', `<video src="${thumbPath}#t=0.1" muted style="width:100%;height:100%;object-fit:cover;"></video><div class="video-badge" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.7rem;padding:2px;border-radius:4px;">▶</div>`);
+                }
+            } else {
+                const displayPath = item.thumb || item.src;
+                el.insertAdjacentHTML('beforeend', `<img src="${displayPath}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`);
+            }
             
             const currentIndex = globalIndex++;
             el.addEventListener('click', () => { 
@@ -1373,10 +1383,12 @@ function updateMapMarkers() {
         // Strict Check: Must have Cloud URL (src) and Location
         if (item.src && item.lat && item.lon) {
             const isVideo = item.type === 'video' || item.filename.match(/\.(mp4|mov)$/i);
-            if (!isVideo) {
+            // Allow images or videos with thumbnails
+            if (!isVideo || (isVideo && item.thumb)) {
                 mapItems.push({
                     src: item.src,
-                    type: 'image',
+                    thumb: item.thumb,
+                    type: isVideo ? 'video' : 'image',
                     lat: item.lat,
                     lon: item.lon
                 });
@@ -1385,7 +1397,7 @@ function updateMapMarkers() {
     });
 
     mapItems.forEach((item, index) => {
-        addToMap(item.lat, item.lon, item.src, index, mapItems);
+        addToMap(item.lat, item.lon, item.thumb || item.src, index, mapItems);
         bounds.push([item.lat, item.lon]);
     });
 
