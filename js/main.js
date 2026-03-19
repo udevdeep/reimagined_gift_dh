@@ -156,15 +156,19 @@ window.GALLERY_DATA = GALLERY_DATA;
 window.JOKES_DATA = JOKES_DATA;
 
 /* --- INIT --- */
-window.addEventListener('load', () => {
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Theme and Pre-loading
     initTheme();
+    
+    // 2. IMMEDIATE Cache Application (Critical for background video speed)
+    applyCacheImmediate();
 
-    // Security Check
+    // 3. Security Check & App Start
     if (initFirebaseLock()) {
         startApp();
     }
     
-    // Mobile Nav Docker
+    // 4. Mobile Nav Docker
     const handleMobileNav = () => {
         const nav = document.querySelector('.navbar');
         const links = document.querySelector('.nav-links');
@@ -177,7 +181,9 @@ window.addEventListener('load', () => {
             }
         } else {
             if (links.parentNode === document.body) {
-                nav.insertBefore(links, nav.querySelector('.theme-toggle-btn')); // Insert before toggle or append
+                const toggle = nav.querySelector('.theme-toggle-btn');
+                if (toggle) nav.insertBefore(links, toggle);
+                else nav.appendChild(links);
                 links.classList.remove('mobile-dock');
             }
         }
@@ -185,6 +191,34 @@ window.addEventListener('load', () => {
     window.addEventListener('resize', handleMobileNav);
     handleMobileNav(); // Init
 });
+
+/**
+ * Applies cached data as soon as possible, before Firebase or Auth.
+ */
+function applyCacheImmediate() {
+    const cachedHome = sessionStorage.getItem('home_cache');
+    const cachedLetter = sessionStorage.getItem('letter_cache');
+    
+    if (cachedHome) {
+        try {
+            applyHomeConfig(JSON.parse(cachedHome));
+        } catch(e) { console.warn("Failed to apply home cache", e); }
+    }
+    if (cachedLetter) {
+        try {
+            const data = JSON.parse(cachedLetter);
+            LETTER_TEXT = data.text || '';
+            window.LETTER_CLOSING = data.closingLine || '';
+            const content = document.getElementById('letter-content');
+            const closing = document.getElementById('letter-closing-line');
+            if (content) content.textContent = LETTER_TEXT;
+            if (closing) closing.textContent = window.LETTER_CLOSING || "";
+        } catch(e) { console.warn("Failed to apply letter cache", e); }
+    }
+
+    // Start video playback immediately if cached (on index page)
+    if (document.getElementById('intro-video')) initHome();
+}
 
 function initPreLanding() {
     const preLanding = document.getElementById('pre-landing');
@@ -234,7 +268,10 @@ async function startApp() {
 
     initGlobalUI();
 
-    // 1. Record Visit
+    // 1. Immediate UI Setup for specific pages (using cache applied above)
+    if (document.getElementById('intro-video')) initHome();
+
+    // 2. Record Visit
     recordVisit();
 
     try {
@@ -249,6 +286,7 @@ async function startApp() {
     }
     if (document.getElementById('gallery-grid')) loadGallery();
     if (document.getElementById('jokes-container')) loadJokes();
+    // Re-init Home if data changed significantly (rare on same session)
     if (document.getElementById('intro-video')) initHome();
     if (document.querySelector('.low-cards')) initFeelingLow();
 }
@@ -273,20 +311,7 @@ const getContrastYIQ = (hexcolor) => {
 async function loadAllData() {
     const db = firebase.firestore();
     
-    // --- 0. PRE-LOAD FROM CACHE (Immediate UI) ---
-    const cachedHome = sessionStorage.getItem('home_cache');
-    const cachedLetter = sessionStorage.getItem('letter_cache');
-    
-    if (cachedHome) {
-        applyHomeConfig(JSON.parse(cachedHome));
-    }
-    if (cachedLetter) {
-        const data = JSON.parse(cachedLetter);
-        LETTER_TEXT = data.text || '';
-        window.LETTER_CLOSING = data.closingLine || '';
-        const content = document.getElementById('letter-content');
-        if (content) content.textContent = LETTER_TEXT;
-    }
+    // Note: applyCacheImmediate() is already called in DOMContentLoaded
 
     // --- 1. PARALLEL FETCH ---
     const tasks = [
@@ -385,28 +410,26 @@ async function loadAllData() {
 // Helper for Home Assets
 function applyHomeConfig(data) {
     const videoEl = document.getElementById('intro-video');
-    const preVideoEl = document.querySelector('.pre-landing-video');
     const videoContainer = document.querySelector('.bg-video-container');
     
     if (videoEl) {
         if (data.introVideoThumbnail) {
             videoEl.poster = data.introVideoThumbnail;
-            if (preVideoEl) preVideoEl.poster = data.introVideoThumbnail;
             if (videoContainer) {
                 videoContainer.style.backgroundImage = `url(${data.introVideoThumbnail})`;
                 videoContainer.style.backgroundSize = 'cover';
                 videoContainer.style.backgroundPosition = 'center';
             }
         }
-        if (data.introVideo && videoEl.src !== data.introVideo) {
+
+        // Canonical comparison (ignoring trailing slashes/metadata)
+        const normalize = u => u ? u.split('?')[0].split('#')[0].replace(/\/$/, '') : '';
+        const currentSrc = normalize(videoEl.src);
+        const nextSrc = normalize(data.introVideo);
+
+        if (data.introVideo && currentSrc !== nextSrc) {
             videoEl.src = data.introVideo;
-            if (preVideoEl) preVideoEl.src = data.introVideo;
-            videoEl.style.opacity = '0';
-            videoEl.style.transition = 'opacity 0.5s ease';
-            videoEl.onplaying = () => { videoEl.style.opacity = '1'; };
-            
-            // Safety: if video fails to play/load in 3s, show it anyway (it might be the thumbnail)
-            setTimeout(() => { if(videoEl.style.opacity === '0') videoEl.style.opacity = '1'; }, 3000);
+            videoEl.load(); // Explicitly tell browser to start fetching
         }
     }
 }
@@ -705,6 +728,8 @@ function initGlobalUI() {
 
 function initHome() {
     if (!document.body.classList.contains('index-page')) return;
+    if (window._homeInitialized) return;
+    window._homeInitialized = true;
 
     const video = document.getElementById('intro-video');
     const content = document.getElementById('letter-content');

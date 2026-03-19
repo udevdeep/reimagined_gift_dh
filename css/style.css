@@ -136,7 +136,7 @@ body::after {
     position: fixed;
     inset: 0;
     z-index: 20000;
-    background: #000;
+    background: #000; /* Solid black */
     display: flex;
     flex-direction: column;
     justify-content: center;
