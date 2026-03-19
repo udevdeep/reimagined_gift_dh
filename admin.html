@@ -12,51 +12,130 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <style>
+        :root {
+            --sidebar-width: 260px;
+        }
         body { 
             visibility: visible; 
             opacity: 1; 
-            padding: 40px 20px; 
             background: var(--bg-color); 
             color: var(--text-main);
             user-select: auto;
             -webkit-user-select: auto;
-        }
-        
-        .admin-container {
-            max-width: 900px;
-            margin: 0 auto;
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+            font-family: var(--font-body);
         }
 
-        .admin-header {
-            margin-bottom: 40px;
+        /* --- Sidebar Styles --- */
+        .admin-sidebar {
+            width: var(--sidebar-width);
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            border-bottom: 1px solid var(--card-border);
             text-align: center;
         }
 
-        .admin-header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--accent-primary);
+            font-family: var(--font-heading);
+        }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav li {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sidebar-nav li:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .sidebar-nav li.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--accent-primary);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        /* --- Main Content Area --- */
+        .admin-main {
+            flex-grow: 1;
+            margin-left: var(--sidebar-width);
+            padding: 40px;
+            width: calc(100% - var(--sidebar-width));
         }
 
         .admin-section {
+            display: none;
+            max-width: 900px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .admin-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 15px;
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--accent-primary);
+        }
+
+        .card {
             background: var(--card-bg);
             padding: 30px;
             border-radius: 24px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             border: 1px solid var(--card-border);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
             box-shadow: var(--glass-shadow);
         }
 
-        h2 { 
-            font-size: 1.5rem;
-            margin-bottom: 25px;
-            color: var(--accent-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
+        /* --- Form Styles --- */
         label { 
             display: block; 
             margin: 20px 0 8px; 
@@ -80,27 +159,15 @@
             border-radius: 12px;
             font-family: var(--font-body);
             font-size: 1rem;
-            transition: border-color 0.3s, box-shadow 0.3s;
+            transition: all 0.3s;
+            box-sizing: border-box;
         }
 
         input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: var(--accent-primary);
+            background: rgba(0, 0, 0, 0.3);
             box-shadow: 0 0 0 2px var(--accent-glow);
-        }
-
-        textarea {
-            resize: vertical;
-            white-space: pre-wrap; /* Match site formatting */
-        }
-
-        /* Themed Textareas for Preview-like feel */
-        .themed-textarea {
-            font-family: var(--font-heading);
-            font-style: italic;
-            font-size: 1.1rem;
-            line-height: 1.6;
-            background: rgba(255, 255, 255, 0.03);
         }
 
         .btn-admin {
@@ -127,23 +194,24 @@
         }
 
         .btn-secondary {
-            background: var(--card-bg);
+            background: transparent;
             color: var(--text-main);
             border: 1px solid var(--card-border);
         }
 
         .status { 
-            margin-left: 15px; 
+            margin-top: 15px;
+            display: block;
             font-size: 0.85rem;
             color: var(--accent-secondary);
         }
 
         .progress-bar {
             width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
             margin-top: 20px;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
             display: none;
         }
@@ -151,27 +219,7 @@
             height: 100%;
             background: var(--accent-primary);
             width: 0%;
-            transition: width 0.2s;
-        }
-
-        #auth-container {
-            text-align: center;
-            padding-top: 100px;
-        }
-
-        #login-btn {
-            background: white;
-            color: black;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: width 0.3s ease;
         }
 
         .grid-2 {
@@ -180,15 +228,41 @@
             gap: 20px;
         }
 
-        @media (max-width: 600px) {
-            .grid-2 { grid-template-columns: 1fr; }
+        /* --- Auth Modal --- */
+        #auth-container {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
         }
 
-        /* Video Review Modal */
+        #login-btn {
+            background: white;
+            color: black;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 40px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        #login-btn:hover { transform: scale(1.05); }
+
+        /* Review Modal */
         #video-review-modal {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             z-index: 10000;
             display: none;
             justify-content: center;
@@ -198,1264 +272,331 @@
         }
         .review-card {
             background: var(--card-bg);
-            padding: 30px;
-            border-radius: 24px;
-            max-width: 500px;
+            padding: 40px;
+            border-radius: 30px;
+            max-width: 600px;
             width: 100%;
-            text-align: center;
             border: 1px solid var(--card-border);
-            box-shadow: var(--glass-shadow);
-        }
-        #review-video-player {
-            width: 100%;
-            max-height: 300px;
-            background: #000;
-            border-radius: 12px;
-            margin-bottom: 20px;
         }
 
-        .manage-item {
-            transition: background 0.2s;
-        }
-        .manage-item:hover {
-            background: rgba(255, 255, 255, 0.05) !important;
+        @media (max-width: 900px) {
+            :root { --sidebar-width: 80px; }
+            .sidebar-header h1, .sidebar-nav span { display: none; }
+            .admin-sidebar { width: 80px; align-items: center; }
+            .sidebar-nav li { justify-content: center; padding: 20px; }
+            .admin-main { margin-left: 80px; width: calc(100% - 80px); padding: 20px; }
+            .grid-2 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
-    <div class="admin-container">
-        
-        <div class="admin-header">
-            <h1>Admin Dashboard</h1>
-            <p>Manage your archive content securely.</p>
-        </div>
+    <!-- Login Screen -->
+    <div id="auth-container">
+        <h1 style="font-family: var(--font-heading); font-size: 3rem; margin-bottom: 20px;">The Archive</h1>
+        <p style="color: var(--text-muted); margin-bottom: 40px;">Authentication required to manage the collection.</p>
+        <button id="login-btn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" height="24">
+            Sign in with Google
+        </button>
+        <p id="auth-status" style="margin-top: 30px; color: #ff6b6b; font-weight: 500;"></p>
+    </div>
 
-        <!-- Video Review Modal -->
-        <div id="video-review-modal">
-            <div class="review-card">
-                <h2 id="review-title">Review Video</h2>
-                <p id="review-filename" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;"></p>
-                <video id="review-video-player" controls></video>
-                <label style="text-align: left;">Date Taken:</label>
-                <input type="datetime-local" id="review-date-input">
-                <button id="review-confirm-btn" class="btn-admin" style="width: 100%;">Confirm & Next</button>
-            </div>
-        </div>
-
-        <!-- Login -->
-        <div id="auth-container">
-            <button id="login-btn">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20">
-                Log In with Google
-            </button>
-            <p id="auth-status" style="margin-top: 20px; color: var(--text-muted);"></p>
-        </div>
-
-        <div id="admin-panel" style="display: none;">
-            
-            <div class="admin-section" id="pulse-monitor" style="border-color: #ffcc33; background: rgba(255, 204, 0, 0.05); display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h2 style="color: #ffcc33; margin: 0;">✨ The Spark Monitor</h2>
-                    <button class="btn-admin btn-secondary" onclick="clearSparkCounts()" style="margin: 0; padding: 8px 16px; font-size: 0.8rem; border-color: rgba(255, 204, 0, 0.3);">Clear All</button>
-                </div>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Connections from the archive. Always in your corner.</p>
-                
-                <div id="pulse-log" style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto; padding-right: 10px;">
-                    <!-- Sparks will be injected here -->
-                    <div style="padding: 20px; text-align: center; color: var(--text-muted); opacity: 0.5;">
-                        Waiting for a spark...
-                    </div>
-                </div>
-            </div>
-            <div class="admin-section">
-                <h2>📸 Upload to Gallery</h2>
-                <label>Select Photo/Video (Multiple):</label>
-                <input type="file" id="gallery-file" multiple>
-                
-                <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
-                    <input type="checkbox" id="gallery-private" style="width: auto;">
-                    <label style="margin: 0;">Mark as Private?</label>
-                </div>
-                
-                <button class="btn-admin" onclick="uploadGallery()">Upload All</button>
-                <div class="progress-bar" id="gallery-progress"><div class="progress-fill"></div></div>
-                <span class="status" id="gallery-status"></span>
-            </div>
-
-            <!-- Add Memory -->
-            <div class="admin-section">
-                <h2>🧠 Add Memory</h2>
-                <label>Memory Title:</label>
-                <input type="text" id="mem-title" placeholder="e.g. That night at the beach">
-                
-                <label>Memory Description (Follows site formatting):</label>
-                <textarea id="mem-text" rows="4" placeholder="Describe the moment..."></textarea>
-                
-                <div class="grid-2">
-                    <div>
-                        <label>Date:</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="date" id="mem-date">
-                            <button type="button" class="btn-admin btn-secondary" onclick="document.getElementById('mem-date').value = ''" style="margin: 0; padding: 8px 12px;">✕</button>
-                        </div>
-                    </div>
-                    <div>
-                        <label>Theme Color (Optional):</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="color" id="mem-color" value="#ffffff" style="padding: 2px; height: 45px; cursor: pointer; border-radius: 8px;">
-                            <button type="button" class="btn-admin btn-secondary" onclick="document.getElementById('mem-color').value = '#ffffff'" style="margin: 0; padding: 8px 12px;">Reset</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <div>
-                        <label>Images (Multiple):</label>
-                        <input type="file" id="mem-images" multiple accept="image/*">
-                    </div>
-                    <div>
-                        <label>Video (Optional):</label>
-                        <input type="file" id="mem-video" accept="video/*">
-                    </div>
-                </div>
-
-                <label>Audio Track (Optional):</label>
-                <input type="file" id="mem-audio" accept="audio/*">
-
-                <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
-                    <input type="checkbox" id="mem-private" style="width: auto;">
-                    <label style="margin: 0;">Mark as Private?</label>
-                </div>
-
-                <button class="btn-admin" onclick="uploadMemory()">Create Memory</button>
-                <div class="progress-bar" id="mem-progress"><div class="progress-fill"></div></div>
-                <span class="status" id="mem-status"></span>
-            </div>
-
-            <!-- Edit Letter -->
-            <div class="admin-section">
-                <h2>💌 Edit Archive Note</h2>
-                <label>Note Body (Playfair Display / Serif):</label>
-                <textarea id="letter-input" class="themed-textarea" rows="10" placeholder="Write your main message..."></textarea>
-                
-                <label>Emotional Closing Line:</label>
-                <textarea id="letter-closing-input" class="themed-textarea" rows="2" placeholder="e.g. Somehow, through all the chaos, this friendship stayed."></textarea>
-                
-                <button class="btn-admin" onclick="updateLetter()">Save Archive Note</button>
-                <span class="status" id="letter-status"></span>
-            </div>
-
-            <!-- Manage Safe Space -->
-            <div class="admin-section">
-                <h2>🧘‍♀️ Resonance Archive</h2>
-                <label>'Feeling Alone' Message (Dynamic):</label>
-                <textarea id="alone-input" class="themed-textarea" rows="6" placeholder="Write something warm and timeless..."></textarea>
-                <button class="btn-admin" onclick="updateAloneText()">Save Resonance Message</button>
-                
-                <label style="margin-top: 30px;">Upload Calm Sound (Audio):</label>
-                <input type="file" id="calm-audio-file" accept="audio/*">
-                <button class="btn-admin btn-secondary" onclick="uploadCalmSound()">Update Audio</button>
-                <span class="status" id="low-status"></span>
-            </div>
-
-            <!-- Add Joke -->
-            <div class="admin-section">
-                <h2>😂 Add Joke</h2>
-                <div class="grid-2">
-                    <div>
-                        <label>Title:</label>
-                        <input type="text" id="joke-title" placeholder="e.g. The Scooter Incident">
-                    </div>
-                    <div>
-                        <label>Size Tier (1-8):</label>
-                        <input type="number" id="joke-size" value="2" min="1" max="8">
-                    </div>
-                </div>
-                <label>Text:</label>
-                <textarea id="joke-text" rows="3"></textarea>
-                <button class="btn-admin" onclick="addJoke()">Add Joke</button>
-                <span class="status" id="joke-status"></span>
-            </div>
-
-            <!-- Home Video -->
-            <div class="admin-section">
-                <h2>🏠 Update Home Video</h2>
-                <div id="home-current-preview" style="margin-bottom: 20px; font-size: 0.8rem; color: var(--text-muted);">
-                    Loading current config...
-                </div>
-                <div class="grid-2">
-                    <div>
-                        <label>Select Video (MP4/MOV):</label>
-                        <input type="file" id="home-video" accept="video/*">
-                    </div>
-                    <div>
-                        <label>Select Thumbnail (Image):</label>
-                        <input type="file" id="home-thumb" accept="image/*">
-                    </div>
-                </div>
-
-                <button class="btn-admin" onclick="uploadHomeVideo()">Update Home Content</button>
-                <div class="progress-bar" id="home-progress"><div class="progress-fill"></div></div>
-                <span class="status" id="home-status"></span>
-            </div>
-
-            <!-- EmailJS Config -->
-            <div class="admin-section">
-                <h2>📧 EmailJS Configuration</h2>
-                <label>Public Key (API Key):</label>
-                <input type="text" id="emailjs-public-key" placeholder="e.g. qF7oK...">
-                
-                <div class="grid-2">
-                    <div>
-                        <label>Service ID:</label>
-                        <input type="text" id="emailjs-service-id" placeholder="e.g. service_...">
-                    </div>
-                    <div>
-                        <label>Template ID:</label>
-                        <input type="text" id="emailjs-template-id" placeholder="e.g. template_...">
-                    </div>
-                </div>
-                <button class="btn-admin" onclick="saveEmailJSConfig()">Save EmailJS Config</button>
-                <span class="status" id="emailjs-status"></span>
-            </div>
-
-            <!-- Manage Content -->
-            <div class="admin-section">
-                <h2>🗑️ Manage Content</h2>
-                <label>Select Collection:</label>
-                <select id="manage-collection">
-                    <option value="gallery">Gallery</option>
-                    <option value="jokes">Jokes</option>
-                    <option value="memories">Memories</option>
-                </select>
-                <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
-                    <button class="btn-admin btn-secondary" onclick="loadContentList()">Load Items</button>
-                    <button class="btn-admin btn-secondary" id="select-all-btn" onclick="toggleSelectAll()" style="display: none;">Select All</button>
-                    <button class="btn-admin" id="delete-selected-btn" onclick="deleteSelectedItems()" style="display: none; background: #ff4444; color: white;">Delete Selected (<span id="select-count">0</span>)</button>
-                </div>
-                <div id="manage-list" style="margin-top: 20px; max-height: 400px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 12px; background: rgba(0,0,0,0.1);"></div>
-            </div>
-
-            <!-- Migration Tool -->
-            <div class="admin-section" style="border-style: dashed; border-color: #ffcc00; background: rgba(255, 204, 0, 0.05);">
-                <h2 style="color: #ffcc00;">🚚 Bulk Migration</h2>
-                <p style="font-size: 0.8rem; color: #ffcc00; opacity: 0.8;">Warning: This will upload data from your local JSON files to Firestore.</p>
-                <button class="btn-admin" onclick="migrateAll()" style="background: #ffcc00; color: #000;">Start Migration</button>
-                <div id="migration-log" style="font-family: monospace; font-size: 0.75rem; margin-top: 15px; background: #000; padding: 15px; height: 120px; overflow-y: auto; border-radius: 12px; border: 1px solid #333;"></div>
-            </div>
-
+    <!-- Video Review Modal -->
+    <div id="video-review-modal">
+        <div class="review-card">
+            <h2 id="review-title" style="margin-top:0">Review Upload</h2>
+            <p id="review-filename" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;"></p>
+            <video id="review-video-player" controls style="width:100%; border-radius:15px; margin-bottom:20px; background:#000;"></video>
+            <label>Confirm Capture Date:</label>
+            <input type="datetime-local" id="review-date-input">
+            <button id="review-confirm-btn" class="btn-admin" style="width: 100%;">Confirm & Continue</button>
         </div>
     </div>
 
+    <div id="admin-panel" style="display: none; width: 100%;">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h1>Archive Admin</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active" data-section="dashboard" onclick="showSection('dashboard')">📊 <span>Dashboard</span></li>
+                    <li data-section="gallery-upload" onclick="showSection('gallery-upload')">📸 <span>Gallery Upload</span></li>
+                    <li data-section="memories-add" onclick="showSection('memories-add')">🧠 <span>Add Memory</span></li>
+                    <li data-section="jokes-manage" onclick="showSection('jokes-manage')">😂 <span>Inside Jokes</span></li>
+                    <li data-section="edit-content" onclick="showSection('edit-content')">💌 <span>Site Messages</span></li>
+                    <li data-section="manage-content" onclick="showSection('manage-content')">🗑️ <span>Manage Data</span></li>
+                    <li data-section="config-settings" onclick="showSection('config-settings')">⚙️ <span>Configuration</span></li>
+                </ul>
+            </nav>
+            <div style="padding: 20px; border-top: 1px solid var(--card-border);">
+                <button class="btn-admin btn-secondary" onclick="firebase.auth().signOut()" style="width: 100%; margin:0">Log Out</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-main">
+            
+            <!-- Section: Dashboard -->
+            <section id="dashboard" class="admin-section active">
+                <div class="section-header">
+                    <h2>Archive Dashboard</h2>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="grid-2" style="margin-bottom: 30px;">
+                    <div class="card" style="text-align: center; margin-bottom: 0;">
+                        <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px;">Total Sparks Recieved</div>
+                        <div id="total-sparks-count" style="font-size: 2.5rem; font-weight: bold; color: var(--accent-primary);">...</div>
+                    </div>
+                    <div class="card" style="text-align: center; margin-bottom: 0;">
+                        <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 5px;">Total Site Visits</div>
+                        <div id="total-visits-count" style="font-size: 2.5rem; font-weight: bold; color: var(--accent-secondary);">...</div>
+                    </div>
+                </div>
+
+                <!-- Connection Log -->
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--accent-primary); background: rgba(255, 204, 0, 0.02); margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin:0">✨ Spark Monitor</h3>
+                            <button class="btn-admin btn-secondary" onclick="clearSparkCounts()" style="margin:0; padding: 8px 16px; font-size: 0.8rem;">Clear</button>
+                        </div>
+                        <div id="pulse-log" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                            <div style="padding: 40px; text-align: center; color: var(--text-muted); opacity: 0.5;">
+                                Waiting for a spark...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-color: var(--accent-secondary); background: rgba(0, 255, 255, 0.01); margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin:0">👁️ Visit Log</h3>
+                        </div>
+                        <div id="visit-log" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                            <div style="padding: 40px; text-align: center; color: var(--text-muted); opacity: 0.5;">
+                                No visits recorded yet...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Gallery Upload -->
+            <section id="gallery-upload" class="admin-section">
+                <div class="section-header">
+                    <h2>Gallery Upload</h2>
+                </div>
+                <div class="card">
+                    <div id="drop-zone" style="border: 2px dashed var(--card-border); border-radius: 20px; padding: 40px; text-align: center; background: rgba(255,255,255,0.02); transition: all 0.3s; cursor: pointer; margin-bottom: 20px;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">☁️</div>
+                        <p style="margin: 0; font-weight: 500;">Drag & Drop files here or click to browse</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">Supports multiple photos and videos</p>
+                        <input type="file" id="gallery-file" multiple style="display: none;">
+                    </div>
+
+                    <div id="upload-preview-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                        <!-- Previews will be injected here -->
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                        <input type="checkbox" id="gallery-private" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label style="margin: 0; cursor: pointer;" for="gallery-private">Mark as Private (Restricted Access)?</label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button id="start-upload-btn" class="btn-admin" onclick="uploadGallery()" style="margin:0; flex-grow: 2; display: none;">Start Upload (<span id="queue-count">0</span> files)</button>
+                        <button id="clear-queue-btn" class="btn-admin btn-secondary" onclick="clearUploadQueue()" style="margin:0; flex-grow: 1; display: none;">Clear All</button>
+                    </div>
+
+                    <div class="progress-bar" id="gallery-progress"><div class="progress-fill"></div></div>
+                    <span class="status" id="gallery-status"></span>
+                </div>
+            </section>
+
+            <!-- Section: Add Memory -->
+            <section id="memories-add" class="admin-section">
+                <div class="section-header">
+                    <h2>Create New Memory</h2>
+                </div>
+                <div class="card">
+                    <label>Memory Title:</label>
+                    <input type="text" id="mem-title" placeholder="e.g. That night at the beach">
+                    
+                    <label>Narrative Description:</label>
+                    <textarea id="mem-text" rows="6" placeholder="Tell the story..."></textarea>
+                    
+                    <div class="grid-2">
+                        <div>
+                            <label>Capture Date:</label>
+                            <input type="date" id="mem-date">
+                        </div>
+                        <div>
+                            <label>Theme Accent Color:</label>
+                            <input type="color" id="mem-color" value="#ffffff" style="height: 48px; cursor: pointer;">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div>
+                            <label>Photos (Multiple):</label>
+                            <input type="file" id="mem-images" multiple accept="image/*">
+                        </div>
+                        <div>
+                            <label>Main Video (Optional):</label>
+                            <input type="file" id="mem-video" accept="video/*">
+                        </div>
+                    </div>
+
+                    <label>Background Audio Track:</label>
+                    <input type="file" id="mem-audio" accept="audio/*">
+
+                    <div style="display: flex; align-items: center; gap: 12px; margin-top: 25px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                        <input type="checkbox" id="mem-private" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label style="margin: 0; cursor: pointer;" for="mem-private">Restricted Entry?</label>
+                    </div>
+
+                    <button class="btn-admin" onclick="uploadMemory()">Archive Memory</button>
+                    <div class="progress-bar" id="mem-progress"><div class="progress-fill"></div></div>
+                    <span class="status" id="mem-status"></span>
+                </div>
+            </section>
+
+            <!-- Section: Inside Jokes -->
+            <section id="jokes-manage" class="admin-section">
+                <div class="section-header">
+                    <h2>Inside Jokes</h2>
+                </div>
+                <div class="card">
+                    <h3>😂 Add New Joke</h3>
+                    <div class="grid-2">
+                        <div>
+                            <label>Context/Title:</label>
+                            <input type="text" id="joke-title" placeholder="e.g. The Scooter Incident">
+                        </div>
+                        <div>
+                            <label>Bubble Size (1-8):</label>
+                            <input type="number" id="joke-size" value="2" min="1" max="8">
+                        </div>
+                    </div>
+                    <label>Content:</label>
+                    <textarea id="joke-text" rows="4" placeholder="The punchline or story..."></textarea>
+                    <button class="btn-admin" onclick="addJoke()">Add to Archive</button>
+                    <span class="status" id="joke-status"></span>
+                </div>
+                <div class="card">
+                    <h3>💡 Management Tip</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">Use the <strong>Manage Data</strong> section in the sidebar to delete or edit existing jokes from the collection.</p>
+                </div>
+            </section>
+            <section id="edit-content" class="admin-section">
+                <div class="section-header">
+                    <h2>Site Narratives</h2>
+                </div>
+                <div class="card">
+                    <h3>💌 Home Archive Note</h3>
+                    <label>Main Message (Serif / Playfair):</label>
+                    <textarea id="letter-input" rows="8"></textarea>
+                    <label>Emotional Closing Line:</label>
+                    <input type="text" id="letter-closing-input">
+                    <button class="btn-admin" onclick="updateLetter()">Save Home Note</button>
+                    <span class="status" id="letter-status"></span>
+                </div>
+
+                <div class="card">
+                    <h3>🧘‍♀️ Resonance Archive</h3>
+                    <label>'Feeling Alone' Reassurance Message:</label>
+                    <textarea id="alone-input" rows="6"></textarea>
+                    <button class="btn-admin" onclick="updateAloneText()">Save Message</button>
+                    
+                    <label style="margin-top: 30px;">Update Calm Background Audio:</label>
+                    <input type="file" id="calm-audio-file" accept="audio/*">
+                    <button class="btn-admin btn-secondary" onclick="uploadCalmSound()">Upload Audio</button>
+                    <span class="status" id="low-status"></span>
+                </div>
+            </section>
+
+            <!-- Section: Manage Data -->
+            <section id="manage-content" class="admin-section">
+                <div class="section-header">
+                    <h2>Data Management</h2>
+                </div>
+                <div class="card">
+                    <label>Collection Type:</label>
+                    <select id="manage-collection" onchange="loadContentList()">
+                        <option value="gallery">Gallery Photos</option>
+                        <option value="memories">Archive Memories</option>
+                        <option value="jokes">Inside Jokes</option>
+                    </select>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn-admin btn-secondary" onclick="loadContentList()" style="margin:0">Refresh</button>
+                        <button class="btn-admin btn-secondary" id="select-all-btn" onclick="toggleSelectAll()" style="margin:0">Select All</button>
+                        <button class="btn-admin" id="delete-selected-btn" onclick="deleteSelectedItems()" style="margin:0; background: #ff4444; color: white; display: none;">Delete Selected (<span id="select-count">0</span>)</button>
+                    </div>
+
+                    <div id="manage-list" style="margin-top: 30px; max-height: 500px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 15px; background: rgba(0,0,0,0.1);">
+                        <!-- List items will be injected here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Configuration -->
+            <section id="config-settings" class="admin-section">
+                <div class="section-header">
+                    <h2>Advanced Settings</h2>
+                </div>
+                
+                <div class="card">
+                    <h3>🏠 Home Cinematic Assets</h3>
+                    <div id="home-current-preview" style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);"></div>
+                    <div class="grid-2">
+                        <div>
+                            <label>New Intro Video:</label>
+                            <input type="file" id="home-video" accept="video/*">
+                        </div>
+                        <div>
+                            <label>Static Thumbnail:</label>
+                            <input type="file" id="home-thumb" accept="image/*">
+                        </div>
+                    </div>
+                    <button class="btn-admin" onclick="uploadHomeVideo()">Update Cinematic</button>
+                    <div class="progress-bar" id="home-progress"><div class="progress-fill"></div></div>
+                    <span class="status" id="home-status"></span>
+                </div>
+
+                <div class="card">
+                    <h3>📧 EmailJS Integration</h3>
+                    <label>Public API Key:</label>
+                    <input type="text" id="emailjs-public-key">
+                    <div class="grid-2">
+                        <div>
+                            <label>Service ID:</label>
+                            <input type="text" id="emailjs-service-id">
+                        </div>
+                        <div>
+                            <label>Template ID:</label>
+                            <input type="text" id="emailjs-template-id">
+                        </div>
+                    </div>
+                    <button class="btn-admin" onclick="saveEmailJSConfig()">Save Email Config</button>
+                    <span class="status" id="emailjs-status"></span>
+                </div>
+
+                <div class="card" style="border-color: #ffcc00; background: rgba(255, 204, 0, 0.02);">
+                    <h3>🚚 Legacy Data Migration</h3>
+                    <p style="font-size: 0.85rem; color: #ffcc00; opacity: 0.7;">Upload existing local JSON data to Cloud Firestore.</p>
+                    <button class="btn-admin" onclick="migrateAll()" style="background: #ffcc00; color: #000;">Run Migration</button>
+                    <div id="migration-log" style="font-family: monospace; font-size: 0.75rem; margin-top: 15px; background: #000; padding: 20px; height: 150px; overflow-y: auto; border-radius: 12px; border: 1px solid #333;"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
     <script src="js/main.js"></script>
-    <script>
-        // Initialize Firebase manually since main.js might skip it on admin page
-        if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
-            try {
-                firebase.firestore().settings({ experimentalForceLongPolling: true, merge: true });
-            } catch(se) { console.warn("Firestore settings already set"); }
-        }
-        
-        const app = firebase.app(); 
-        const auth = app.auth();
-        const db = app.firestore();
-        const storage = app.storage();
-
-        /* Auth */
-        const loginBtn = document.getElementById('login-btn');
-        loginBtn.addEventListener('click', () => {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        });
-
-        auth.onAuthStateChanged(user => {
-            if(user) {
-                db.collection('whitelist').where('email', '==', user.email).get().then(snap => {
-                    if(!snap.empty) {
-                        document.getElementById('auth-container').style.display = 'none';
-                        document.getElementById('admin-panel').style.display = 'block';
-
-                        loadConfigs();
-                        initPulseMonitor(); // Real-time connection signal
-                    } else {
-                        document.getElementById('auth-status').textContent = "Access denied: " + user.email + " is not whitelisted.";
-                        auth.signOut();
-                    }
-                });
-            }
-        });
-
-        /* --- Pulse Monitor (Real-time Listening) --- */
-        let lastPulseTime = 0;
-
-        async function clearSparkCounts() {
-            if (!confirm("Are you sure you want to clear all spark counts and history? This will reset the counter for all users and wipe the pulse log.")) return;
-            
-            try {
-                const batch = db.batch();
-                
-                // 1. Reset user counts
-                const usersSnap = await db.collection('user_data').get();
-                usersSnap.forEach(doc => {
-                    batch.update(doc.ref, {
-                        pulseCount: 0,
-                        lastPulse: firebase.firestore.FieldValue.delete()
-                    });
-                });
-
-                // 2. Clear history (Batch limit 500)
-                const historySnap = await db.collection('spark_history').limit(400).get();
-                historySnap.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-
-                await batch.commit();
-                alert("All spark data and history cleared!");
-            } catch (e) {
-                console.error("Error clearing sparks:", e);
-                alert("Failed to clear sparks: " + e.message);
-            }
-        }
-
-        function initPulseMonitor() {
-            const monitor = document.getElementById('pulse-monitor');
-            const log = document.getElementById('pulse-log');
-            
-            // Listen to spark_history (Real-time updates)
-            db.collection('spark_history').orderBy('timestamp', 'desc').limit(100).onSnapshot((snap) => {
-                const pulses = [];
-                snap.forEach(doc => {
-                    pulses.push(doc.data());
-                });
-
-                if (pulses.length > 0) {
-                    monitor.style.display = 'block';
-                    log.innerHTML = '';
-                    
-                    pulses.forEach(p => {
-                        const date = new Date(p.timestamp);
-                        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                        const dateStr = date.toLocaleDateString();
-                        
-                        const item = document.createElement('div');
-                        item.style.cssText = "padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--accent-warm); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;";
-                        
-                        // Newest entry gets the pulse glow
-                        if (p.timestamp === pulses[0].timestamp) {
-                            item.style.animation = "pulseGlow 2s infinite";
-                        }
-
-                        item.innerHTML = `
-                            <div>
-                                <span style="color: var(--accent-warm); font-weight: bold;">Spark Received ✨</span>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">${dateStr} at ${timeStr}</div>
-                            </div>
-                            <div style="font-size: 0.8rem; background: rgba(255, 154, 158, 0.1); padding: 4px 10px; border-radius: 20px;">
-                                By: ${p.userName || "Friend"}
-                            </div>
-                        `;
-                        log.appendChild(item);
-
-                        // Trigger visual alert if new pulse just arrived
-                        if (p.timestamp > lastPulseTime && lastPulseTime !== 0) {
-                            if (typeof SoundFX !== 'undefined') SoundFX.jackpot();
-                            showToast(`New Spark from ${p.userName || "Friend"}! ✨`, "success");
-                        }
-                    });
-                    lastPulseTime = pulses[0].timestamp;
-                } else {
-                    log.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); opacity: 0.5;">Waiting for a spark...</div>`;
-                }
-            });
-        }
-        
-        // Add PulseGlow animation
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes pulseGlow {
-                0% { box-shadow: 0 0 5px rgba(255, 154, 158, 0.2); }
-                50% { box-shadow: 0 0 20px rgba(255, 154, 158, 0.4); }
-                100% { box-shadow: 0 0 5px rgba(255, 154, 158, 0.2); }
-            }
-        `;
-        document.head.appendChild(style);
-
-        /* Image Processor (Compression & Thumbnails) */
-        async function processImage(file, type = 'thumb') {
-            return new Promise((resolve) => {
-                if (!file.type.startsWith('image')) { resolve(null); return; } 
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-
-                        // Logic for high-res vs thumb
-                        const MAX_DIM = (type === 'thumb') ? 400 : 2500;
-                        if (width > height) {
-                            if (width > MAX_DIM) {
-                                height *= MAX_DIM / width;
-                                width = MAX_DIM;
-                            }
-                        } else {
-                            if (height > MAX_DIM) {
-                                width *= MAX_DIM / height;
-                                height = MAX_DIM;
-                            }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        const quality = (type === 'thumb') ? 0.6 : 0.85; // 85% is perfect for "Originals"
-                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        /* Video Metadata Helper (Apple & Standard) */
-        async function getVideoMetadata(file) {
-            const scanBuffer = (buffer) => {
-                // 1. Text Scan for Apple/ISO Date & Location
-                // Apple writes date as "YYYY-MM-DDTHH:MM:SS+HHMM"
-                // Location as "+27.1234+088.5678/"
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(buffer); // Best effort decode
-
-                // Regex for Apple Date
-                const dateRegex = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}/;
-                const dateMatch = text.match(dateRegex);
-                
-                // Regex for GPS (ISO 6709 standard used by Apple)
-                // Looks like: +27.5500+127.9000/
-                const gpsRegex = /([+-]\d{2,3}\.\d+)([+-]\d{2,3}\.\d+)\//;
-                const gpsMatch = text.match(gpsRegex);
-
-                let result = {};
-                
-                if (dateMatch) {
-                    console.log("Found Apple Date:", dateMatch[0]);
-                    result.date = dateMatch[0]; // ISO string works with Date constructor
-                }
-
-                if (gpsMatch) {
-                    console.log("Found GPS:", gpsMatch[0]);
-                    result.lat = parseFloat(gpsMatch[1]);
-                    result.lon = parseFloat(gpsMatch[2]);
-                }
-
-                if (result.date || result.lat) return result;
-
-                // 2. Binary Scan for 'mvhd' (Fallback Date) & '©xyz' (GPS)
-                const view = new DataView(buffer);
-                for (let i = 0; i < view.byteLength - 4; i++) {
-                    // Check for 'mvhd'
-                    if (view.getUint8(i) === 109 && view.getUint8(i+1) === 118 && view.getUint8(i+2) === 104 && view.getUint8(i+3) === 100) {
-                        const version = view.getUint8(i+4);
-                        const timeOffset = i + 4 + 1 + 3;
-                        let macTime;
-                        if(version === 1) {
-                            const high = view.getUint32(timeOffset);
-                            const low = view.getUint32(timeOffset + 4);
-                            macTime = (high * Math.pow(2, 32)) + low;
-                        } else {
-                            macTime = view.getUint32(timeOffset);
-                        }
-                        const unixTime = (macTime - 2082844800) * 1000;
-                        if (unixTime > 0 && !result.date) {
-                            result.date = new Date(unixTime).toISOString();
-                            console.log("Found mvhd Date:", result.date);
-                        }
-                    }
-
-                    // Check for '©xyz' (GPS) -> 0xA9, 120, 121, 122
-                    if (view.getUint8(i) === 0xA9 && view.getUint8(i+1) === 120 && view.getUint8(i+2) === 121 && view.getUint8(i+3) === 122) {
-                        // The string usually follows immediately or after a small header.
-                        // We'll scan the next 50 bytes for a '+' or '-' character.
-                        const subLen = Math.min(50, view.byteLength - i);
-                        const subText = decoder.decode(buffer.slice(i, i + subLen));
-                        // ISO 6709 regex: ([+-]\d+\.\d+)([+-]\d+\.\d+)
-                        const isoMatch = subText.match(/([+-]\d{2,3}\.\d+)([+-]\d{2,3}\.\d+)/);
-                        if (isoMatch && !result.lat) {
-                            console.log("Found ©xyz GPS:", isoMatch[0]);
-                            result.lat = parseFloat(isoMatch[1]);
-                            result.lon = parseFloat(isoMatch[2]);
-                        }
-                    }
-                }
-                
-                if (result.date || result.lat) return result;
-                return null;
-            };
-
-            // Scan Start
-            let blob = file.slice(0, 256 * 1024);
-            let buffer = await blob.arrayBuffer();
-            let meta = scanBuffer(buffer);
-            if (meta) return meta;
-
-            // Scan End (some cameras write meta at end)
-            if (file.size > 256 * 1024) {
-                blob = file.slice(file.size - (256 * 1024), file.size);
-                buffer = await blob.arrayBuffer();
-                meta = scanBuffer(buffer);
-                if (meta) return meta;
-            }
-
-            return {};
-        }
-
-        /* Gallery Upload */
-        let videoReviewQueue = [];
-        let reviewedDates = {};
-
-        async function uploadGallery() {
-            const fileInput = document.getElementById('gallery-file');
-            const files = Array.from(fileInput.files);
-            
-            if(files.length === 0) return alert("Select at least one file");
-
-            // Reset review state
-            videoReviewQueue = [];
-            reviewedDates = {};
-
-            // 1. Identify all videos for review
-            for (const file of files) {
-                if (file.type.startsWith('video')) {
-                    videoReviewQueue.push(file);
-                }
-            }
-
-            if (videoReviewQueue.length > 0) {
-                processVideoReviewQueue();
-            } else {
-                startGalleryUpload();
-            }
-        }
-
-        function processVideoReviewQueue() {
-            if (videoReviewQueue.length === 0) {
-                document.getElementById('video-review-modal').style.display = 'none';
-                startGalleryUpload();
-                return;
-            }
-
-            const file = videoReviewQueue[0];
-            const modal = document.getElementById('video-review-modal');
-            const player = document.getElementById('review-video-player');
-            const dateInput = document.getElementById('review-date-input');
-            const confirmBtn = document.getElementById('review-confirm-btn');
-            
-            modal.style.display = 'flex';
-            document.getElementById('review-title').textContent = `Review Video (${videoReviewQueue.length} Left)`;
-            document.getElementById('review-filename').textContent = file.name;
-            
-            const fileUrl = URL.createObjectURL(file);
-            player.src = fileUrl;
-            player.load();
-            
-            // Try to pre-fill with metadata or last modified
-            getVideoMetadata(file).then(meta => {
-                const dateToUse = meta.date ? new Date(meta.date) : new Date(file.lastModified);
-                const offset = dateToUse.getTimezoneOffset() * 60000;
-                const localISODate = new Date(dateToUse - offset).toISOString().slice(0, 16);
-                dateInput.value = localISODate;
-                
-                // Store lat/lon if found
-                if (meta.lat && meta.lon) {
-                    reviewedDates[file.name + '_lat'] = meta.lat;
-                    reviewedDates[file.name + '_lon'] = meta.lon;
-                }
-            });
-
-            confirmBtn.onclick = () => {
-                if (dateInput.value) {
-                    reviewedDates[file.name] = new Date(dateInput.value).toISOString();
-                } else {
-                    reviewedDates[file.name] = new Date(file.lastModified).toISOString();
-                }
-                URL.revokeObjectURL(fileUrl);
-                videoReviewQueue.shift();
-                processVideoReviewQueue();
-            };
-        }
-
-        async function startGalleryUpload() {
-            const fileInput = document.getElementById('gallery-file');
-            const isPrivate = document.getElementById('gallery-private').checked;
-            const files = Array.from(fileInput.files);
-            
-            const status = document.getElementById('gallery-status');
-            const progress = document.getElementById('gallery-progress').querySelector('.progress-fill');
-            document.getElementById('gallery-progress').style.display = 'block';
-            status.textContent = `Preparing ${files.length} files...`;
-
-            let completed = 0;
-            const total = files.length;
-
-            // Parallel Processing helper
-            async function uploadFile(file) {
-                let finalDate = reviewedDates[file.name] || null;
-                let lat = reviewedDates[file.name + '_lat'] || null;
-                let lon = reviewedDates[file.name + '_lon'] || null;
-
-                try {
-                    if (file.type.startsWith('image')) {
-                        // Extract EXIF first (on the original raw file)
-                        await new Promise(resolve => {
-                            EXIF.getData(file, function() {
-                                const exifDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime");
-                                if(exifDate && !finalDate) {
-                                    const [d, t] = exifDate.split(' ');
-                                    finalDate = d.replace(/:/g, '-') + 'T' + t;
-                                }
-                                const gpsLat = EXIF.getTag(this, "GPSLatitude");
-                                const gpsLon = EXIF.getTag(this, "GPSLongitude");
-                                if (gpsLat && gpsLon && !lat) {
-                                    const toDD = (dms, ref) => {
-                                        let dd = dms[0] + dms[1]/60 + dms[2]/3600;
-                                        if (ref === "S" || ref === "W") dd *= -1;
-                                        return dd;
-                                    };
-                                    lat = toDD(gpsLat, EXIF.getTag(this, "GPSLatitudeRef"));
-                                    lon = toDD(gpsLon, EXIF.getTag(this, "GPSLongitudeRef"));
-                                }
-                                resolve();
-                            });
-                        });
-                    }
-                } catch(e) { console.warn("Meta extract error", e); }
-
-                if (!finalDate) finalDate = new Date(file.lastModified).toISOString();
-
-                // 1. Process / Compress (Parallel)
-                let mainBlob = file;
-                let thumbBlob = null;
-
-                if (file.type.startsWith('image')) {
-                    [mainBlob, thumbBlob] = await Promise.all([
-                        processImage(file, 'original'),
-                        processImage(file, 'thumb')
-                    ]);
-                }
-
-                // 2. Upload to Storage
-                const timestamp = Date.now() + Math.floor(Math.random() * 1000); // Add jitter for parallel safety
-                const storageRef = storage.ref(`gallery/${timestamp}_${file.name}`);
-                const task = await storageRef.put(mainBlob);
-                const url = await task.ref.getDownloadURL();
-
-                let thumbUrl = null;
-                if (thumbBlob) {
-                    const thumbRef = storage.ref(`gallery/thumb_${timestamp}_${file.name}`);
-                    const thumbTask = await thumbRef.put(thumbBlob);
-                    thumbUrl = await thumbTask.ref.getDownloadURL();
-                }
-
-                // 3. Save to Firestore
-                await db.collection('gallery').add({
-                    src: url,
-                    thumb: thumbUrl,
-                    type: file.type.startsWith('video') ? 'video' : 'image',
-                    date: finalDate,
-                    lat: lat,
-                    lon: lon,
-                    private: isPrivate,
-                    filename: file.name,
-                    timestamp: Date.now()
-                });
-
-                completed++;
-                progress.style.width = (completed / total * 100) + '%';
-                status.textContent = `Uploaded ${completed}/${total}...`;
-            }
-
-            // Execute in batches of 5 to avoid browser/network crash
-            const CONCURRENCY = 5;
-            for (let i = 0; i < files.length; i += CONCURRENCY) {
-                const batch = files.slice(i, i + CONCURRENCY);
-                await Promise.all(batch.map(f => uploadFile(f)));
-            }
-
-            status.textContent = "All files uploaded successfully!";
-            fileInput.value = '';
-            setTimeout(() => { progress.style.width = '0%'; }, 2000);
-        }
-
-        /* Add Joke */
-        function addJoke() {
-            const title = document.getElementById('joke-title').value;
-            const text = document.getElementById('joke-text').value;
-            const tier = parseInt(document.getElementById('joke-size').value);
-            
-            db.collection('jokes').add({
-                title, text, sizeTier: tier
-            }).then(() => {
-                document.getElementById('joke-status').textContent = "Joke Added!";
-                document.getElementById('joke-title').value = '';
-                document.getElementById('joke-text').value = '';
-            });
-        }
-
-        function getVideoThumbnail(file) {
-            return new Promise((resolve) => {
-                const video = document.createElement('video');
-                video.preload = 'metadata';
-                video.src = URL.createObjectURL(file);
-                video.muted = true;
-                video.playsInline = true;
-                
-                let attempt = 0;
-                const timestamps = [1, 2, 3, 0.5]; // Try these seconds
-
-                video.onloadedmetadata = () => {
-                    video.currentTime = timestamps[attempt];
-                };
-
-                video.onseeked = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // Check if frame is too dark or too bright
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    let totalBrightness = 0;
-                    for (let i = 0; i < imageData.length; i += 40) { // Sample every 10th pixel
-                        totalBrightness += (imageData[i] + imageData[i+1] + imageData[i+2]) / 3;
-                    }
-                    const avgBrightness = totalBrightness / (imageData.length / 40);
-
-                    // If frame is almost black (<15) or almost white (>240) and we have more attempts
-                    if ((avgBrightness < 15 || avgBrightness > 240) && attempt < timestamps.length - 1) {
-                        attempt++;
-                        video.currentTime = timestamps[attempt];
-                    } else {
-                        canvas.toBlob((blob) => {
-                            resolve(blob);
-                            URL.revokeObjectURL(video.src);
-                        }, 'image/jpeg', 0.8);
-                    }
-                };
-                video.onerror = () => resolve(null);
-            });
-        }
-
-        async function uploadMemory() {
-            const title = document.getElementById('mem-title').value;
-            const text = document.getElementById('mem-text').value;
-            const date = document.getElementById('mem-date').value;
-            const themeColor = document.getElementById('mem-color').value;
-            const imageFiles = Array.from(document.getElementById('mem-images').files);
-            const videoFile = document.getElementById('mem-video').files[0];
-            const audioFile = document.getElementById('mem-audio').files[0];
-            const isPrivate = document.getElementById('mem-private').checked;
-
-            if(!title) return alert("Title is required.");
-
-            const status = document.getElementById('mem-status');
-            const progress = document.getElementById('mem-progress').querySelector('.progress-fill');
-            document.getElementById('mem-progress').style.display = 'block';
-            status.textContent = "Processing and uploading...";
-
-            let imageUrls = [];
-            let thumbUrls = [];
-            let videoUrl = null;
-            let audioUrl = null;
-
-            const totalSteps = imageFiles.length + (videoFile ? 2 : 0) + (audioFile ? 1 : 0);
-            let completedSteps = 0;
-
-            const updateProgress = () => {
-                completedSteps++;
-                progress.style.width = (completedSteps / totalSteps * 100) + '%';
-            };
-
-            // 1. Parallel Image Processing & Upload
-            await Promise.all(imageFiles.map(async (file) => {
-                const timestamp = Date.now() + Math.floor(Math.random() * 1000);
-                
-                // Process Thumb & Original in Parallel
-                const [mainBlob, thumbBlob] = await Promise.all([
-                    processImage(file, 'original'),
-                    processImage(file, 'thumb')
-                ]);
-
-                // Upload both in Parallel
-                const [mainUrl, thumbUrl] = await Promise.all([
-                    (async () => {
-                        const ref = storage.ref(`memories/${timestamp}_${file.name}`);
-                        const snap = await ref.put(mainBlob);
-                        return snap.ref.getDownloadURL();
-                    })(),
-                    (async () => {
-                        const ref = storage.ref(`memories/thumb_${timestamp}_${file.name}`);
-                        const snap = await ref.put(thumbBlob);
-                        return snap.ref.getDownloadURL();
-                    })()
-                ]);
-
-                imageUrls.push(mainUrl);
-                thumbUrls.push(thumbUrl);
-                updateProgress();
-            }));
-
-            // 2. Upload Video + Auto-Thumb
-            if(videoFile) {
-                const timestamp = Date.now();
-                // Upload Video
-                const vRef = storage.ref(`memories/${timestamp}_${videoFile.name}`);
-                const vSnap = await vRef.put(videoFile);
-                videoUrl = await vSnap.ref.getDownloadURL();
-                updateProgress();
-
-                // Generate & Upload Thumb
-                try {
-                    const tBlob = await getVideoThumbnail(videoFile);
-                    if(tBlob) {
-                        const tRef = storage.ref(`memories/vthumb_${timestamp}.jpg`);
-                        const tSnap = await tRef.put(tBlob);
-                        const tUrl = await tSnap.ref.getDownloadURL();
-                        thumbUrls.unshift(tUrl); // Add to beginning
-                    }
-                } catch(e) { console.warn("Thumb gen failed", e); }
-                updateProgress();
-            }
-
-            // 3. Upload Audio
-            if(audioFile) {
-                const ref = storage.ref(`memories/${Date.now()}_${audioFile.name}`);
-                const snap = await ref.put(audioFile);
-                audioUrl = await snap.ref.getDownloadURL();
-                updateProgress();
-            }
-
-            // 4. Save to Firestore
-            const payload = {
-                title,
-                text,
-                private: isPrivate,
-                timestamp: Date.now()
-            };
-            
-            if (date) payload.date = date;
-            if (imageUrls.length > 0) payload.images = imageUrls;
-            if (thumbUrls.length > 0) payload.thumbs = thumbUrls;
-            
-            if (themeColor && themeColor !== '#ffffff') payload.themeColor = themeColor;
-            if (videoUrl) payload.video = videoUrl;
-            if (audioUrl) payload.audio = audioUrl;
-
-            await db.collection('memories').add(payload);
-
-            status.textContent = "Memory Created Successfully!";
-            setTimeout(() => { progress.style.width = '0%'; }, 2000);
-            
-            // Clear fields
-            document.getElementById('mem-title').value = '';
-            document.getElementById('mem-text').value = '';
-            document.getElementById('mem-date').value = '';
-            document.getElementById('mem-color').value = '#ffffff';
-            document.getElementById('mem-images').value = '';
-            document.getElementById('mem-video').value = '';
-            document.getElementById('mem-audio').value = '';
-            document.getElementById('mem-private').checked = false;
-        }
-
-        async function loadConfigs() {
-            try {
-                // EmailJS Config
-                const emailDoc = await db.collection('config').doc('emailjs').get();
-                if (emailDoc.exists) {
-                    const data = emailDoc.data();
-                    document.getElementById('emailjs-public-key').value = data.publicKey || '';
-                    document.getElementById('emailjs-service-id').value = data.serviceID || '';
-                    document.getElementById('emailjs-template-id').value = data.templateID || '';
-                }
-
-                // Home Config
-                const homeDoc = await db.collection('config').doc('home').get();
-                if (homeDoc.exists) {
-                    const data = homeDoc.data();
-                    const preview = document.getElementById('home-current-preview');
-                    let html = '';
-                    if (data.introVideo) html += `<div>📹 Video: <a href="${data.introVideo}" target="_blank" style="color:var(--accent-primary)">View Current</a></div>`;
-                    if (data.introVideoThumbnail) html += `<div>🖼️ Thumb: <a href="${data.introVideoThumbnail}" target="_blank" style="color:var(--accent-primary)">View Current</a></div>`;
-                    preview.innerHTML = html || 'No home assets in cloud.';
-                }
-
-                // Feeling Low Config
-                const lowDoc = await db.collection('config').doc('feelingLow').get();
-                if (lowDoc.exists) {
-                    const data = lowDoc.data();
-                    const status = document.getElementById('low-status');
-                    if (data.calmSound) status.innerHTML = `🎵 Current Audio: <a href="${data.calmSound}" target="_blank" style="color:var(--accent-primary)">Listen</a>`;
-                    document.getElementById('alone-input').value = data.aloneText || '';
-                }
-
-                // Archive Note
-                const letterDoc = await db.collection('config').doc('letter').get();
-                if (letterDoc.exists) {
-                    document.getElementById('letter-input').value = letterDoc.data().text || '';
-                    document.getElementById('letter-closing-input').value = letterDoc.data().closingLine || '';
-                }
-
-                // Secret Key
-                const secretDoc = await db.collection('config').doc('secrets').get();
-                if (secretDoc.exists) {
-                    document.getElementById('secret-key-input').value = secretDoc.data().privateKey || '';
-                }
-
-            } catch(e) { console.warn("Error loading configs", e); }
-        }
-
-        async function uploadHomeVideo() {
-            const videoInput = document.getElementById('home-video');
-            const thumbInput = document.getElementById('home-thumb');
-            const videoFile = videoInput.files[0];
-            const thumbFile = thumbInput.files[0];
-            
-            if(!videoFile) return alert("Select at least a video");
-
-            const status = document.getElementById('home-status');
-            const progress = document.getElementById('home-progress').querySelector('.progress-fill');
-            document.getElementById('home-progress').style.display = 'block';
-            status.textContent = "Checking for old assets...";
-
-            // 0. Get old URLs for cleanup
-            let oldVideoUrl = null;
-            let oldThumbUrl = null;
-            try {
-                const homeDoc = await db.collection('config').doc('home').get();
-                if (homeDoc.exists) {
-                    oldVideoUrl = homeDoc.data().introVideo;
-                    oldThumbUrl = homeDoc.data().introVideoThumbnail;
-                }
-            } catch(e) { console.warn("Old assets check failed", e); }
-
-            status.textContent = "Uploading video...";
-
-            // 1. Upload Video
-            const vRef = storage.ref(`config/intro_video_${Date.now()}`);
-            const vTask = vRef.put(videoFile);
-            
-            vTask.on('state_changed', (snap) => {
-                progress.style.width = (snap.bytesTransferred / snap.totalBytes * 100) + '%';
-            });
-
-            await vTask;
-            const vUrl = await vTask.snapshot.ref.getDownloadURL();
-
-            // 2. Upload Thumb (Manual or Auto)
-            let tUrl = null;
-            if (thumbFile) {
-                status.textContent = "Uploading manual thumbnail...";
-                const tRef = storage.ref(`config/intro_thumb_${Date.now()}`);
-                const tSnap = await tRef.put(thumbFile);
-                tUrl = await tSnap.ref.getDownloadURL();
-            } else {
-                status.textContent = "Generating auto-thumbnail...";
-                try {
-                    const tBlob = await getVideoThumbnail(videoFile);
-                    if (tBlob) {
-                        const tRef = storage.ref(`config/intro_thumb_auto_${Date.now()}.jpg`);
-                        const tSnap = await tRef.put(tBlob);
-                        tUrl = await tSnap.ref.getDownloadURL();
-                    }
-                } catch(e) { console.warn("Auto-thumb gen failed", e); }
-            }
-
-            // 3. Save Config
-            const payload = {
-                introVideo: vUrl,
-                updatedAt: Date.now()
-            };
-            if(tUrl) payload.introVideoThumbnail = tUrl;
-
-            await db.collection('config').doc('home').set(payload, { merge: true });
-
-            // 4. Cleanup Old Assets
-            status.textContent = "Cleaning up old assets...";
-            if (oldVideoUrl && oldVideoUrl.includes('firebasestorage')) {
-                try { storage.refFromURL(oldVideoUrl).delete(); } catch(e) { console.warn("Old video delete failed", e); }
-            }
-            if (oldThumbUrl && oldThumbUrl.includes('firebasestorage')) {
-                try { storage.refFromURL(oldThumbUrl).delete(); } catch(e) { console.warn("Old thumb delete failed", e); }
-            }
-
-            status.textContent = "Home Content Updated!";
-            setTimeout(() => { 
-                document.getElementById('home-progress').style.display = 'none';
-                progress.style.width = '0%';
-                loadConfigs();
-            }, 2000);
-            
-            videoInput.value = '';
-            thumbInput.value = '';
-        }
-
-        function saveEmailJSConfig() {
-            const pub = document.getElementById('emailjs-public-key').value.trim();
-            const serv = document.getElementById('emailjs-service-id').value.trim();
-            const temp = document.getElementById('emailjs-template-id').value.trim();
-            
-            db.collection('config').doc('emailjs').set({
-                publicKey: pub,
-                serviceID: serv,
-                templateID: temp,
-                updatedAt: Date.now()
-            }, { merge: true }).then(() => {
-                document.getElementById('emailjs-status').textContent = "Config Saved!";
-            });
-        }
-
-        function updateSecretKey() {
-            const key = document.getElementById('secret-key-input').value;
-            if(!key) return alert("Enter a key");
-            
-            db.collection('config').doc('secrets').set({
-                privateKey: key.trim().toLowerCase()
-            }, { merge: true }).then(() => {
-                document.getElementById('secret-status').textContent = "Secret Key Updated!";
-            });
-        }
-
-        function updateLetter() {
-            const text = document.getElementById('letter-input').value;
-            const closingLine = document.getElementById('letter-closing-input').value;
-            db.collection('config').doc('letter').set({
-                text: text,
-                closingLine: closingLine
-            }, { merge: true }).then(() => {
-                document.getElementById('letter-status').textContent = "Note Saved!";
-            });
-        }
-
-        function updateAloneText() {
-            const text = document.getElementById('alone-input').value;
-            db.collection('config').doc('feelingLow').set({
-                aloneText: text
-            }, { merge: true }).then(() => {
-                document.getElementById('low-status').textContent = "Message Saved!";
-            });
-        }
-
-        async function uploadCalmSound() {
-            const file = document.getElementById('calm-audio-file').files[0];
-            if(!file) return alert("Select an audio file.");
-            
-            document.getElementById('low-status').textContent = "Uploading audio...";
-            const ref = storage.ref(`config/calm_sound_${Date.now()}`);
-            const snap = await ref.put(file);
-            const url = await snap.ref.getDownloadURL();
-
-            await db.collection('config').doc('feelingLow').set({
-                calmSound: url
-            }, { merge: true });
-
-            document.getElementById('low-status').textContent = "Audio Updated!";
-        }
-
-        async function loadContentList() {
-            const col = document.getElementById('manage-collection').value;
-            const list = document.getElementById('manage-list');
-            list.innerHTML = 'Loading...';
-            
-            try {
-                const snap = await db.collection(col).orderBy('timestamp', 'desc').limit(50).get();
-                // If timestamp missing (old data), try without sort or catch error
-                if(snap.empty && col === 'jokes') {
-                     // Jokes might not have timestamp from migration, just get all
-                     const snap2 = await db.collection(col).limit(50).get();
-                     renderList(snap2, col);
-                     return;
-                }
-                renderList(snap, col);
-            } catch(e) {
-                console.warn("Sort failed, trying unsorted", e);
-                const snap = await db.collection(col).limit(50).get();
-                renderList(snap, col);
-            }
-        }
-
-        function renderList(snap, col) {
-            const list = document.getElementById('manage-list');
-            list.innerHTML = '';
-            
-            const selectAllBtn = document.getElementById('select-all-btn');
-            const deleteSelectedBtn = document.getElementById('delete-selected-btn');
-            
-            if(snap.empty) { 
-                list.innerHTML = '<div style="padding: 20px; text-align: center;">No items found.</div>'; 
-                selectAllBtn.style.display = 'none';
-                deleteSelectedBtn.style.display = 'none';
-                return; 
-            }
-
-            selectAllBtn.style.display = 'inline-block';
-            selectAllBtn.textContent = 'Select All';
-
-            snap.forEach(doc => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.className = 'manage-item';
-                div.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid #333; gap: 15px;";
-                
-                // Thumbnail Logic
-                let thumbHtml = '<div style="width:40px; height:40px; background:#333; border-radius:4px;"></div>'; 
-                
-                if (col === 'gallery') {
-                    const displayPath = data.thumb || data.src;
-                    if (data.type === 'video') {
-                        thumbHtml = `<video src="${displayPath}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;" muted></video>`;
-                    } else if (displayPath) {
-                        thumbHtml = `<img src="${displayPath}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
-                    }
-                } else if (col === 'memories') {
-                    if (data.images && data.images.length > 0) {
-                        thumbHtml = `<img src="${data.images[0]}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">`;
-                    } else if (data.video) {
-                        thumbHtml = `<div style="width:40px; height:40px; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">▶</div>`;
-                    }
-                } else if (col === 'jokes') {
-                    thumbHtml = `<div style="width:40px; height:40px; background:var(--accent-primary); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">😂</div>`;
-                }
-
-                let label = data.title || data.filename || doc.id;
-                
-                div.innerHTML = `
-                    <input type="checkbox" class="item-checkbox" data-id="${doc.id}" style="width: 20px; height: 20px; cursor: pointer;" onchange="updateSelectUI()">
-                    ${thumbHtml}
-                    <span style="flex-grow:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</span> 
-                    <button style="margin:0; background:#ff4444; font-size:0.8rem; padding: 5px 10px;" onclick="deleteItem('${col}', '${doc.id}')">Delete</button>
-                `;
-                list.appendChild(div);
-            });
-            updateSelectUI();
-        }
-
-        function updateSelectUI() {
-            const checkboxes = document.querySelectorAll('.item-checkbox');
-            const checked = document.querySelectorAll('.item-checkbox:checked');
-            const deleteBtn = document.getElementById('delete-selected-btn');
-            const selectAllBtn = document.getElementById('select-all-btn');
-            const countEl = document.getElementById('select-count');
-
-            countEl.textContent = checked.length;
-            deleteBtn.style.display = checked.length > 0 ? 'inline-block' : 'none';
-            
-            if (checkboxes.length > 0 && checked.length === checkboxes.length) {
-                selectAllBtn.textContent = 'Deselect All';
-            } else {
-                selectAllBtn.textContent = 'Select All';
-            }
-        }
-
-        function toggleSelectAll() {
-            const checkboxes = document.querySelectorAll('.item-checkbox');
-            const checked = document.querySelectorAll('.item-checkbox:checked');
-            const shouldSelect = checked.length < checkboxes.length;
-            
-            checkboxes.forEach(cb => cb.checked = shouldSelect);
-            updateSelectUI();
-        }
-
-        async function deleteSelectedItems() {
-            const col = document.getElementById('manage-collection').value;
-            const checked = document.querySelectorAll('.item-checkbox:checked');
-            if (checked.length === 0) return;
-
-            if (confirm(`Are you sure you want to delete ${checked.length} items? This cannot be undone.`)) {
-                const status = document.getElementById('gallery-status'); // Borrowing a status span
-                status.textContent = `Deleting ${checked.length} items...`;
-                
-                const batch = db.batch();
-                checked.forEach(cb => {
-                    const docRef = db.collection(col).doc(cb.dataset.id);
-                    batch.delete(docRef);
-                });
-
-                await batch.commit();
-                status.textContent = "Selected items deleted successfully!";
-                loadContentList();
-            }
-        }
-
-        async function deleteItem(col, id) {
-            if(confirm("Are you sure? This cannot be undone.")) {
-                await db.collection(col).doc(id).delete();
-                loadContentList(); // Refresh
-            }
-        }
-
-        async function migrateAll() {
-            const log = document.getElementById('migration-log');
-            const addLog = (msg) => { log.innerHTML += `<div>> ${msg}</div>`; log.scrollTop = log.scrollHeight; };
-            
-            addLog("Starting migration...");
-
-            // 1. Migrate Jokes
-            try {
-                const res = await fetch('assets/jokes/jokes.json');
-                if(res.ok) {
-                    const data = await res.json();
-                    for(const item of data) {
-                        await db.collection('jokes').add(item);
-                        addLog(`Migrated joke: ${item.title}`);
-                    }
-                }
-            } catch(e) { addLog(`Jokes error: ${e.message}`); }
-
-            // 2. Migrate Gallery
-            try {
-                const res = await fetch('assets/gallery_photos/photos.json');
-                if(res.ok) {
-                    const data = await res.json();
-                    for(const item of data) {
-                        const payload = {
-                            filename: item.file || item,
-                            date: item.date || new Date().toISOString(),
-                            private: item.private || false,
-                            type: (item.file || item).match(/\.(mp4|mov)$/i) ? 'video' : 'image',
-                            src: `assets/gallery_photos/${item.file || item}` // Temporary local path
-                        };
-                        await db.collection('gallery').add(payload);
-                        addLog(`Migrated photo metadata: ${payload.filename}`);
-                    }
-                }
-            } catch(e) { addLog(`Gallery error: ${e.message}`); }
-
-            // 3. Migrate Memories
-            try {
-                const listRes = await fetch('assets/memories_photos/memories.json');
-                if(listRes.ok) {
-                    const folders = await listRes.json();
-                    for(const folder of folders) {
-                        const metaRes = await fetch(`assets/memories_photos/${folder}/meta.json`);
-                        if(metaRes.ok) {
-                            const meta = await metaRes.json();
-                            await db.collection('memories').doc(folder).set(meta);
-                            addLog(`Migrated memory: ${meta.title}`);
-                        }
-                    }
-                }
-            } catch(e) { addLog(`Memories error: ${e.message}`); }
-
-            addLog("--- MIGRATION COMPLETE ---");
-            addLog("Note: Gallery photos in cloud still point to local assets. Use Admin Upload for full cloud hosting.");
-        }
-    </script>
+    <script src="js/admin.js"></script>
 </body>
 </html>

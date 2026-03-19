@@ -149,6 +149,7 @@ window.JOKES_DATA = JOKES_DATA;
 /* --- INIT --- */
 window.addEventListener('load', () => {
     initTheme();
+
     // Security Check
     if (initFirebaseLock()) {
         startApp();
@@ -176,12 +177,56 @@ window.addEventListener('load', () => {
     handleMobileNav(); // Init
 });
 
+function initPreLanding() {
+    const preLanding = document.getElementById('pre-landing');
+    const beginBtn = document.getElementById('pre-landing-begin');
+    if (!preLanding || !beginBtn) return;
+
+    if (sessionStorage.getItem('entered_archive')) {
+        preLanding.style.display = 'none';
+        return;
+    }
+
+    beginBtn.addEventListener('click', () => {
+        sessionStorage.setItem('entered_archive', 'true');
+        preLanding.style.opacity = '0';
+        preLanding.style.pointerEvents = 'none';
+        setTimeout(() => {
+            preLanding.style.display = 'none';
+        }, 1500);
+    });
+}
+
+async function recordVisit() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    // Check if we've already recorded this session's visit
+    if (sessionStorage.getItem('visit_recorded')) return;
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('site_visits').add({
+            userId: user.uid,
+            userName: user.displayName || "Friend",
+            userEmail: user.email || "Anonymous",
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        sessionStorage.setItem('visit_recorded', 'true');
+    } catch (e) {
+        console.error("Visit recording failed:", e);
+    }
+}
+
 async function startApp() {
     // Reveal content
     document.body.style.visibility = 'visible';
     document.body.style.opacity = '1';
 
     initGlobalUI();
+
+    // 1. Record Visit
+    recordVisit();
 
     try {
         await loadAllData();
@@ -331,11 +376,13 @@ async function loadAllData() {
 // Helper for Home Assets
 function applyHomeConfig(data) {
     const videoEl = document.getElementById('intro-video');
+    const preVideoEl = document.querySelector('.pre-landing-video');
     const videoContainer = document.querySelector('.bg-video-container');
     
     if (videoEl) {
         if (data.introVideoThumbnail) {
             videoEl.poster = data.introVideoThumbnail;
+            if (preVideoEl) preVideoEl.poster = data.introVideoThumbnail;
             if (videoContainer) {
                 videoContainer.style.backgroundImage = `url(${data.introVideoThumbnail})`;
                 videoContainer.style.backgroundSize = 'cover';
@@ -344,6 +391,7 @@ function applyHomeConfig(data) {
         }
         if (data.introVideo && videoEl.src !== data.introVideo) {
             videoEl.src = data.introVideo;
+            if (preVideoEl) preVideoEl.src = data.introVideo;
             videoEl.style.opacity = '0';
             videoEl.style.transition = 'opacity 0.5s ease';
             videoEl.onplaying = () => { videoEl.style.opacity = '1'; };
@@ -408,6 +456,10 @@ function initFirebaseLock() {
     if (expiry > Date.now()) { 
         if (overlay) overlay.style.display = 'none'; 
         
+        // If already logged in, hide pre-landing immediately
+        const preLanding = document.getElementById('pre-landing');
+        if (preLanding) preLanding.style.display = 'none';
+        
         // Wait for Firebase Auth to restore session before starting app
         // This prevents "Permission Denied" errors on page reload
         firebase.auth().onAuthStateChanged(user => {
@@ -434,6 +486,11 @@ function initFirebaseLock() {
     }
 
     // 4. Show Login Screen (Not authorized yet)
+    // Initialize Pre-Landing only on index page when not logged in
+    if (document.body.classList.contains('index-page')) {
+        initPreLanding();
+    }
+
     // Reveal the UI so they can see the login button
     document.body.style.visibility = 'visible';
     document.body.style.opacity = '1';
@@ -651,10 +708,6 @@ function initHome() {
         if (closing) closing.textContent = window.LETTER_CLOSING || "";
     }
 
-    if (video) {
-        video.play().catch(e => console.warn("Autoplay blocked, waiting for interaction", e));
-    }
-
     if (!container) return;
 
     let scrollPos = 0;
@@ -663,6 +716,38 @@ function initHome() {
     let hasReachedEnd = false;
     let resumeTimer = null;
     let animationFrame = null;
+
+    // --- Autoscroll Loop ---
+    const autoScroll = () => {
+        if (!isUserScrolling && !hasReachedEnd) {
+            if (content && content.textContent.length > 50) {
+                scrollPos += speed;
+                container.scrollTop = scrollPos;
+                if (scrollPos + container.clientHeight >= container.scrollHeight - 2) {
+                    hasReachedEnd = true;
+                    return;
+                }
+            }
+            animationFrame = requestAnimationFrame(autoScroll);
+        }
+    };
+
+    const startArchive = () => {
+        if (video) {
+            video.play().catch(e => console.warn("Autoplay blocked, waiting for interaction", e));
+        }
+        setTimeout(() => requestAnimationFrame(autoScroll), 2000);
+    };
+
+    // Check if already entered, otherwise wait for button
+    if (sessionStorage.getItem('entered_archive')) {
+        startArchive();
+    } else {
+        const beginBtn = document.getElementById('pre-landing-begin');
+        if (beginBtn) {
+            beginBtn.addEventListener('click', startArchive, { once: true });
+        }
+    }
 
     // Restart autoscroll if content changes (e.g. from "Loading..." to the real letter)
     const observer = new MutationObserver(() => {
@@ -695,22 +780,6 @@ function initHome() {
         if (wasAtTop !== mouseAtTop) updateNavVisibility();
     });
 
-    // --- Autoscroll Loop ---
-    const autoScroll = () => {
-        if (!isUserScrolling && !hasReachedEnd) {
-            // Only scroll if content is actually there (not just "Hey..." or "Loading...")
-            if (content && content.textContent.length > 50) {
-                scrollPos += speed;
-                container.scrollTop = scrollPos;
-                if (scrollPos + container.clientHeight >= container.scrollHeight - 2) {
-                    hasReachedEnd = true;
-                    return;
-                }
-            }
-            animationFrame = requestAnimationFrame(autoScroll);
-        }
-    };
-
     const onUserInteraction = () => {
         isUserScrolling = true;
         clearTimeout(resumeTimer);
@@ -727,8 +796,6 @@ function initHome() {
     container.addEventListener('wheel', onUserInteraction, { passive: true });
     container.addEventListener('touchstart', onUserInteraction, { passive: true });
     container.addEventListener('mousedown', onUserInteraction);
-
-    setTimeout(() => requestAnimationFrame(autoScroll), 2000);
 }/* --- MEMORIES --- */
 function loadMemories() {
     const container = document.getElementById('memories-container');
