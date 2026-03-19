@@ -315,12 +315,15 @@
             border-radius: 50%;
             border: 2px solid rgba(255, 154, 158, 0.15);
             opacity: 0;
-            animation: ringPulse 4s infinite;
+            transition: opacity 0.5s ease;
         }
-        @keyframes ringPulse { 
-            0% { transform: scale(0.95); opacity: 0; }
-            20% { transform: scale(1.1); opacity: 0.4; } 
-            100% { transform: scale(1.3); opacity: 0; }
+        .heartbeat-container.active .heart-orb::after {
+            opacity: 1;
+            animation: breatheRing 8s infinite ease-in-out;
+        }
+        @keyframes breatheRing { 
+            0%, 100% { transform: scale(1); opacity: 0.1; }
+            50% { transform: scale(1.6); opacity: 0.6; } 
         }
         .heart-orb.active {
             animation: heartbeat 1s infinite cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -413,7 +416,7 @@
         /* --- Actions Grid --- */
         .grid-2 { 
             display: grid; 
-            grid-template-columns: 1fr 1fr; 
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
             gap: 20px; 
             margin-top: 10px;
         }
@@ -695,6 +698,10 @@
                     </div>
                     <strong>Star Drive</strong>
                 </div>
+                <div class="action-card" onclick="openCruise()">
+                    <div class="icon-lg" style="display: flex; align-items: center; justify-content: center; font-size: 3rem;">🛵</div>
+                    <strong>Midnight Cruise</strong>
+                </div>
             </div>
 
             <!-- Containers -->
@@ -868,6 +875,21 @@
         </div>
         <img id="lightbox-img" class="lightbox-content" src="">
         <video id="lightbox-video" class="lightbox-content" controls style="display:none;"></video>
+    </div>
+
+    <!-- Midnight Cruise Overlay -->
+    <div id="cruise-overlay" style="display: none; position: fixed; inset: 0; background: #0a0a14; z-index: 15000; overflow: hidden; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+        <canvas id="cruise-canvas" style="position: absolute; inset: 0; z-index: 1;"></canvas>
+        <div id="cruise-content" style="position: relative; z-index: 2; text-align: center; pointer-events: none; opacity: 1; transition: opacity 0.5s;">
+            <h2 style="font-family: var(--font-heading); font-style: italic; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4);">Hold to ride.</h2>
+            <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">The wind is yours today.</p>
+        </div>
+        <button onclick="closeCruise()" style="position: absolute; top: 30px; right: 30px; z-index: 10; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 20px; border-radius: 50px; cursor: pointer; backdrop-filter: blur(10px);">Close ✨</button>
+        
+        <!-- Dashboard Prompt -->
+        <div id="cruise-stats" style="position: absolute; bottom: 80px; left: 0; width: 100%; text-align: center; z-index: 2; opacity: 0; transition: opacity 1s;">
+            <span style="font-size: 0.7rem; opacity: 0.4; letter-spacing: 3px; text-transform: uppercase;">Leaving it all behind...</span>
+        </div>
     </div>
 
     <script src="js/main.js"></script>
@@ -1435,7 +1457,16 @@
                 try {
                     if (!this.ctx) {
                         const AudioContext = window.AudioContext || window.webkitAudioContext;
-                        if (AudioContext) this.ctx = new AudioContext();
+                        if (AudioContext) {
+                            this.ctx = new AudioContext();
+                            // Pre-generate noise buffer for wind
+                            const bufferSize = 2 * this.ctx.sampleRate;
+                            this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                            const output = this.noiseBuffer.getChannelData(0);
+                            for (let i = 0; i < bufferSize; i++) {
+                                output[i] = Math.random() * 2 - 1;
+                            }
+                        }
                     }
                     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
                 } catch(e) {}
@@ -1509,8 +1540,247 @@
                     osc.connect(gain); gain.connect(this.ctx.destination);
                     osc.start(); osc.stop(this.ctx.currentTime + 0.2);
                 } catch(e) {}
+            },
+            cruise(active) {
+                this.init();
+                if (!this.ctx) return;
+                
+                if (active) {
+                    if (this.cruiseTimeout) {
+                        clearTimeout(this.cruiseTimeout);
+                        this.cruiseTimeout = null;
+                    }
+                    if (this.cruiseNode) return;
+                    
+                    // 1. Engine Hum
+                    this.cruiseNode = this.ctx.createOscillator();
+                    this.cruiseGain = this.ctx.createGain();
+                    this.cruiseNode.type = 'sawtooth';
+                    this.cruiseNode.frequency.setValueAtTime(40, this.ctx.currentTime);
+                    
+                    const engineFilter = this.ctx.createBiquadFilter();
+                    engineFilter.type = 'lowpass';
+                    engineFilter.frequency.setValueAtTime(150, this.ctx.currentTime);
+                    
+                    this.cruiseGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    this.cruiseGain.gain.linearRampToValueAtTime(0.015, this.ctx.currentTime + 1);
+                    
+                    this.cruiseNode.connect(engineFilter);
+                    engineFilter.connect(this.cruiseGain);
+                    this.cruiseGain.connect(this.ctx.destination);
+                    this.cruiseNode.start();
+
+                    // 2. Wind Noise
+                    this.windNode = this.ctx.createBufferSource();
+                    this.windNode.buffer = this.noiseBuffer;
+                    this.windNode.loop = true;
+                    
+                    this.windFilter = this.ctx.createBiquadFilter();
+                    this.windFilter.type = 'lowpass';
+                    this.windFilter.frequency.setValueAtTime(400, this.ctx.currentTime);
+                    this.windFilter.Q.setValueAtTime(1, this.ctx.currentTime);
+                    
+                    this.windGain = this.ctx.createGain();
+                    this.windGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    this.windGain.gain.linearRampToValueAtTime(0.04, this.ctx.currentTime + 2);
+                    
+                    this.windNode.connect(this.windFilter);
+                    this.windFilter.connect(this.windGain);
+                    this.windGain.connect(this.ctx.destination);
+                    this.windNode.start();
+                } else {
+                    const curCruise = this.cruiseGain ? this.cruiseGain.gain.value : 0;
+                    const curWind = this.windGain ? this.windGain.gain.value : 0;
+                    
+                    if (this.cruiseGain) {
+                        this.cruiseGain.gain.cancelScheduledValues(this.ctx.currentTime);
+                        this.cruiseGain.gain.setValueAtTime(curCruise, this.ctx.currentTime);
+                        this.cruiseGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+                    }
+                    if (this.windGain) {
+                        this.windGain.gain.cancelScheduledValues(this.ctx.currentTime);
+                        this.windGain.gain.setValueAtTime(curWind, this.ctx.currentTime);
+                        this.windGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1.5);
+                    }
+                    
+                    if (this.cruiseTimeout) clearTimeout(this.cruiseTimeout);
+                    this.cruiseTimeout = setTimeout(() => {
+                        if (this.cruiseNode) { this.cruiseNode.stop(); this.cruiseNode = null; }
+                        if (this.windNode) { this.windNode.stop(); this.windNode = null; }
+                        this.cruiseTimeout = null;
+                    }, 1600);
+                }
+            },
+            updateCruiseDynamics(speedFactor) {
+                if (!this.ctx || !this.windFilter || !this.cruiseGain) return;
+                
+                const now = this.ctx.currentTime;
+                // Combine multi-layered waves for natural "buffeting" and air turbulence
+                const buffeting = (Math.sin(now * 3.5) * 0.2) + (Math.sin(now * 8.7) * 0.1) + (Math.random() * 0.1);
+                const intensity = speedFactor * (1 + buffeting);
+                
+                // Wind hitting ears usually has a broader, more erratic frequency range
+                const windFreq = 150 + (intensity * 1800);
+                const windVol = 0.02 + (intensity * 0.15);
+                const engineVol = 0.012 + (speedFactor * 0.018);
+                
+                // Faster time constants (0.05) to capture the erratic nature of wind
+                this.windFilter.frequency.setTargetAtTime(windFreq, now, 0.05);
+                this.windGain.gain.setTargetAtTime(windVol, now, 0.05);
+                this.cruiseGain.gain.setTargetAtTime(engineVol, now, 0.1);
             }
         };
+
+        /* --- MIDNIGHT CRUISE ENGINE --- */
+        let cruiseActive = false;
+        let cruiseAnimId;
+        let roadSpeed = 0;
+        let roadOffset = 0;
+        let cruiseVibrateId;
+
+        function openCruise() {
+            SoundFX.init(); // Initialize on user gesture
+            const overlay = document.getElementById('cruise-overlay');
+            overlay.style.display = 'flex';
+            initCruiseCanvas();
+            
+            overlay.onmousedown = (e) => { if(e.button === 0) startCruise(); };
+            window.onmouseup = stopCruise;
+            overlay.ontouchstart = (e) => { e.preventDefault(); startCruise(); };
+            overlay.ontouchend = stopCruise;
+        }
+
+        function closeCruise() {
+            stopCruise();
+            document.getElementById('cruise-overlay').style.display = 'none';
+            if (cruiseAnimId) cancelAnimationFrame(cruiseAnimId);
+        }
+
+        function startCruise() {
+            if (cruiseActive) return;
+            cruiseActive = true;
+            document.getElementById('cruise-content').style.opacity = '0.2';
+            document.getElementById('cruise-stats').style.opacity = '1';
+            SoundFX.cruise(true);
+            
+            if (navigator.vibrate) {
+                cruiseVibrateId = setInterval(() => {
+                    navigator.vibrate([15, 30]);
+                }, 100);
+            }
+        }
+
+        function stopCruise() {
+            cruiseActive = false;
+            document.getElementById('cruise-content').style.opacity = '1';
+            document.getElementById('cruise-stats').style.opacity = '0';
+            SoundFX.cruise(false);
+            if (cruiseVibrateId) clearInterval(cruiseVibrateId);
+            if (navigator.vibrate) navigator.vibrate(0);
+        }
+
+        function initCruiseCanvas() {
+            const canvas = document.getElementById('cruise-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const stars = Array.from({ length: 150 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 1.5,
+                p: Math.random() * Math.PI * 2
+            }));
+
+            // Scenery: Road objects with Z-depth
+            let objects = [];
+            function spawnObject() {
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const type = Math.random() > 0.4 ? 'light' : 'tree';
+                objects.push({ z: 1, side, type });
+            }
+
+            function draw() {
+                ctx.fillStyle = '#05050a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Stars
+                stars.forEach(s => {
+                    const alpha = 0.2 + (Math.sin(s.p + Date.now() / 1000) + 1) / 2 * 0.5;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+                });
+
+                // Dynamics
+                const targetSpeed = cruiseActive ? 0.02 : 0.002;
+                roadSpeed += (targetSpeed - roadSpeed) * 0.05;
+                roadOffset += roadSpeed;
+                
+                // Sound Modulation
+                if (cruiseActive) {
+                    const speedFactor = (roadSpeed - 0.002) / 0.018;
+                    SoundFX.updateCruiseDynamics(speedFactor);
+                }
+
+                // Road Horizon
+                const horizonY = canvas.height * 0.45;
+                const roadWidthBase = canvas.width * 0.8;
+                
+                // Scenery Logic
+                if (Math.random() < roadSpeed * 5) spawnObject();
+
+                objects.forEach((obj, i) => {
+                    obj.z -= roadSpeed;
+                    if (obj.z <= 0) { objects.splice(i, 1); return; }
+
+                    const perspective = 1 / obj.z;
+                    const x = (canvas.width / 2) + (obj.side * roadWidthBase * 0.6 * perspective);
+                    const y = horizonY + (canvas.height - horizonY) * perspective;
+                    const scale = perspective * 50;
+
+                    if (obj.type === 'light') {
+                        // Light post
+                        ctx.strokeStyle = '#111'; ctx.lineWidth = scale * 0.1;
+                        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - scale * 3); ctx.stroke();
+                        // Bloom
+                        const grad = ctx.createRadialGradient(x, y - scale * 3, 0, x, y - scale * 3, scale);
+                        grad.addColorStop(0, 'rgba(255, 255, 200, 0.8)');
+                        grad.addColorStop(1, 'transparent');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath(); ctx.arc(x, y - scale * 3, scale, 0, Math.PI*2); ctx.fill();
+                    } else {
+                        // Tree Silhouette
+                        ctx.fillStyle = '#020205';
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x - scale, y);
+                        ctx.lineTo(x, y - scale * 4);
+                        ctx.lineTo(x + scale, y);
+                        ctx.fill();
+                    }
+                });
+
+                // Road Lines
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width * 0.1, canvas.height); ctx.lineTo(canvas.width / 2, horizonY);
+                ctx.moveTo(canvas.width * 0.9, canvas.height); ctx.lineTo(canvas.width / 2, horizonY);
+                ctx.stroke();
+
+                // Center dashed line
+                ctx.strokeStyle = `rgba(255, 255, 255, ${cruiseActive ? 0.3 : 0.1})`;
+                ctx.setLineDash([canvas.height * 0.1, canvas.height * 0.15]);
+                ctx.lineDashOffset = roadOffset * 1000;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, canvas.height); ctx.lineTo(canvas.width / 2, horizonY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                cruiseAnimId = requestAnimationFrame(draw);
+            }
+            draw();
+        }
 
         /* --- EMERGENCY SMILE (SERENDIPITY REEL) --- */
         let isReelSpinning = false;
