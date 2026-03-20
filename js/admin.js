@@ -592,23 +592,27 @@ async function uploadHomeVideo() {
         if (isLocal) {
             // ... (keep local logic as is)
         } else {
-            console.log("1. Starting Vercel Blob handshake for:", videoFile.name, (videoFile.size / 1024 / 1024).toFixed(2) + "MB");
-            status.textContent = "Connecting to Vercel API...";
+            console.log("1. Starting Vercel Blob handshake for:", videoFile.name);
+            status.textContent = "Connecting to Vercel (Handshake)...";
             
-            // Upload Video to Vercel Blob
-            // This 'upload' call actually fetches from your /api/upload first
-            const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
-                access: 'public',
-                handleUploadUrl: '/api/upload',
-                onUploadProgress: (p) => { 
-                    const percent = (p.percentage).toFixed(2);
-                    console.log(`2. Uploading Data: ${percent}%`);
-                    if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; 
-                    status.textContent = `Uploading: ${percent}%...`;
-                }
-            });
-            console.log("3. Video upload complete! URL:", vBlob.url);
-            vUrl = vBlob.url;
+            try {
+                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
+                    access: 'public',
+                    handleUploadUrl: '/api/upload',
+                    onUploadProgress: (p) => { 
+                        if (p.percentage === 0) console.log("1.5. Token received! Browser is now buffering/starting data stream...");
+                        const percent = (p.percentage).toFixed(2);
+                        console.log(`2. Uploading Data: ${percent}%`);
+                        if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; 
+                        status.textContent = `Uploading: ${percent}% (150MB takes time)...`;
+                    }
+                });
+                console.log("3. Video upload complete! URL:", vBlob.url);
+                vUrl = vBlob.url;
+            } catch (err) {
+                console.error("Blob Upload Step Failed:", err);
+                throw err;
+            }
 
             if (thumbFile) {
                 status.textContent = "Uploading thumbnail...";
