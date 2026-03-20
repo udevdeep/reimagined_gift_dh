@@ -172,6 +172,7 @@ function initFirebaseLock() {
 }
 
 async function startApp() {
+    console.log("startApp() - User authenticated.");
     document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     recordVisit();
     try { await loadAllData(); } catch (e) { console.error(e); }
@@ -180,10 +181,31 @@ async function startApp() {
     if (document.getElementById('jokes-container')) loadJokes();
     hideLoader();
     
-    // If on home page and already entered, start scroll
-    if (document.getElementById('letter-content') && sessionStorage.getItem('entered_archive')) {
+    // AUTO-ENTER: If they just logged in on the index page, clear the pre-landing automatically
+    const pre = document.getElementById('pre-landing');
+    if (pre && !sessionStorage.getItem('entered_archive')) {
+        console.log("Auto-entering archive after login...");
+        enterArchive();
+    } else if (pre && sessionStorage.getItem('entered_archive')) {
+        pre.style.display = 'none';
         initCinematicScroll();
     }
+}
+
+// Extracted logic to enter the site cleanly
+function enterArchive() {
+    const pre = document.getElementById('pre-landing');
+    if (!pre) return;
+    
+    sessionStorage.setItem('entered_archive', 'true');
+    pre.style.transition = 'opacity 0.8s ease';
+    pre.style.opacity = '0';
+    pre.style.pointerEvents = 'none';
+    
+    setTimeout(() => {
+        pre.style.display = 'none';
+        initCinematicScroll();
+    }, 800);
 }
 
 function hideLoader() {
@@ -257,51 +279,27 @@ function initHome() {
     const overlay = document.getElementById('lock-overlay');
     const beginBtn = document.getElementById('pre-landing-begin');
     
-    if (!pre || !beginBtn) {
-        console.error("Home elements missing!", { pre: !!pre, begin: !!beginBtn });
-        return;
-    }
+    if (!pre || !beginBtn) return;
 
     if (sessionStorage.getItem('entered_archive')) {
-        console.log("Archive already entered in this session, hiding pre-landing.");
         pre.style.display = 'none';
         return;
     }
 
-    beginBtn.onclick = (e) => {
-        console.log("Begin Button clicked!");
-        // If not logged in, show the lock screen instead of entering
+    beginBtn.onclick = () => {
         const expiry = parseInt(localStorage.getItem(LOCK_KEY) || '0', 10);
-        console.log("Checking auth state...", { 
-            loggedIn: !!auth.currentUser, 
-            expiry: new Date(expiry).toLocaleString(),
-            isExpired: expiry < Date.now()
-        });
-
         if (!auth.currentUser || expiry < Date.now()) {
-            console.log("User not logged in or expired. Showing lock-overlay.");
             if (overlay) {
-                // Ensure everything else is pushed back
                 pre.style.zIndex = "1";
                 overlay.style.zIndex = "999999";
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '1';
-            } else {
-                console.error("lock-overlay element is missing from the DOM!");
             }
             return;
         }
-
-        console.log("Entering the archive...");
-        sessionStorage.setItem('entered_archive', 'true');
-        pre.style.opacity = '0'; pre.style.pointerEvents = 'none';
-        setTimeout(() => {
-            pre.style.display = 'none';
-            initCinematicScroll();
-        }, 1500);
+        enterArchive();
     };
-    
-    console.log("initHome() click handler attached.");
+    console.log("initHome() handler attached.");
 }
 
 let isScrolling = false;
