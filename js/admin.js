@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signO
 import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.22.1/client";
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyB8zvSjJnKFQEuASiWoXx3u9sMKfCcbTDs",
@@ -592,13 +592,14 @@ async function uploadHomeVideo() {
         if (isLocal) {
             // ... (keep local logic as is)
         } else {
-            console.log("1. Starting Vercel Blob handshake for:", videoFile.name);
+            const uploadApiUrl = window.location.origin + '/api/upload';
+            console.log("1. Starting Vercel Blob handshake at:", uploadApiUrl);
             status.textContent = "Connecting to Vercel (Handshake)...";
             
             try {
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
-                    handleUploadUrl: '/api/upload',
+                    handleUploadUrl: uploadApiUrl,
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
@@ -614,7 +615,7 @@ async function uploadHomeVideo() {
                 vUrl = vBlob.url;
             } catch (err) {
                 if (err.message.includes('4.5MB') || err.message.includes('Body exceeded')) {
-                    alert("ERROR: Vercel is blocking this 150MB file because it is trying to send it through the API instead of bypassing it. Check the Network tab for more info.");
+                    alert("ERROR: Vercel 4.5MB limit hit. The upload did not bypass the server correctly.");
                 }
                 console.error("Blob Upload Step Failed:", err);
                 throw err;
@@ -624,7 +625,7 @@ async function uploadHomeVideo() {
                 status.textContent = "Uploading thumbnail...";
                 const tBlob = await upload(`intro_thumb_${ts}`, thumbFile, {
                     access: 'public',
-                    handleUploadUrl: '/api/upload'
+                    handleUploadUrl: uploadApiUrl
                 });
                 tUrl = tBlob.url;
             } else {
@@ -633,7 +634,7 @@ async function uploadHomeVideo() {
                 if (tBlobFile) {
                     const vtBlob = await upload(`intro_thumb_auto_${ts}.jpg`, tBlobFile, {
                         access: 'public',
-                        handleUploadUrl: '/api/upload'
+                        handleUploadUrl: uploadApiUrl
                     });
                     tUrl = vtBlob.url;
                 }
