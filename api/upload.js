@@ -1,23 +1,31 @@
 import { handleUpload } from '@vercel/blob/client';
 
 export default async function handler(request, response) {
+  // CRITICAL CHECK: If this token is missing, the API will 500
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error("CRITICAL: BLOB_READ_WRITE_TOKEN is missing in environment!");
+    return response.status(500).json({ error: "Server configuration error: Blob Token missing" });
+  }
+
   try {
-    const body = await request.json();
+    // Standard Vercel Node.js runtime parses the body automatically
+    // But if you use the Edge runtime, you need await request.json()
+    let body = request.body;
+    if (typeof request.json === 'function' && !body) {
+      body = await request.json();
+    }
 
     const jsonResponse = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        // Optional: Add logic here to check if the user is an admin
         return {
           allowedContentTypes: ['video/mp4', 'image/jpeg', 'image/png', 'image/webp'],
-          tokenPayload: JSON.stringify({
-            // Optional data
-          }),
+          tokenPayload: JSON.stringify({}),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        // Called after upload is successful
+        console.log('blob upload completed', blob.url);
       },
     });
 
