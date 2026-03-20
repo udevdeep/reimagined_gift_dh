@@ -1315,14 +1315,15 @@ p {
 
 /* --- Lock Screen & Modals --- */
 #lock-overlay {
-    background: var(--bg-color); /* Match theme */
+    background: var(--bg-color);
     position: fixed;
     inset: 0;
-    z-index: 11000;
-    display: flex;
+    z-index: 999999; /* Increased to ensure it is on top */
+    display: none; /* Controlled by JS */
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    opacity: 1 !important; /* Force visibility */
 }
 .lock-card {
     background: var(--card-bg);

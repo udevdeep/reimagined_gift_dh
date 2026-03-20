@@ -281,9 +281,11 @@ function initHome() {
         if (!auth.currentUser || expiry < Date.now()) {
             console.log("User not logged in or expired. Showing lock-overlay.");
             if (overlay) {
+                // Ensure everything else is pushed back
+                pre.style.zIndex = "1";
+                overlay.style.zIndex = "999999";
                 overlay.style.display = 'flex';
-                // Trigger a small animation if it was display: none
-                requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+                overlay.style.opacity = '1';
             } else {
                 console.error("lock-overlay element is missing from the DOM!");
             }
