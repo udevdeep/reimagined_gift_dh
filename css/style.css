@@ -1815,8 +1815,32 @@ body.index-page::before { opacity: 0.1; }
 .cinematic-content { display: flex; flex-direction: column; gap: 50px; font-family: var(--font-heading); text-align: center; padding-top: 80vh; padding-bottom: 80vh; }
 
 .journal-header { 
-    font-size: 1.4rem; color: var(--accent-primary); letter-spacing: 12px; text-transform: uppercase; font-weight: 400; opacity: 1; 
-    text-shadow: 0 2px 10px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,0.5); 
+    font-size: 1.4rem; 
+    color: #e6c79a; /* Brighter, more luminous gold */
+    letter-spacing: 15px; 
+    text-transform: uppercase; 
+    font-weight: 600; /* Slightly bolder for clarity */
+    opacity: 1; 
+    
+    /* 4-Layer Protective Shadow: Separation from both dark and light scenes */
+    text-shadow: 
+        0 0 2px rgba(0, 0, 0, 1),           /* Sharp contrast edge */
+        0 0 10px rgba(230, 199, 154, 0.4),  /* Gold Bloom */
+        0 2px 15px rgba(0, 0, 0, 0.9),       /* Deep core contrast */
+        0 0 40px rgba(0, 0, 0, 0.7);        /* Large dark haze to kill back-light */
+        
+    /* Subtle protective dark halo behind the header itself */
+    background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, transparent 80%);
+    padding: 20px 40px;
+    border-radius: 50%;
+    display: inline-block;
+    
+    animation: headerPulse 6s infinite ease-in-out;
+}
+
+@keyframes headerPulse {
+    0%, 100% { opacity: 0.8; transform: scale(0.98); letter-spacing: 14px; }
+    50% { opacity: 1; transform: scale(1); letter-spacing: 16px; }
 }
 
 .journal-body {
