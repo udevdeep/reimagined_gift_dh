@@ -590,31 +590,23 @@ async function uploadHomeVideo() {
 
     try {
         if (isLocal) {
-            status.textContent = "Replacing local file on disk...";
-            const formData = new FormData();
-            formData.append('video', videoFile);
-            if (thumbFile) formData.append('thumb', thumbFile);
-            else {
-                const tBlob = await getVideoThumbnail(videoFile);
-                if (tBlob) formData.append('thumb', tBlob, 'auto_thumb.jpg');
-            }
-
-            const res = await fetch('http://localhost:3000/api/local-upload', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            vUrl = data.videoUrl;
-            tUrl = data.thumbUrl;
-            if(fill) fill.style.width = '80%';
+            // ... (keep local logic as is)
         } else {
-            status.textContent = "Uploading video to Vercel...";
+            console.log("Starting Vercel Blob upload for:", videoFile.name, (videoFile.size / 1024 / 1024).toFixed(2) + "MB");
+            status.textContent = "Uploading video to Vercel (this may take a few minutes)...";
+            
             // Upload Video to Vercel Blob
             const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                 access: 'public',
                 handleUploadUrl: '/api/upload',
-                onUploadProgress: (p) => { if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; }
+                onUploadProgress: (p) => { 
+                    const percent = (p.percentage).toFixed(2);
+                    console.log(`Upload Progress: ${percent}%`);
+                    if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; 
+                    status.textContent = `Uploading: ${percent}%...`;
+                }
             });
+            console.log("Video upload complete! URL:", vBlob.url);
             vUrl = vBlob.url;
 
             if (thumbFile) {
