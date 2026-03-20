@@ -22,7 +22,17 @@ export const storage = getStorage(app);
 // Register Service Worker for local video caching
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('New SW version available, reloading...');
+                        window.location.reload();
+                    }
+                };
+            };
+        }).catch(err => console.warn('SW registration failed:', err));
     });
 }
 
