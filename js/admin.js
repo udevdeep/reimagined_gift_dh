@@ -602,17 +602,20 @@ async function uploadHomeVideo() {
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
-                            status.textContent = "Buffering 150MB... please wait...";
+                            status.textContent = "Buffering data stream... please wait...";
                         } else {
-                            console.log(`Uploading: ${percent}%`);
                             status.textContent = `Uploading: ${percent}%...`;
                         }
-                        if(fill) fill.style.width = (10 + p.percentage * 0.8) + '%'; 
+                        if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
+                        console.log(`Upload Progress: ${percent}%`);
                     }
                 });
                 console.log("3. Video upload complete! URL:", vBlob.url);
                 vUrl = vBlob.url;
             } catch (err) {
+                if (err.message.includes('4.5MB') || err.message.includes('Body exceeded')) {
+                    alert("ERROR: Vercel is blocking this 150MB file because it is trying to send it through the API instead of bypassing it. Check the Network tab for more info.");
+                }
                 console.error("Blob Upload Step Failed:", err);
                 throw err;
             }
