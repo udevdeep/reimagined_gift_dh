@@ -1044,12 +1044,16 @@ p {
         0 15px 35px rgba(0,0,0,0.2) !important;
     color: var(--text-main) !important;
     backdrop-filter: blur(8px);
+    overflow: hidden;
+    /* Force Hardware Clipping */
+    mask-image: radial-gradient(white, black);
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .bubble-highlight {
     position: absolute;
-    top: 15%;
-    left: 15%;
+    top: 50%;
+    left: 50%;
     width: 25%;
     height: 25%;
     border-radius: 50%;
@@ -1057,6 +1061,7 @@ p {
     filter: blur(1px);
     pointer-events: none;
     z-index: 2;
+    transform: translate(-50%, -50%);
 }
 
 .joke-bubble:hover {

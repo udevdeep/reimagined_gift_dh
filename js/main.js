@@ -753,24 +753,36 @@ function initHome() {
 
     // --- Autoscroll Loop ---
     const autoScroll = () => {
-        if (!isUserScrolling && !hasReachedEnd) {
-            if (content && content.textContent.length > 50) {
-                scrollPos += speed;
-                container.scrollTop = scrollPos;
-                if (scrollPos + container.clientHeight >= container.scrollHeight - 2) {
-                    hasReachedEnd = true;
-                    return;
-                }
-            }
-            animationFrame = requestAnimationFrame(autoScroll);
+        if (hasReachedEnd || isUserScrolling) {
+            animationFrame = null;
+            return;
         }
+
+        if (content && content.textContent.length > 50) {
+            scrollPos += speed;
+            container.scrollTop = scrollPos;
+            
+            // Check if we hit the bottom
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+                hasReachedEnd = true;
+                animationFrame = null;
+                return;
+            }
+        }
+        animationFrame = requestAnimationFrame(autoScroll);
     };
 
     const startArchive = () => {
         if (video) {
             video.play().catch(e => console.warn("Autoplay blocked, waiting for interaction", e));
         }
-        setTimeout(() => requestAnimationFrame(autoScroll), 2000);
+        if (!animationFrame && !hasReachedEnd) {
+            setTimeout(() => {
+                if (!animationFrame && !isUserScrolling) {
+                    animationFrame = requestAnimationFrame(autoScroll);
+                }
+            }, 2000);
+        }
     };
 
     // Check if already entered, otherwise wait for button
@@ -785,13 +797,16 @@ function initHome() {
 
     // Restart autoscroll if content changes (e.g. from "Loading..." to the real letter)
     const observer = new MutationObserver(() => {
-        if (content.textContent.length > 20) {
+        if (content.textContent.trim().length > 20) {
             hasReachedEnd = false;
             scrollPos = 0;
             container.scrollTop = 0;
+            if (!isUserScrolling && !animationFrame) {
+                animationFrame = requestAnimationFrame(autoScroll);
+            }
         }
     });
-    if (content) observer.observe(content, { childList: true });
+    if (content) observer.observe(content, { childList: true, characterData: true, subtree: true });
 
     // --- Navbar visibility logic ---
     const nav = document.querySelector('.navbar');
@@ -805,6 +820,11 @@ function initHome() {
         } else if (currentScroll > 100) {
             nav.classList.add('navbar-hidden');
         }
+        
+        // If user scrolls up significantly, allow auto-scroll to resume
+        if (hasReachedEnd && container.scrollTop + container.clientHeight < container.scrollHeight - 50) {
+            hasReachedEnd = false;
+        }
     };
 
     container.addEventListener('scroll', updateNavVisibility);
@@ -817,14 +837,22 @@ function initHome() {
     const onUserInteraction = () => {
         isUserScrolling = true;
         clearTimeout(resumeTimer);
-        cancelAnimationFrame(animationFrame);
-        scrollPos = container.scrollTop;
-        if (!hasReachedEnd) {
-            resumeTimer = setTimeout(() => {
-                isUserScrolling = false;
-                requestAnimationFrame(autoScroll);
-            }, 3000);
+        if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
         }
+        scrollPos = container.scrollTop;
+        
+        resumeTimer = setTimeout(() => {
+            isUserScrolling = false;
+            // Only resume if we aren't at the very bottom
+            if (container.scrollTop + container.clientHeight < container.scrollHeight - 5) {
+                hasReachedEnd = false;
+                if (!animationFrame) {
+                    animationFrame = requestAnimationFrame(autoScroll);
+                }
+            }
+        }, 3000);
     };
 
     container.addEventListener('wheel', onUserInteraction, { passive: true });
@@ -1487,11 +1515,12 @@ function loadJokes() {
 
     window.addEventListener('resize', updateBubbleSizes);
 
+    const baseHue = Math.floor(Math.random() * 360);
     JOKES_DATA.forEach((joke, i) => {
         const bubble = document.createElement('div');
         bubble.className = 'joke-bubble';
-        const palette = [40, 330, 270, 200, 10]; 
-        const hue = palette[Math.floor(Math.random() * palette.length)];
+        // Use Golden Ratio to ensure high contrast between consecutive bubbles
+        const hue = (baseHue + (i * 137.5)) % 360;
         const tier = joke.sizeTier || 2;
         
         bubble.style.setProperty('--b-hue', hue); 
@@ -1519,7 +1548,9 @@ function loadJokes() {
             radius: 0,
             mass: 0, 
             isDragging: false,
-            isHovered: false
+            isHovered: false,
+            hx: 0, // Current highlight X
+            hy: 0  // Current highlight Y
         };
         physicsBubbles.push(obj);
         
@@ -1577,9 +1608,22 @@ function loadJokes() {
             const centerX = b.x + b.radius; const centerY = b.y + b.radius;
             const hdx = mouse.x - centerX; const hdy = mouse.y - centerY;
             const hdist = Math.sqrt(hdx*hdx + hdy*hdy) || 1;
-            const maxMove = b.radius * 0.4;
-            const hMove = Math.min(hdist, 100) / 100 * maxMove;
-            b.highlight.style.transform = `translate(${(hdx / hdist) * hMove}px, ${(hdy / hdist) * hMove}px)`;
+            const maxMove = b.radius * 0.45;
+            
+            // HYBRID SPECULAR MODEL:
+            // 1. Target = Cursor-based attraction
+            const targetX = (hdx / hdist) * Math.min(hdist, 100) / 100 * maxMove;
+            const targetY = (hdy / hdist) * Math.min(hdist, 100) / 100 * maxMove;
+            
+            // 2. Inertia = Lag based on bubble velocity (opposite direction of movement)
+            const inertiaX = -b.vx * 2;
+            const inertiaY = -b.vy * 2;
+            
+            // 3. Smooth Lerp: Current highlight position slides toward the (Target + Inertia)
+            b.hx += ( (targetX + inertiaX) - b.hx ) * 0.15;
+            b.hy += ( (targetY + inertiaY) - b.hy ) * 0.15;
+            
+            b.highlight.style.transform = `translate(calc(-50% + ${b.hx}px), calc(-50% + ${b.hy}px))`;
         });
         physicsAnimationId = requestAnimationFrame(step);
     }
