@@ -4,7 +4,7 @@
    Author: Gemini
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap');
 
 :root {
   /* --- Default Theme: Dark (Elegant Night) --- */
@@ -1778,9 +1778,32 @@ body.index-page::before { opacity: 0.1; }
 
 .bg-video-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -5; overflow: hidden; background: #000; }
 #intro-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 100%; min-height: 100%; object-fit: cover; }
-.video-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.6) 100%); z-index: -1; }
+.video-overlay { 
+    position: absolute; 
+    inset: 0; 
+    background: linear-gradient(180deg, 
+        rgba(0,0,0,0.7) 0%, 
+        rgba(0,0,0,0.3) 25%, 
+        rgba(0,0,0,0.3) 75%, 
+        rgba(0,0,0,0.7) 100%); 
+    z-index: -1; 
+}
 
-.hero-container { width: 100%; max-width: 1100px; margin: 0 auto; height: 100vh; padding: 140px 20px 80px; text-align: center; overflow-y: auto; z-index: 10; position: relative; }
+.hero-container { 
+    width: 100%; 
+    max-width: 1100px; 
+    margin: 0 auto; 
+    height: 100vh; 
+    padding: 140px 20px 80px; 
+    text-align: center; 
+    overflow-y: auto; 
+    z-index: 10; 
+    position: relative; 
+    
+    /* Cinematic Fade Mask: Text emerges from and vanishes into the void */
+    mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+}
 
 .cinematic-letter {
     width: 100%; max-width: 1000px; margin: 0 auto; position: relative; padding: 140px 60px;
@@ -1797,19 +1820,44 @@ body.index-page::before { opacity: 0.1; }
 }
 
 .journal-body {
-    color: #ffffff; font-size: clamp(1.3rem, 5vw, 2.5rem); line-height: 1.6; font-weight: 600; font-style: italic; white-space: pre-wrap;
-    /* High-contrast multi-layered shadow to pop from video */
-    text-shadow:
-        0 0 30px rgba(0, 0, 0, 1),
-        0 0 10px rgba(0, 0, 0, 1),
-        2px 2px 4px rgba(0, 0, 0, 0.8);
-    animation: textFocus 8s infinite alternate ease-in-out;
+    font-family: 'EB Garamond', serif;
+    color: #fdfdfc; 
+    font-size: clamp(1.4rem, 5.5vw, 2.8rem); 
+    line-height: 1.5; 
+    font-weight: 500; 
+    font-style: italic; 
+    white-space: pre-wrap;
+    letter-spacing: 0.015em; /* Breathing Room */
+    
+    /* Cinematic Multi-layered Shadow + Bloom */
+    text-shadow: 
+        0 0 2px rgba(255, 255, 255, 0.2), /* Light Bloom (The Glow) */
+        0 0 15px rgba(0, 0, 0, 0.8),      /* High-contrast core shadow */
+        0 0 40px rgba(0, 0, 0, 0.4),      /* Middle spread haze */
+        0 0 80px rgba(0, 0, 0, 0.2);      /* Deep atmospheric haze */
+    
+    animation: cinematicBreath 12s infinite ease-in-out;
 }
-@keyframes textFocus { from { opacity: 0.9; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
+
+/* Organic breathing animation: scale + subtle opacity + blur */
+@keyframes cinematicBreath { 
+    0%, 100% { transform: scale(0.995); opacity: 0.95; filter: blur(0.2px); } 
+    50% { transform: scale(1); opacity: 1; filter: blur(0px); } 
+}
 
 .journal-closing { 
-    color: var(--accent-secondary); font-size: 3.5rem; margin-top: 50px; font-weight: 700; letter-spacing: -1.5px; 
-    text-shadow: 0 0 40px rgba(0, 0, 0, 1), 0 5px 15px rgba(0,0,0,1); 
+    font-family: 'EB Garamond', serif;
+    color: var(--accent-secondary); 
+    font-size: clamp(2.5rem, 8vw, 4.5rem); 
+    margin-top: 50px; 
+    font-weight: 500; 
+    letter-spacing: -0.5px; 
+    font-style: italic;
+    
+    text-shadow: 
+        0 0 5px rgba(201, 165, 115, 0.2), /* Subtle Gold Glow */
+        0 0 20px rgba(0, 0, 0, 0.7),
+        0 0 50px rgba(0, 0, 0, 0.4); 
 }
 .journal-footer { margin-top: 150px; font-size: 0.9rem; color: #eee; font-family: var(--font-body); font-weight: 300; letter-spacing: 3px; opacity: 0.6; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
