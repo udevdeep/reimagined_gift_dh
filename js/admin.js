@@ -600,11 +600,14 @@ async function uploadHomeVideo() {
                     access: 'public',
                     handleUploadUrl: '/api/upload',
                     onUploadProgress: (p) => { 
-                        if (p.percentage === 0) console.log("1.5. Token received! Browser is now buffering/starting data stream...");
                         const percent = (p.percentage).toFixed(2);
-                        console.log(`2. Uploading Data: ${percent}%`);
-                        if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; 
-                        status.textContent = `Uploading: ${percent}% (150MB takes time)...`;
+                        if (percent === "0.00") {
+                            status.textContent = "Buffering 150MB... please wait...";
+                        } else {
+                            console.log(`Uploading: ${percent}%`);
+                            status.textContent = `Uploading: ${percent}%...`;
+                        }
+                        if(fill) fill.style.width = (10 + p.percentage * 0.8) + '%'; 
                     }
                 });
                 console.log("3. Video upload complete! URL:", vBlob.url);
