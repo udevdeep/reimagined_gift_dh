@@ -592,21 +592,22 @@ async function uploadHomeVideo() {
         if (isLocal) {
             // ... (keep local logic as is)
         } else {
-            console.log("Starting Vercel Blob upload for:", videoFile.name, (videoFile.size / 1024 / 1024).toFixed(2) + "MB");
-            status.textContent = "Uploading video to Vercel (this may take a few minutes)...";
+            console.log("1. Starting Vercel Blob handshake for:", videoFile.name, (videoFile.size / 1024 / 1024).toFixed(2) + "MB");
+            status.textContent = "Connecting to Vercel API...";
             
             // Upload Video to Vercel Blob
+            // This 'upload' call actually fetches from your /api/upload first
             const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                 access: 'public',
                 handleUploadUrl: '/api/upload',
                 onUploadProgress: (p) => { 
                     const percent = (p.percentage).toFixed(2);
-                    console.log(`Upload Progress: ${percent}%`);
+                    console.log(`2. Uploading Data: ${percent}%`);
                     if(fill) fill.style.width = (10 + p.percentage * 0.7) + '%'; 
                     status.textContent = `Uploading: ${percent}%...`;
                 }
             });
-            console.log("Video upload complete! URL:", vBlob.url);
+            console.log("3. Video upload complete! URL:", vBlob.url);
             vUrl = vBlob.url;
 
             if (thumbFile) {
