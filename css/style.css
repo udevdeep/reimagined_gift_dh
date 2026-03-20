@@ -92,13 +92,11 @@ body {
   transition: background 0.6s ease, color 0.6s ease;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
-  
-  /* Security Cloak */
-  visibility: hidden;
-  opacity: 0;
-  
-  /* Prevent accidental text selection globally */
-  user-select: none;
+
+  /* Security Cloak - Initialized via JS */
+  opacity: 1;
+
+  /* Prevent accidental text selection globally */  user-select: none;
   -webkit-user-select: none;
 }
 
@@ -1320,7 +1318,7 @@ p {
     background: var(--bg-color); /* Match theme */
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 11000;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1773,6 +1771,11 @@ body.grey-mode-forced .nav-links a.active {
 body.index-page { overflow: hidden !important; }
 body.index-page::before { opacity: 0.1; }
 
+/* Ensure Barbie Mode does not affect the video/background on index page */
+html.barbie-mode body.index-page { background: #000 !important; }
+html.barbie-mode body.index-page::before,
+html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !important; }
+
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 
@@ -1888,4 +1891,105 @@ body.index-page::before { opacity: 0.1; }
 @media (max-width: 768px) {
     .cinematic-letter { padding: 80px 20px; width: 100%; background: transparent; }
     .journal-closing { font-size: 2rem; }
+    
+    #memory-autoscroll-toggle {
+        top: unset !important;
+        bottom: 100px; 
+        right: 20px;
+    }
 }
+
+/* --- Memories Gate --- */
+.memories-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(50px) brightness(0.6);
+    -webkit-backdrop-filter: blur(50px) brightness(0.6);
+    transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: white;
+}
+.memories-gate.unlocked {
+    opacity: 0;
+    pointer-events: none;
+    backdrop-filter: blur(0px) brightness(1);
+}
+.gate-content { text-align: center; padding: 40px; }
+.gate-title { font-family: var(--font-heading); font-style: italic; font-size: 2.8rem; margin-bottom: 10px; color: var(--text-main); }
+.gate-sub { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 40px; letter-spacing: 1px; }
+
+/* --- Sound Visualizer --- */
+.sound-visualizer {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 25px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.4s;
+    user-select: none;
+}
+.sound-visualizer .bar { width: 3px; height: 12px; background: var(--accent-primary); border-radius: 10px; }
+.sound-visualizer:hover { background: rgba(255,255,255,0.1); transform: scale(1.05); }
+.sound-visualizer:hover .bar { animation: soundWave 0.6s infinite ease-in-out alternate; }
+@keyframes soundWave { from { height: 6px; } to { height: 20px; } }
+
+/* --- Memory Scrollbar --- */
+.memory-scroll-bar {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: var(--nav-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 10px 0;
+    z-index: 100;
+}
+.memory-scroll-item {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.memory-scroll-item.active { background: var(--accent-primary); color: var(--bg-color); }
+#memory-scroll-indicator { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-primary); opacity: 0.2; pointer-events: none; transition: top 0.3s; }
+#memory-scroll-tooltip { position: fixed; background: rgba(0,0,0,0.8); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; pointer-events: none; z-index: 2000; opacity: 0; transition: opacity 0.2s; }
+
+/* --- Auto-scroll Toggle --- */
+#memory-autoscroll-toggle {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    z-index: 1500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: var(--nav-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(10px);
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+#memory-autoscroll-toggle:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
