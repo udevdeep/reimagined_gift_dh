@@ -55,14 +55,28 @@ let galleryState = [];
 let _memoryAutoScrollTimer = null;
 let _memoryAutoScrollEnabled = true;
 
-document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    applyCacheImmediate();
-    initFirebaseLock();
-    handleMobileNav();
-    if (document.getElementById('intro-video')) initHome();
+// Robust initialization that runs even if DOMContentLoaded already fired
+function initAll() {
+    console.log("Initializing Archive...");
+    try { initTheme(); } catch(e) { console.warn("Theme init failed", e); }
+    try { applyCacheImmediate(); } catch(e) { console.warn("Cache apply failed", e); }
+    try { initFirebaseLock(); } catch(e) { console.warn("Firebase lock init failed", e); }
+    try { handleMobileNav(); } catch(e) { console.warn("Nav init failed", e); }
+    
+    const introVideo = document.getElementById('intro-video');
+    if (introVideo) {
+        console.log("Intro video detected, initializing Home...");
+        try { initHome(); } catch(e) { console.error("Home init failed", e); }
+    }
+    
     window.addEventListener('resize', handleMobileNav);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+} else {
+    initAll();
+}
 
 function handleMobileNav() {
     const nav = document.querySelector('.navbar');
@@ -228,26 +242,45 @@ function initTheme() {
 }
 
 function initHome() {
+    console.log("initHome() starting...");
     const pre = document.getElementById('pre-landing');
     const overlay = document.getElementById('lock-overlay');
-    if (!pre) return;
+    const beginBtn = document.getElementById('pre-landing-begin');
+    
+    if (!pre || !beginBtn) {
+        console.error("Home elements missing!", { pre: !!pre, begin: !!beginBtn });
+        return;
+    }
 
     if (sessionStorage.getItem('entered_archive')) {
+        console.log("Archive already entered in this session, hiding pre-landing.");
         pre.style.display = 'none';
         return;
     }
 
-    document.getElementById('pre-landing-begin').onclick = () => {
+    beginBtn.onclick = (e) => {
+        console.log("Begin Button clicked!");
         // If not logged in, show the lock screen instead of entering
         const expiry = parseInt(localStorage.getItem(LOCK_KEY) || '0', 10);
+        console.log("Checking auth state...", { 
+            loggedIn: !!auth.currentUser, 
+            expiry: new Date(expiry).toLocaleString(),
+            isExpired: expiry < Date.now()
+        });
+
         if (!auth.currentUser || expiry < Date.now()) {
+            console.log("User not logged in or expired. Showing lock-overlay.");
             if (overlay) {
                 overlay.style.display = 'flex';
-                // We don't hide the pre-landing yet, it will hide after login
+                // Trigger a small animation if it was display: none
+                requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+            } else {
+                console.error("lock-overlay element is missing from the DOM!");
             }
             return;
         }
 
+        console.log("Entering the archive...");
         sessionStorage.setItem('entered_archive', 'true');
         pre.style.opacity = '0'; pre.style.pointerEvents = 'none';
         setTimeout(() => {
@@ -255,6 +288,8 @@ function initHome() {
             initCinematicScroll();
         }, 1500);
     };
+    
+    console.log("initHome() click handler attached.");
 }
 
 let isScrolling = false;
