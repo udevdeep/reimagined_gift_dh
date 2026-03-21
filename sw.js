@@ -35,33 +35,33 @@ self.addEventListener('fetch', (event) => {
   
   if (event.request.method !== 'GET') return;
 
-  // Strategy: Cache-First for Media & Assets
-  const isMedia = url.pathname.match(/\.(mp4|webm|jpg|jpeg|png|webp|gif|svg|woff2)$/i);
+  // Strategy: Cache-First for Media & Assets (EXCLUDING large videos to avoid Safari Range Request bugs)
+  const isVideo = url.pathname.match(/\.(mp4|webm|mov)$/i);
+  const isImageOrAsset = url.pathname.match(/\.(jpg|jpeg|png|webp|gif|svg|woff2)$/i);
   const isCacheableDomain = CACHEABLE_DOMAINS.some(domain => url.href.includes(domain));
 
-  if (isMedia || isCacheableDomain) {
+  // Skip Service Worker for videos - let the browser's native streaming handle them
+  if (isVideo) return;
+
+  if (isImageOrAsset || isCacheableDomain) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
 
+        // Try CORS fetch first (to allow caching)
         return fetch(event.request).then((networkResponse) => {
-          // Check if valid response before caching
-          // We allow 'cors' and 'basic' types. 'opaque' is excluded to prevent cache bloating 
-          // but we ensure our UI uses crossorigin="anonymous" to get 'cors' types.
-          if (!networkResponse || networkResponse.status !== 200) {
-            return networkResponse;
-          }
-
-          if (networkResponse.type === 'basic' || networkResponse.type === 'cors') {
+          // If valid response, try to cache it
+          if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
             });
           }
-
           return networkResponse;
         }).catch(() => {
-          return null;
+            // FALLBACK: If CORS fetch fails, try again without forcing CORS logic 
+            // This allows images to show up even if they can't be cached.
+            return fetch(event.request.url);
         });
       })
     );

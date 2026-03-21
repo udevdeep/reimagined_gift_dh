@@ -198,12 +198,10 @@ export const catApp = {
         }
     },
     async loadState() {
-        const user = auth.currentUser;
-        if (!user) return;
         try {
-            const snap = await getDoc(doc(db, 'user_data', user.uid));
-            if (snap.exists() && snap.data().cat) {
-                const data = snap.data().cat;
+            const snap = await getDoc(doc(db, 'global_state', 'cat'));
+            if (snap.exists()) {
+                const data = snap.data();
                 const now = Date.now();
                 const elapsedHours = (now - (data.lastUpdated || now)) / (1000 * 60 * 60);
                 this.state.love = Math.max(0, Math.min(100, data.love - 5 * elapsedHours));
@@ -216,8 +214,8 @@ export const catApp = {
         } catch(e) { console.error("Cat load error", e); }
     },
     saveState() {
-        const user = auth.currentUser;
-        if (user) setDoc(doc(db, 'user_data', user.uid), { cat: this.state }, { merge: true });
+        if (!db) return;
+        setDoc(doc(db, 'global_state', 'cat'), { ...this.state, lastUpdated: Date.now() }, { merge: true });
     },
     decay() {
         if (this.isPuking) return;
@@ -498,10 +496,19 @@ window.toggleGame = toggleGame;
 
 function saveHighScore(score) {
     localStorage.setItem('star_drive_highscore', score);
-    const user = auth.currentUser;
-    if (user) setDoc(doc(db, 'user_data', user.uid), { starDrive: { highScore: score } }, { merge: true })
-        .then(() => showToast("New High Score Saved! 🚀", "success"))
+    setDoc(doc(db, 'global_state', 'star_drive'), { highScore: score }, { merge: true })
+        .then(() => showToast("New Global High Score! 🚀", "success"))
         .catch(console.error);
+}
+
+async function loadHighScore() {
+    try {
+        const snap = await getDoc(doc(db, 'global_state', 'star_drive'));
+        if (snap.exists()) {
+            window.currentHighScore = snap.data().highScore || 0;
+            localStorage.setItem('star_drive_highscore', window.currentHighScore);
+        }
+    } catch(e) {}
 }
 
 /* --- FAMILIAR SOUNDS & VISUALIZER --- */
@@ -1017,13 +1024,12 @@ window.cyclePrompt = () => { curPIdx = (curPIdx + 1) % PROMPTS.length; document.
 
 export async function saveResilience() {
     const input = document.getElementById('resilience-input'); const text = input.value.trim(); if (!text) return;
-    const user = auth.currentUser; if (!user) return showToast("Sign in first", "error");
     const count = cStars.length, isBD = count === 10;
     const data = { text, prompt: PROMPTS[curPIdx], timestamp: Date.now(), normX: isBD ? 0.5 : 0.1+Math.random()*0.8, normY: isBD ? 0.2 : 0.1+Math.random()*0.8, isBD };
     try {
-        await addDoc(collection(db, 'user_data', user.uid, 'resilience'), data);
+        await addDoc(collection(db, 'global_resilience'), data);
         input.value = ''; window.toggleInputZone(false);
-        
+
         if (isBD) {
             showToast("The 11th star... birth star. ✨", "success");
             if (typeof confetti !== 'undefined') {
@@ -1037,26 +1043,24 @@ export async function saveResilience() {
         } else {
             showToast("New star born. ✨", "success");
         }
-        
+
         loadResilience();
     } catch(e) { showToast("Error saving", "error"); }
 }
 window.saveResilience = saveResilience;
 
 export async function loadResilience() {
-    const user = auth.currentUser; if (!user) return;
     try {
-        const snap = await getDocs(query(collection(db, 'user_data', user.uid, 'resilience'), orderBy('timestamp', 'asc')));
+        const snap = await getDocs(query(collection(db, 'global_resilience'), orderBy('timestamp', 'asc')));
         cStars = []; const hist = document.getElementById('history-items-container'); hist.innerHTML = '';
         snap.docs.forEach((doc, idx) => {
             const d = doc.data();
-            // Handle multiple naming conventions from different versions
-            if (idx < ARIES.length) { 
-                d.normX = ARIES[idx].x; d.normY = ARIES[idx].y; 
-                d.isAnchor = true; d.pIdx = idx; 
+            if (idx < ARIES.length) {
+                d.normX = ARIES[idx].x; d.normY = ARIES[idx].y;
+                d.isAnchor = true; d.pIdx = idx;
             }
-            else if (idx === 10 || d.isBirthdayStar || d.isBD) { 
-                d.isBD = true; d.normX = 0.5; d.normY = 0.2; 
+            else if (idx === 10 || d.isBirthdayStar || d.isBD) {
+                d.isBD = true; d.normX = 0.5; d.normY = 0.2;
             }
             cStars.push(new Star(d));
             const el = document.createElement('div'); el.style.cssText = "background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; font-size: 0.85rem; border-left: 2px solid var(--accent-cool);";
@@ -1064,8 +1068,7 @@ export async function loadResilience() {
         });
         resizeConstellation(); // Sync sizes after load
     } catch(e) { console.error("Error loading resilience:", e); }
-}
-window.loadResilience = loadResilience;
+}window.loadResilience = loadResilience;
 window.toggleArchive = () => { const l = document.getElementById('resilience-list'); l.style.display = l.style.display === 'block' ? 'none' : 'block'; };
 
 /* --- RITUAL & JAR --- */

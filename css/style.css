@@ -787,7 +787,7 @@ p {
 /* Memory Content */
 .memory-media-wrapper {
   border-radius: 12px;
-  margin-bottom: 20px;
+  margin: 0 auto 20px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   position: relative;
   overflow: hidden;
@@ -798,12 +798,10 @@ p {
   background-size: cover;
   background-position: center;
   
-  /* Vertical-First Standard (Instagram 4:5) */
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  max-height: 60vh; /* Reduced to ensure the whole card (media + text) fits on screen */
-  margin-left: auto;
-  margin-right: auto;
+  /* Vertical-First Standard (9:16) - Updated for taller mobile-style cinematic feel */
+  width: 92%;
+  aspect-ratio: 9 / 16;
+  max-height: 75vh; /* Increased to accommodate taller ratio while still fitting on screen */
   z-index: 1;
   clip-path: inset(0 round 12px);
 }

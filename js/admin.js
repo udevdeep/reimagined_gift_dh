@@ -1,39 +1,54 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
 import { upload } from "https://esm.sh/@vercel/blob@0.22.1/client";
 
 const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyB8zvSjJnKFQEuASiWoXx3u9sMKfCcbTDs",
-    authDomain: "collegegift-20949.firebaseapp.com",
-    projectId: "collegegift-20949",
-    storageBucket: "collegegift-20949.firebasestorage.app",
-    messagingSenderId: "757528963770",
-    appId: "1:757528963770:web:b0a65e179d58b9e676b083",
-    measurementId: "G-L8ZQK4DBF9"
+    apiKey: "AIzaSyDwNkXXzs_mhFNqOwI_NYtB-n6H_g93Pd4",
+    authDomain: "dharchive-9f1a9.firebaseapp.com",
+    projectId: "dharchive-9f1a9",
+    storageBucket: "dharchive-9f1a9.firebasestorage.app",
+    messagingSenderId: "485441238973",
+    appId: "1:485441238973:web:7a28ff735f8ec19b1744d4",
+    measurementId: "G-4ZP822MQ5J"
 };
 
 const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// Use initializeFirestore with long-polling to fix "access control check" / CORS-like errors
+const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+});
 const storage = getStorage(app);
 
 /* Auth */
 const loginBtn = document.getElementById('login-btn');
 if (loginBtn) {
     loginBtn.addEventListener('click', () => {
-        signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
+        const msg = document.getElementById('auth-status');
+        if (msg) {
+            msg.textContent = "Signing in...";
+            msg.style.color = "var(--accent-primary)";
+        }
+        signInWithPopup(auth, new GoogleAuthProvider()).catch(err => {
+            console.error("Sign-in Error:", err);
+            if (msg) {
+                msg.textContent = "Error: " + err.message;
+                msg.style.color = "#ff6b6b";
+            }
+        });
     });
 }
 
 onAuthStateChanged(auth, user => {
     if(user) {
-        // Whitelist check
-        getDocs(query(collection(db, 'whitelist'), orderBy('email'))).then(snap => {
-            const isWhitelisted = snap.docs.some(doc => doc.data().email === user.email);
-            if(isWhitelisted) {
+        // Check for Admin status in a separate admin_whitelist collection
+        getDoc(doc(db, 'admin_whitelist', user.uid)).then(snap => {
+            if(snap.exists()) {
+                console.log("Admin privileges confirmed.");
                 document.getElementById('auth-container').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'flex';
                 loadConfigs();
@@ -41,9 +56,14 @@ onAuthStateChanged(auth, user => {
                 initDashboardStats();
                 initGalleryUpload();
             } else {
-                document.getElementById('auth-status').textContent = "Access denied: " + user.email + " is not whitelisted.";
+                console.error("Non-admin UID attempted access:", user.uid);
+                document.getElementById('auth-status').textContent = "Access Denied: You do not have administrator privileges.";
+                document.getElementById('auth-status').style.color = "#ff6b6b";
                 signOut(auth);
             }
+        }).catch(err => {
+            console.error("Admin check failed:", err);
+            document.getElementById('auth-status').textContent = "Connection error.";
         });
     } else {
         document.getElementById('auth-container').style.display = 'block';
@@ -185,26 +205,49 @@ async function processImage(file, type = 'thumb') {
 async function getVideoThumbnail(file) {
     return new Promise((resolve) => {
         const video = document.createElement('video');
-        video.preload = 'metadata';
+        video.preload = 'auto';
         video.muted = true;
         video.playsInline = true;
         video.src = URL.createObjectURL(file);
+        
         video.onloadedmetadata = () => {
+            // Seek to 1 second or mid-point to avoid black intro frames
             video.currentTime = Math.min(1, video.duration / 2);
         };
+
         video.onseeked = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth / 4;
-            canvas.height = video.videoHeight / 4;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(blob => {
-                if (blob) resolve(blob);
-                else canvas.toBlob(resolve, 'image/jpeg', 0.6);
-            }, 'image/webp', 0.6);
-            URL.revokeObjectURL(video.src);
+            // Small delay to ensure the decoder has actually rendered the frame
+            setTimeout(() => {
+                const canvas = document.createElement('canvas');
+                
+                // Cap at 400px to match image thumbnails
+                let width = video.videoWidth, height = video.videoHeight;
+                const MAX_DIM = 400;
+                if (width > height) { 
+                    if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; } 
+                } else { 
+                    if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; } 
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d', { alpha: false });
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                canvas.toBlob(blob => {
+                    if (blob) resolve(blob);
+                    else canvas.toBlob(resolve, 'image/jpeg', 0.6);
+                }, 'image/webp', 0.6);
+                
+                URL.revokeObjectURL(video.src);
+            }, 200);
         };
-        video.onerror = () => resolve(null);
+        video.onerror = () => {
+            console.error("Video thumbnail generation failed");
+            resolve(null);
+        };
     });
 }
 
@@ -292,8 +335,61 @@ window.toggleIndividualPrivate = (index, val) => {
 window.removeFileFromQueue = (index) => { uploadQueue.splice(index, 1); renderUploadPreview(); };
 window.clearUploadQueue = () => { uploadQueue = []; renderUploadPreview(); };
 
-export async function uploadGallery() {
+async function uploadGallery() {
     if(!uploadQueue.length) return;
+    
+    // 1. Separate videos for review
+    videoReviewQueue = uploadQueue.filter(item => item.file.type.startsWith('video')).map(item => item.file);
+    reviewedDates = {};
+
+    if (videoReviewQueue.length > 0) {
+        processVideoReviewQueue();
+    } else {
+        startGalleryUpload();
+    }
+}
+window.uploadGallery = uploadGallery;
+
+function processVideoReviewQueue() {
+    if (videoReviewQueue.length === 0) {
+        document.getElementById('video-review-modal').style.display = 'none';
+        startGalleryUpload();
+        return;
+    }
+
+    const file = videoReviewQueue[0];
+    const modal = document.getElementById('video-review-modal');
+    const player = document.getElementById('review-video-player');
+    const dateInput = document.getElementById('review-date-input');
+    const confirmBtn = document.getElementById('review-confirm-btn');
+
+    if (!modal || !player || !dateInput || !confirmBtn) {
+        startGalleryUpload();
+        return;
+    }
+
+    modal.style.display = 'flex';
+    document.getElementById('review-title').textContent = `Review Video (${videoReviewQueue.length} Left)`;
+    document.getElementById('review-filename').textContent = file.name;
+    
+    const fileUrl = URL.createObjectURL(file);
+    player.src = fileUrl;
+    player.load();
+
+    // Try to auto-suggest date
+    const dateToUse = new Date(file.lastModified);
+    const offset = dateToUse.getTimezoneOffset() * 60000;
+    dateInput.value = new Date(dateToUse - offset).toISOString().slice(0, 16);
+
+    confirmBtn.onclick = () => {
+        reviewedDates[file.name] = dateInput.value ? new Date(dateInput.value).toISOString() : new Date(file.lastModified).toISOString();
+        URL.revokeObjectURL(fileUrl);
+        videoReviewQueue.shift();
+        processVideoReviewQueue();
+    };
+}
+
+async function startGalleryUpload() {
     const status = document.getElementById('gallery-status'), progress = document.getElementById('gallery-progress'), fill = progress?.querySelector('.progress-fill');
     if (progress) progress.style.display = 'block';
     let completed = 0;
@@ -319,11 +415,14 @@ export async function uploadGallery() {
             (async () => { if(!thumbBlob) return null; await uploadBytesResumable(thumbRef, thumbBlob); return getDownloadURL(thumbRef); })()
         ]);
 
+        // Use reviewed date if available, otherwise use metadata date or file modified date
+        const finalDate = reviewedDates[file.name] || (metadata.date ? metadata.date.toISOString() : new Date(file.lastModified).toISOString());
+
         const uploadData = { 
             src: mainUrl, 
             thumb: thumbUrl, 
             type: file.type.startsWith('video') ? 'video' : 'image', 
-            date: metadata.date ? metadata.date.toISOString() : new Date(file.lastModified).toISOString(), 
+            date: finalDate, 
             private: item.isPrivate, 
             filename: file.name, 
             timestamp: Date.now() 
@@ -344,7 +443,6 @@ export async function uploadGallery() {
     uploadQueue = []; renderUploadPreview();
     setTimeout(() => { if(progress) progress.style.display = 'none'; }, 2000);
 }
-window.uploadGallery = uploadGallery;
 
 /* --- Content Management --- */
 let lastDoc = null, firstDoc = null, currentPage = 1;

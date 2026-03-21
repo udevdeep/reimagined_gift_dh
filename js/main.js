@@ -1,22 +1,26 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { resolvePath, getContrastYIQ, showToast, downloadResource } from "./utils.js";
 
 const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyB8zvSjJnKFQEuASiWoXx3u9sMKfCcbTDs",
-    authDomain: "collegegift-20949.firebaseapp.com",
-    projectId: "collegegift-20949",
-    storageBucket: "collegegift-20949.firebasestorage.app",
-    messagingSenderId: "757528963770",
-    appId: "1:757528963770:web:b0a65e179d58b9e676b083",
-    measurementId: "G-L8ZQK4DBF9"
+    apiKey: "AIzaSyDwNkXXzs_mhFNqOwI_NYtB-n6H_g93Pd4",
+    authDomain: "dharchive-9f1a9.firebaseapp.com",
+    projectId: "dharchive-9f1a9",
+    storageBucket: "dharchive-9f1a9.firebasestorage.app",
+    messagingSenderId: "485441238973",
+    appId: "1:485441238973:web:7a28ff735f8ec19b1744d4",
+    measurementId: "G-4ZP822MQ5J"
 };
 
 export const app = initializeApp(FIREBASE_CONFIG);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Use initializeFirestore with long-polling to fix "access control check" / CORS-like errors
+export const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+});
 export const storage = getStorage(app);
 
 // Register Service Worker for local video caching
@@ -165,21 +169,48 @@ function initFirebaseLock() {
     const loginBtn = document.getElementById('google-login-btn');
     const isIndex = document.body.classList.contains('index-page');
 
-    if (loginBtn) loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
+    if (loginBtn) loginBtn.onclick = () => {
+        const msg = document.getElementById('lock-msg');
+        if (msg) {
+            msg.textContent = "Signing in...";
+            msg.style.color = "var(--accent-warm)";
+        }
+        signInWithPopup(auth, new GoogleAuthProvider()).catch(err => {
+            console.error("Sign-in Error:", err);
+            if (msg) {
+                msg.textContent = "Error: " + err.message;
+                msg.style.color = "#ff6b6b";
+            }
+        });
+    };
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            localStorage.setItem(LOCK_KEY, Date.now() + (7 * 24 * 60 * 60 * 1000));
-            if (overlay) overlay.style.display = 'none';
-            startApp();
+            // Robust Whitelist check using UID
+            getDoc(doc(db, 'whitelist', user.uid)).then(snap => {
+                if(snap.exists()) {
+                    localStorage.setItem(LOCK_KEY, Date.now() + (7 * 24 * 60 * 60 * 1000));
+                    if (overlay) overlay.style.display = 'none';
+                    startApp();
+                } else {
+                    console.error("Access denied for UID:", user.uid);
+                    const msg = document.getElementById('lock-msg');
+                    if (msg) {
+                        msg.textContent = "Access Denied: You are not on the guest list.";
+                        msg.style.color = "#ff6b6b";
+                    }
+                    setTimeout(() => {
+                        import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js").then(m => m.signOut(auth));
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error("Whitelist check error:", err);
+            });
         } else {
             const expiry = parseInt(localStorage.getItem(LOCK_KEY) || '0', 10);
             if (isIndex) {
-                // On index page, the lock overlay is triggered by the pre-landing 'Begin' button
-                // We do nothing here, the initHome will handle it.
                 if (overlay) overlay.style.display = 'none';
             } else {
-                // For other pages, show it if we are certain they are logged out.
                 if (overlay) overlay.style.display = 'flex';
             }
         }
@@ -523,7 +554,7 @@ export function loadMemories() {
         let media = '';
         if (meta.video) {
             const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
-            media = `<div class="memory-media-wrapper video-wrapper" style="background-image: url('${thumb}')"><video src="${resolvePath(meta.video, item.folder)}" muted loop playsinline class="memory-video" loading="lazy" crossorigin="anonymous"></video><div class="play-icon">▶</div></div>`;
+            media = `<div class="memory-media-wrapper video-wrapper" style="background-image: url('${thumb}')"><video src="${resolvePath(meta.video, item.folder)}" muted loop playsinline class="memory-video" loading="lazy"></video><div class="play-icon">▶</div></div>`;
         } else if (meta.images?.length) {
             const firstThumb = resolvePath(meta.thumbs?.[0] || meta.images[0], item.folder);
             media = `<div class="memory-media-wrapper image-wrapper" data-images='${JSON.stringify(meta.images)}' data-thumbs='${JSON.stringify(meta.thumbs || meta.images)}' data-folder="${item.folder || ''}" data-index="0" style="background-image: url('${firstThumb}')"><img src="${firstThumb}" loading="lazy" class="memory-main-img" crossorigin="anonymous">${meta.images.length > 1 ? '<button class="img-arrow left">◀</button><button class="img-arrow right">▶</button>' : ''}</div>`;
@@ -572,8 +603,11 @@ function updateSliderImg(wrapper) {
 }
 function setupSliderButtons(wrapper) {
     const images = JSON.parse(wrapper.dataset.images || '[]');
-    wrapper.querySelector('.left').onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) - 1 + images.length) % images.length; updateSliderImg(wrapper); };
-    wrapper.querySelector('.right').onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) + 1) % images.length; updateSliderImg(wrapper); };
+    if (images.length <= 1) return;
+    const left = wrapper.querySelector('.left');
+    const right = wrapper.querySelector('.right');
+    if (left) left.onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) - 1 + images.length) % images.length; updateSliderImg(wrapper); };
+    if (right) right.onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) + 1) % images.length; updateSliderImg(wrapper); };
 }
 
 export function loadGallery() {
@@ -667,7 +701,7 @@ function renderGalleryGrouped(items, isFlat) {
                 if (item.thumb) {
                     el.innerHTML = `<img src="${item.thumb}" loading="lazy" crossorigin="anonymous"><div class="video-badge">▶</div>`;
                 } else {
-                    el.innerHTML = `<video src="${item.src}#t=0.1" muted loading="lazy" style="width:100%; height:100%; object-fit:cover;" crossorigin="anonymous"></video><div class="video-badge">▶</div>`;
+                    el.innerHTML = `<video src="${item.src}#t=0.1" muted loading="lazy" style="width:100%; height:100%; object-fit:cover;"></video><div class="video-badge">▶</div>`;
                 }
             } else {
                 const imgThumb = item.thumb || item.src;
@@ -745,7 +779,7 @@ function updateLightboxView() {
     img.src = '';
 
     if (item.type === 'video') { 
-        vid.style.display = 'block'; vid.src = item.src; vid.crossOrigin = "anonymous";
+        vid.style.display = 'block'; vid.src = item.src; 
         if(lightbox?.classList.contains('active')) vid.play().catch(()=>{}); 
     }
     else { img.style.display = 'block'; img.src = item.src; img.crossOrigin = "anonymous"; }
