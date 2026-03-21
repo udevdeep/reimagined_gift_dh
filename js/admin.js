@@ -154,7 +154,14 @@ async function processImage(file, type = 'thumb') {
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(bitmap, 0, 0, width, height);
         bitmap.close();
-        return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.6 : 0.85)));
+        
+        // Use WebP with a fallback logic for older canvases (though rare now)
+        return new Promise(resolve => {
+            canvas.toBlob(blob => {
+                if (blob) resolve(blob);
+                else canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.6 : 0.85));
+            }, 'image/webp', (type === 'thumb' ? 0.6 : 0.8));
+        });
     } catch (e) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -165,7 +172,10 @@ async function processImage(file, type = 'thumb') {
                 if (w > h) { if (w > max) { h *= max / w; w = max; } } else { if (h > max) { w *= max / h; h = max; } }
                 canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
-                canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.6 : 0.85));
+                canvas.toBlob(blob => {
+                    if (blob) resolve(blob);
+                    else canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.6 : 0.85));
+                }, 'image/webp', (type === 'thumb' ? 0.6 : 0.8));
             };
             img.src = URL.createObjectURL(file);
         });
@@ -188,7 +198,10 @@ async function getVideoThumbnail(file) {
             canvas.height = video.videoHeight / 4;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(resolve, 'image/jpeg', 0.6);
+            canvas.toBlob(blob => {
+                if (blob) resolve(blob);
+                else canvas.toBlob(resolve, 'image/jpeg', 0.6);
+            }, 'image/webp', 0.6);
             URL.revokeObjectURL(video.src);
         };
         video.onerror = () => resolve(null);

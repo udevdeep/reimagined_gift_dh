@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evidence | The Dh Archive</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
+    
+    <!-- Speed Optimization: Resource Hints -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firebasestorage.googleapis.com">
+    
+    <!-- Modern Serif & Sans Font Stack -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap">
     <link rel="stylesheet" href="css/style.css">
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -101,8 +109,8 @@
         <div class="lightbox-controls">
             <a id="lightbox-download" class="lightbox-btn" href="#" download title="Download">⬇</a>
         </div>
-        <img id="lightbox-img" class="lightbox-content" src="" alt="">
-        <video id="lightbox-video" class="lightbox-content" controls style="display:none;"></video>
+        <img id="lightbox-img" class="lightbox-content" src="" alt="" crossorigin="anonymous">
+        <video id="lightbox-video" class="lightbox-content" controls style="display:none;" crossorigin="anonymous"></video>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

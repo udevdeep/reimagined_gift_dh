@@ -4,8 +4,6 @@
    Author: Gemini
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap');
-
 :root {
   /* --- Default Theme: Dark (Elegant Night) --- */
   --bg-color: #050505;

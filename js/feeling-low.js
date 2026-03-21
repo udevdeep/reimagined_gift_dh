@@ -792,7 +792,13 @@ export async function showEmergencySmile() {
     isReelSpinning = true; overlay.style.display = 'flex'; closeBtn.style.display = 'none'; status.textContent = "PREPARING..."; rImg.src = "";
     const pool = Array.from({length: 5}, () => imgs[Math.floor(Math.random() * imgs.length)].resSrc);
     const winner = imgs[Math.floor(Math.random() * imgs.length)].resSrc;
-    await Promise.all([...new Set([...pool, winner])].map(s => new Promise(r => { const i = new Image(); i.src = s; i.onload = () => r(true); i.onerror = () => r(false); })));
+    await Promise.all([...new Set([...pool, winner])].map(s => new Promise(r => { 
+        const i = new Image(); 
+        i.crossOrigin = "anonymous"; 
+        i.src = s; 
+        i.onload = () => r(true); 
+        i.onerror = () => r(false); 
+    })));
     if (canvas) { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (!reelConfetti) reelConfetti = confetti.create(canvas, { resize: true, useWorker: false }); }
     status.textContent = "SHUFFLING...";
     let it = 0;
@@ -951,26 +957,31 @@ export function toggleConstellationFullscreen() {
     const icon = document.getElementById('fullscreen-icon');
     const navbar = document.querySelector('.navbar');
     const tabBar = document.querySelector('.tab-bar');
+    const backBtn = document.getElementById('back-link-container');
+    const giftBtn = document.getElementById('gift-btn-container');
     const isFullscreen = card.classList.toggle('fullscreen-card');
-    
+
     if (isFullscreen) {
         // Change icon to "minimize"
         icon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
         document.body.style.overflow = 'hidden'; // Prevent scrolling
         if (navbar) navbar.style.display = 'none';
         if (tabBar) tabBar.style.display = 'none';
+        if (backBtn) backBtn.style.display = 'none';
+        if (giftBtn) giftBtn.style.display = 'none';
     } else {
         // Change icon back to "maximize"
         icon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
         document.body.style.overflow = '';
         if (navbar) navbar.style.display = 'flex';
         if (tabBar) tabBar.style.display = 'flex';
+        if (backBtn) backBtn.style.display = 'block';
+        if (giftBtn) giftBtn.style.display = 'block';
     }
-    
+
     // Re-trigger resize to fill new dimensions
     setTimeout(resizeConstellation, 50);
-}
-window.toggleConstellationFullscreen = toggleConstellationFullscreen;
+}window.toggleConstellationFullscreen = toggleConstellationFullscreen;
 
 function animConst() {
     if (document.getElementById('tab-Reflection').classList.contains('active')) {

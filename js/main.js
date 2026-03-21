@@ -36,17 +36,16 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Function to cache the video in the background for local-speed on next load
-async function cacheVideoLocally(url) {
+// Function to cache media in the background for local-speed on next load
+async function cacheMediaLocally(url) {
     if (!url || !('caches' in window)) return;
-    const cache = await caches.open('video-cache');
+    const cache = await caches.open('archive-media-v3');
     const matched = await cache.match(url);
     if (!matched) {
-        console.log("Caching video locally for faster playback...");
-        // Use fetch with 'cors' and 'include' to ensure it's cached properly
-        fetch(url).then(res => {
+        // Use fetch with 'cors' to ensure it's cached properly for cross-origin media (Firebase/Vercel)
+        fetch(url, { mode: 'cors' }).then(res => {
             if (res.ok) cache.put(url, res);
-        }).catch(e => console.warn("Failed to cache video", e));
+        }).catch(e => console.warn("Background cache failed for:", url, e));
     }
 }
 
@@ -136,6 +135,11 @@ window.sendSpark = sendSpark;
 function applyCacheImmediate() {
     const cachedHome = sessionStorage.getItem('home_cache');
     const cachedLetter = sessionStorage.getItem('letter_cache');
+    const cachedJokes = sessionStorage.getItem('jokes_cache');
+    const cachedGallery = sessionStorage.getItem('gallery_cache');
+    const cachedMemories = sessionStorage.getItem('memories_cache');
+    const cachedLow = sessionStorage.getItem('feeling_low_cache');
+
     if (cachedHome) try { applyHomeConfig(JSON.parse(cachedHome)); } catch(e) {}
     if (cachedLetter) try {
         const data = JSON.parse(cachedLetter);
@@ -143,6 +147,17 @@ function applyCacheImmediate() {
         if (document.getElementById('letter-content')) document.getElementById('letter-content').textContent = LETTER_TEXT;
         if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').textContent = window.LETTER_CLOSING || "";
     } catch(e) {}
+    
+    if (cachedJokes) try { JOKES_DATA = JSON.parse(cachedJokes); window.JOKES_DATA = JOKES_DATA; } catch(e) {}
+    if (cachedGallery) try { 
+        GALLERY_DATA = JSON.parse(cachedGallery).map(item => ({
+            ...item,
+            date: item.date ? new Date(item.date) : new Date(0)
+        }));
+        window.GALLERY_DATA = GALLERY_DATA;
+    } catch(e) {}
+    if (cachedMemories) try { MEMORIES_DATA = JSON.parse(cachedMemories); window.MEMORIES_DATA = MEMORIES_DATA; } catch(e) {}
+    if (cachedLow) try { ALONE_TEXT = JSON.parse(cachedLow).aloneText || ALONE_TEXT; window.ALONE_TEXT = ALONE_TEXT; } catch(e) {}
 }
 
 function initFirebaseLock() {
@@ -175,10 +190,21 @@ async function startApp() {
     console.log("startApp() - User authenticated.");
     document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     recordVisit();
-    try { await loadAllData(); } catch (e) { console.error(e); }
+    
+    // 1. Initial Render from Cache (data populated by applyCacheImmediate)
     if (document.getElementById('memories-container')) { loadMemories(); initMemoriesNav(); }
     if (document.getElementById('gallery-grid')) loadGallery();
     if (document.getElementById('jokes-container')) loadJokes();
+    
+    // Hide loader early if we have cached data
+    if (GALLERY_DATA.length > 0 || MEMORIES_DATA.length > 0 || JOKES_DATA.length > 0) {
+        hideLoader();
+    }
+
+    // 2. Background Revalidation
+    try { await loadAllData(); } catch (e) { console.error(e); }
+    
+    // Final hide loader in case it was a fresh visit (no cache)
     hideLoader();
     
     // AUTO-ENTER: If they just logged in on the index page, clear the pre-landing automatically
@@ -229,21 +255,81 @@ async function loadAllData() {
         getDocs(collection(db, 'jokes')), getDocs(collection(db, 'gallery')), getDocs(collection(db, 'memories')),
         getDoc(doc(db, 'config', 'home')), getDoc(doc(db, 'config', 'secrets')), getDoc(doc(db, 'config', 'letter')), getDoc(doc(db, 'config', 'feelingLow'))
     ];
-    const [jokesSnap, gallerySnap, memoriesSnap, homeDoc, secretsDoc, letterDoc, lowDoc] = await Promise.all(tasks);
-    if (!jokesSnap.empty) { JOKES_DATA = jokesSnap.docs.map(doc => doc.data()); window.JOKES_DATA = JOKES_DATA; sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA)); }
-    if (!gallerySnap.empty) {
-        GALLERY_DATA = gallerySnap.docs.map(doc => ({ ...doc.data(), date: doc.data().date ? new Date(doc.data().date) : new Date(0) }));
-        GALLERY_DATA.sort((a, b) => b.date - a.date); window.GALLERY_DATA = GALLERY_DATA; sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
+    
+    try {
+        const [jokesSnap, gallerySnap, memoriesSnap, homeDoc, secretsDoc, letterDoc, lowDoc] = await Promise.all(tasks);
+        let changed = false;
+
+        // Jokes
+        if (!jokesSnap.empty) {
+            const freshJokes = jokesSnap.docs.map(doc => doc.data());
+            if (JSON.stringify(freshJokes) !== JSON.stringify(JOKES_DATA)) {
+                JOKES_DATA = freshJokes; window.JOKES_DATA = JOKES_DATA;
+                sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
+                if (document.getElementById('jokes-container')) loadJokes();
+                changed = true;
+            }
+        }
+
+        // Gallery
+        if (!gallerySnap.empty) {
+            const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), date: doc.data().date ? new Date(doc.data().date) : new Date(0) }));
+            freshGallery.sort((a, b) => b.date - a.date);
+            if (JSON.stringify(freshGallery) !== JSON.stringify(GALLERY_DATA)) {
+                GALLERY_DATA = freshGallery; window.GALLERY_DATA = GALLERY_DATA;
+                sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
+                if (document.getElementById('gallery-grid')) loadGallery();
+                changed = true;
+            }
+        }
+
+        // Memories
+        if (!memoriesSnap.empty) {
+            const freshMemories = memoriesSnap.docs.map(doc => ({ folder: doc.id, meta: doc.data() }));
+            if (JSON.stringify(freshMemories) !== JSON.stringify(MEMORIES_DATA)) {
+                MEMORIES_DATA = freshMemories; window.MEMORIES_DATA = MEMORIES_DATA;
+                sessionStorage.setItem('memories_cache', JSON.stringify(MEMORIES_DATA));
+                if (document.getElementById('memories-container')) loadMemories();
+                changed = true;
+            }
+        }
+
+        // Home Config
+        if (homeDoc.exists()) {
+            const freshHome = homeDoc.data();
+            if (JSON.stringify(freshHome) !== sessionStorage.getItem('home_cache')) {
+                applyHomeConfig(freshHome);
+                sessionStorage.setItem('home_cache', JSON.stringify(freshHome));
+            }
+        }
+
+        // Secrets
+        SECRET_KEY = secretsDoc.data()?.privateKey || 'bumblebee';
+
+        // Letter
+        if (letterDoc.exists()) {
+            const freshLetter = letterDoc.data();
+            if (JSON.stringify(freshLetter) !== sessionStorage.getItem('letter_cache')) {
+                LETTER_TEXT = freshLetter.text || ''; window.LETTER_CLOSING = freshLetter.closingLine || '';
+                if (document.getElementById('letter-content')) document.getElementById('letter-content').textContent = LETTER_TEXT;
+                if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').textContent = window.LETTER_CLOSING || "";
+                sessionStorage.setItem('letter_cache', JSON.stringify(freshLetter));
+            }
+        }
+
+        // Feeling Low
+        if (lowDoc.exists()) {
+            const freshLow = lowDoc.data();
+            if (JSON.stringify(freshLow) !== sessionStorage.getItem('feeling_low_cache')) {
+                ALONE_TEXT = freshLow.aloneText || ALONE_TEXT; window.ALONE_TEXT = ALONE_TEXT;
+                sessionStorage.setItem('feeling_low_cache', JSON.stringify(freshLow));
+            }
+        }
+
+        if (changed) console.log("Archive refreshed with fresh data from Firebase.");
+    } catch (e) {
+        console.error("Error revalidating archive data:", e);
     }
-    if (!memoriesSnap.empty) { MEMORIES_DATA = memoriesSnap.docs.map(doc => ({ folder: doc.id, meta: doc.data() })); window.MEMORIES_DATA = MEMORIES_DATA; sessionStorage.setItem('memories_cache', JSON.stringify(MEMORIES_DATA)); }
-    if (homeDoc.exists()) { applyHomeConfig(homeDoc.data()); sessionStorage.setItem('home_cache', JSON.stringify(homeDoc.data())); }
-    SECRET_KEY = secretsDoc.data()?.privateKey || 'bumblebee';
-    if (letterDoc.exists()) {
-        LETTER_TEXT = letterDoc.data().text || ''; window.LETTER_CLOSING = letterDoc.data().closingLine || '';
-        if (document.getElementById('letter-content')) document.getElementById('letter-content').textContent = LETTER_TEXT;
-        if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').textContent = window.LETTER_CLOSING || "";
-    }
-    if (lowDoc.exists()) { ALONE_TEXT = lowDoc.data().aloneText || ALONE_TEXT; window.ALONE_TEXT = ALONE_TEXT; }
 }
 
 function applyHomeConfig(data) {
@@ -254,8 +340,8 @@ function applyHomeConfig(data) {
             videoEl.src = data.introVideo; 
             videoEl.load(); 
             // Cache locally for next time (150MB is large!)
-            cacheVideoLocally(data.introVideo);
-            if (data.introVideoThumbnail) cacheVideoLocally(data.introVideoThumbnail);
+            cacheMediaLocally(data.introVideo);
+            if (data.introVideoThumbnail) cacheMediaLocally(data.introVideoThumbnail);
         }
     }
 }
@@ -437,10 +523,10 @@ export function loadMemories() {
         let media = '';
         if (meta.video) {
             const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
-            media = `<div class="memory-media-wrapper video-wrapper" style="background-image: url('${thumb}')"><video src="${resolvePath(meta.video, item.folder)}" muted loop playsinline class="memory-video" loading="lazy"></video><div class="play-icon">▶</div></div>`;
+            media = `<div class="memory-media-wrapper video-wrapper" style="background-image: url('${thumb}')"><video src="${resolvePath(meta.video, item.folder)}" muted loop playsinline class="memory-video" loading="lazy" crossorigin="anonymous"></video><div class="play-icon">▶</div></div>`;
         } else if (meta.images?.length) {
             const firstThumb = resolvePath(meta.thumbs?.[0] || meta.images[0], item.folder);
-            media = `<div class="memory-media-wrapper image-wrapper" data-images='${JSON.stringify(meta.images)}' data-thumbs='${JSON.stringify(meta.thumbs || meta.images)}' data-folder="${item.folder || ''}" data-index="0" style="background-image: url('${firstThumb}')"><img src="${firstThumb}" loading="lazy" class="memory-main-img">${meta.images.length > 1 ? '<button class="img-arrow left">◀</button><button class="img-arrow right">▶</button>' : ''}</div>`;
+            media = `<div class="memory-media-wrapper image-wrapper" data-images='${JSON.stringify(meta.images)}' data-thumbs='${JSON.stringify(meta.thumbs || meta.images)}' data-folder="${item.folder || ''}" data-index="0" style="background-image: url('${firstThumb}')"><img src="${firstThumb}" loading="lazy" class="memory-main-img" crossorigin="anonymous">${meta.images.length > 1 ? '<button class="img-arrow left">◀</button><button class="img-arrow right">▶</button>' : ''}</div>`;
         }
         card.innerHTML = `${media}<div class="memory-content"><h3>${meta.title}</h3><p style="white-space: pre-wrap;">${meta.text || ''}</p>${meta.date ? `<small class="memory-date">${meta.date}</small>` : ''}</div>`;
         setupMediaListeners(card, meta, item.folder);
@@ -515,6 +601,13 @@ export function loadGallery() {
     galleryState = builtIn.sort((a, b) => b.timestamp - a.timestamp);
     
     sortGallery(sortSelect ? sortSelect.value : 'default');
+    
+    // Background pre-cache first 40 thumbnails for instant scrolling
+    galleryState.slice(0, 40).forEach(item => {
+        if (item.thumb) cacheMediaLocally(item.thumb);
+        else if (item.src) cacheMediaLocally(item.src);
+    });
+
     initMap();
     updateMapMarkers();
     extractGalleryDates();
@@ -572,13 +665,13 @@ function renderGalleryGrouped(items, isFlat) {
             
             if (isVid) {
                 if (item.thumb) {
-                    el.innerHTML = `<img src="${item.thumb}" loading="lazy"><div class="video-badge">▶</div>`;
+                    el.innerHTML = `<img src="${item.thumb}" loading="lazy" crossorigin="anonymous"><div class="video-badge">▶</div>`;
                 } else {
-                    el.innerHTML = `<video src="${item.src}#t=0.1" muted loading="lazy" style="width:100%; height:100%; object-fit:cover;"></video><div class="video-badge">▶</div>`;
+                    el.innerHTML = `<video src="${item.src}#t=0.1" muted loading="lazy" style="width:100%; height:100%; object-fit:cover;" crossorigin="anonymous"></video><div class="video-badge">▶</div>`;
                 }
             } else {
                 const imgThumb = item.thumb || item.src;
-                el.innerHTML = `<img src="${imgThumb}" loading="lazy">`;
+                el.innerHTML = `<img src="${imgThumb}" loading="lazy" crossorigin="anonymous">`;
             }
             
             const idx = globalIdx++; el.onclick = () => openLightbox(idx, lightboxList);
@@ -652,10 +745,10 @@ function updateLightboxView() {
     img.src = '';
 
     if (item.type === 'video') { 
-        vid.style.display = 'block'; vid.src = item.src; 
+        vid.style.display = 'block'; vid.src = item.src; vid.crossOrigin = "anonymous";
         if(lightbox?.classList.contains('active')) vid.play().catch(()=>{}); 
     }
-    else { img.style.display = 'block'; img.src = item.src; }
+    else { img.style.display = 'block'; img.src = item.src; img.crossOrigin = "anonymous"; }
 
     if (dlBtn) {
         dlBtn.onclick = (e) => {
@@ -767,6 +860,7 @@ export function loadJokes() {
 }
 
 function initMemoriesNav() {
+    if (document.querySelector('.memories-gate')) return;
     const nav = document.querySelector('.navbar');
     const header = document.querySelector('.header-section');
     if (!nav || !header) return;
@@ -1080,11 +1174,11 @@ function updateMapMarkers() {
 
 function addToMap(lat, lon, imgUrl, index, mapList) {
     const icon = L.divIcon({
-        html: `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;"></div>`,
+        html: `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous"></div>`,
         className: '', iconSize: [40, 40], iconAnchor: [20, 20]
     });
     const marker = L.marker([lat, lon], {icon: icon}).addTo(map);
-    marker.bindPopup(`<div class="map-popup-preview"><img src="${imgUrl}"></div>`, { closeButton: false, offset: [0, -10] });
+    marker.bindPopup(`<div class="map-popup-preview"><img src="${imgUrl}" crossorigin="anonymous"></div>`, { closeButton: false, offset: [0, -10] });
     marker.on('mouseover', function() { this.openPopup(); });
     marker.on('mouseout', function() { this.closePopup(); });
     marker.on('click', () => openLightbox(index, mapList));
