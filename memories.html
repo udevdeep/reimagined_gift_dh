@@ -55,21 +55,58 @@
 
     <div class="container">
         
-        <header class="header-section">
-            <h1>Our Timeline</h1>
-            <p>The big moments, the stupid fights, the dramatic exits, and the inevitable comebacks.</p>
-        </header>
-
         <div id="memories-container">
-            <!-- Memories will be injected here -->
-            <div class="loader-content">Loading the timeline…</div>
+            <!-- Reels will be injected here -->
         </div>
 
-        <!-- Footer / Discrete Controls -->
-        <footer style="margin-top: 20px; text-align: center; padding-bottom: 20px;">
-             <button id="private-toggle" style="background: transparent; border: none; font-size: 0.9rem; color: var(--text-muted); opacity: 0; pointer-events: none; transition: opacity 0.5s ease; cursor: pointer;">Private Access</button>
+        <!-- Discrete Controls -->
+        <footer style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
+             <button id="private-toggle" style="background: transparent; border: none; font-size: 0.8rem; color: rgba(255,255,255,0.3); cursor: pointer;">Private Access</button>
         </footer>
 
+    </div>
+
+    <!-- Director's Cut / Comment Panel -->
+    <div id="comment-panel" class="comment-panel">
+        <div class="comment-panel-backdrop"></div>
+        <div class="comment-panel-content">
+            <div class="comment-panel-header">
+                <h3>Director's Cut</h3>
+                <button class="close-panel" id="close-comment-panel">&times;</button>
+            </div>
+            <div class="comment-panel-body">
+                <div id="director-backstory" class="director-backstory"></div>
+                
+                <div class="comments-section">
+                    <h4>Comments</h4>
+                    <div id="comments-list" class="comments-list">
+                        <!-- Comments will be loaded here -->
+                        <p class="no-comments">Be the first to leave a note...</p>
+                    </div>
+                </div>
+
+                <div class="vibe-check">
+                    <h4>Vibe Check</h4>
+                    <div class="vibe-emojis">
+                        <button class="vibe-btn" data-vibe="✨">✨</button>
+                        <button class="vibe-btn" data-vibe="😭">😭</button>
+                        <button class="vibe-btn" data-vibe="🍕">🍕</button>
+                        <button class="vibe-btn" data-vibe="🥂">🥂</button>
+                        <button class="vibe-btn" data-vibe="🎓">🎓</button>
+                    </div>
+                </div>
+            </div>
+            <div class="comment-input-area">
+                <div id="replying-to-info" class="replying-to-info" style="display: none;">
+                    Replying to <span id="replying-to-name"></span>
+                    <button id="cancel-reply">&times;</button>
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="comment-input" placeholder="Add a comment...">
+                    <button id="submit-comment" class="send-btn">Post</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Lightbox -->

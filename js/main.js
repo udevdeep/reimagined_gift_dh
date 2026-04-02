@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { resolvePath, getContrastYIQ, showToast, downloadResource } from "./utils.js";
 
@@ -533,39 +533,357 @@ export function loadMemories() {
     // Privacy Toggle Logic
     setupPrivacyToggle('private-toggle');
 
-    const fragment = document.createDocumentFragment();
     const userMemories = JSON.parse(localStorage.getItem('user_memories') || '[]');
     const all = [...userMemories, ...MEMORIES_DATA];
     container.innerHTML = '';
     
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('reveal');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    all.forEach(item => {
+    all.forEach((item, index) => {
         const meta = item.meta; if (meta.private && !localStorage.getItem('private_unlocked')) return;
-        const card = document.createElement('div'); card.className = 'card memory-card'; card.dataset.title = meta.title;
-        if (meta.themeColor && meta.themeColor !== '#ffffff') { card.style.backgroundColor = meta.themeColor; card.style.color = getContrastYIQ(meta.themeColor); }
-        let media = '';
-        if (meta.video) {
-            const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
-            media = `<div class="memory-media-wrapper video-wrapper" style="background-image: url('${thumb}')"><video src="${resolvePath(meta.video, item.folder)}" muted loop playsinline class="memory-video" loading="lazy"></video><div class="play-icon">▶</div></div>`;
-        } else if (meta.images?.length) {
-            const firstThumb = resolvePath(meta.thumbs?.[0] || meta.images[0], item.folder);
-            media = `<div class="memory-media-wrapper image-wrapper" data-images='${JSON.stringify(meta.images)}' data-thumbs='${JSON.stringify(meta.thumbs || meta.images)}' data-folder="${item.folder || ''}" data-index="0" style="background-image: url('${firstThumb}')"><img src="${firstThumb}" loading="lazy" class="memory-main-img" crossorigin="anonymous">${meta.images.length > 1 ? '<button class="img-arrow left">◀</button><button class="img-arrow right">▶</button>' : ''}</div>`;
+        
+        const reel = document.createElement('div');
+        reel.className = 'reel-item';
+        reel.dataset.id = item.folder || `user-${index}`;
+
+        const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
+        
+        let mediaHtml = '';
+        const allMedia = [];
+        if (meta.video) allMedia.push({ type: 'video', src: resolvePath(meta.video, item.folder) });
+        if (meta.images?.length) {
+            meta.images.forEach(img => allMedia.push({ type: 'image', src: resolvePath(img, item.folder) }));
         }
-        card.innerHTML = `${media}<div class="memory-content"><h3>${meta.title}</h3><p style="white-space: pre-wrap;">${meta.text || ''}</p>${meta.date ? `<small class="memory-date">${meta.date}</small>` : ''}</div>`;
-        setupMediaListeners(card, meta, item.folder);
-        fragment.appendChild(card);
-        observer.observe(card);
+
+        if (allMedia.length > 1) {
+            // Render Carousel
+            let itemsHtml = '';
+            let dotsHtml = '';
+            allMedia.forEach((media, i) => {
+                itemsHtml += `<div class="carousel-item">${media.type === 'video' ? `<video src="${media.src}" loop playsinline class="reel-media"></video>` : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`}</div>`;
+                dotsHtml += `<div class="carousel-dot ${i === 0 ? 'active' : ''}"></div>`;
+            });
+            mediaHtml = `
+                <div class="reel-carousel">
+                    ${itemsHtml}
+                </div>
+                <div class="carousel-dots">${dotsHtml}</div>
+                <button class="carousel-arrow left">&lt;</button>
+                <button class="carousel-arrow right">&gt;</button>
+            `;
+        } else if (allMedia.length === 1) {
+            // Render Single Media
+            const media = allMedia[0];
+            mediaHtml = media.type === 'video' ? `<video src="${media.src}" loop playsinline class="reel-media"></video>` : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
+        }
+
+        // 1. Audio Name Refinement
+        let audioLabel = "Original Audio";
+        if (meta.audioName) audioLabel = meta.audioName;
+        else if (meta.song) audioLabel = meta.song;
+        else if (meta.audio) audioLabel = `Audio - ${meta.title}`;
+        else audioLabel = `Moment - ${meta.title}`;
+
+        const marqueeText = `${audioLabel} &nbsp; &nbsp; &bull; &nbsp; &nbsp; ${audioLabel} &nbsp; &nbsp; &bull; &nbsp; &nbsp; `;
+
+        reel.innerHTML = `
+            <div class="reel-content-wrapper">
+                <img src="${thumb}" class="reel-overlay-bg" crossorigin="anonymous">
+                ${mediaHtml}
+                
+                <div class="reel-info">
+                    <div class="reel-header">
+                        <div class="reel-profile-pic">DH</div>
+                        <span class="reel-title">${meta.title}</span>
+                    </div>
+                    <div class="reel-description">${meta.text || ''}</div>
+                    ${(meta.text || '').length > 60 ? `<span class="reel-more">read more</span>` : ''}
+                    <div class="reel-audio">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M21.002 16.972V2.044a.999.999 0 0 0-.36-.769 1.012 1.012 0 0 0-.823-.214L6.816 3.479A1 1 0 0 0 6 4.462v10.864A3.75 3.75 0 1 0 9 19V9.56l9.003-1.675v5.442A3.75 3.75 0 1 0 21.005 17c0-.01-.003-.02-.003-.029Z"></path></svg>
+                        <div class="audio-name">${marqueeText}</div>
+                    </div>
+                </div>
+
+                <div class="reel-actions">
+                    <button class="action-btn keep-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        <span>Keep</span>
+                    </button>
+                    <button class="action-btn comment-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                        <span>0</span>
+                    </button>
+                    <button class="action-btn download-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span>Save</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 2. Slow Reveal Description Logic
+        const more = reel.querySelector('.reel-more');
+        if (more) {
+            more.onclick = () => {
+                const desc = reel.querySelector('.reel-description');
+                const isExpanded = desc.classList.toggle('expanded');
+                more.textContent = isExpanded ? 'show less' : 'read more';
+            };
+        }
+
+        // Carousel Navigation Logic
+        const carousel = reel.querySelector('.reel-carousel');
+        if (carousel) {
+            const dots = reel.querySelectorAll('.carousel-dot');
+            const leftBtn = reel.querySelector('.carousel-arrow.left');
+            const rightBtn = reel.querySelector('.carousel-arrow.right');
+
+            const updateCarouselState = () => {
+                const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+                
+                // Play video in current carousel item if reel is visible
+                const items = carousel.querySelectorAll('.carousel-item');
+                const reelIsVisible = reel.classList.contains('is-visible');
+                
+                items.forEach((item, i) => {
+                    const v = item.querySelector('video');
+                    if (v) {
+                        if (i === index && reelIsVisible) v.play().catch(() => {});
+                        else { v.pause(); v.currentTime = 0; }
+                    }
+                });
+            };
+
+            carousel.addEventListener('scroll', updateCarouselState, { passive: true });
+            leftBtn.onclick = () => carousel.scrollBy({ left: -carousel.offsetWidth, behavior: 'smooth' });
+            rightBtn.onclick = () => carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
+        }
+
+        // 3. Keep Button Logic (Firestore Backed)
+        const keepBtn = reel.querySelector('.keep-btn');
+        const memoryId = reel.dataset.id;
+        const user = auth.currentUser;
+
+        if (user) {
+            getDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId)).then(snap => {
+                if (snap.exists()) keepBtn.classList.add('active');
+            });
+        }
+
+        keepBtn.onclick = function() { 
+            if (!user) return showToast("Please sign in first.", "info");
+            const active = this.classList.toggle('active'); 
+            if (active) {
+                setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { timestamp: serverTimestamp() });
+                showToast("Stored in your stars ✨", "success");
+            } else {
+                // deleteDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId));
+                setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { removed: true }, { merge: true });
+            }
+        };
+
+        // 4. Comment & Vibe Panel Logic (Firestore Backed)
+        let commentsUnsubscribe = null;
+        let replyingTo = null;
+
+        reel.querySelector('.comment-btn').onclick = () => { 
+            const panel = document.getElementById('comment-panel');
+            const backstoryEl = document.getElementById('director-backstory');
+            if (panel && backstoryEl) {
+                backstoryEl.textContent = meta.backstory || meta.text || "No extra notes for this one... yet. Just a pure moment.";
+                panel.classList.add('active');
+                
+                // Vibe Check (Firestore Backed)
+                const vibeButtons = panel.querySelectorAll('.vibe-btn');
+                if (user) {
+                    getDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId)).then(snap => {
+                        const savedVibe = snap.data()?.vibe;
+                        vibeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.vibe === savedVibe));
+                    });
+                }
+
+                vibeButtons.forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (!user) return showToast("Please sign in first.", "info");
+                        const isRemoving = btn.classList.contains('active');
+                        vibeButtons.forEach(b => b.classList.remove('active'));
+                        if (!isRemoving) {
+                            btn.classList.add('active');
+                            setDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId), { vibe: btn.dataset.vibe, timestamp: serverTimestamp() });
+                            showToast(`Vibe check: ${btn.dataset.vibe}`, "success");
+                        } else {
+                            setDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId), { vibe: null });
+                        }
+                    };
+                });
+
+                // Load Comments Real-time
+                const listEl = document.getElementById('comments-list');
+                if (commentsUnsubscribe) commentsUnsubscribe();
+                
+                const q = query(collection(db, 'memories', memoryId, 'comments'), orderBy('timestamp', 'asc'));
+                commentsUnsubscribe = onSnapshot(q, (snapshot) => {
+                    const comments = [];
+                    snapshot.forEach(doc => comments.push({ id: doc.id, ...doc.data() }));
+                    renderComments(comments, listEl);
+                    
+                    // Update comment count on reel
+                    const count = comments.filter(c => !c.parentId).length;
+                    reel.querySelector('.comment-btn span').textContent = count;
+                });
+
+                // Comment Submission Logic
+                const input = document.getElementById('comment-input');
+                const submitBtn = document.getElementById('submit-comment');
+                const replyInfo = document.getElementById('replying-to-info');
+                const replyName = document.getElementById('replying-to-name');
+                const cancelReply = document.getElementById('cancel-reply');
+
+                const resetReply = () => { replyingTo = null; replyInfo.style.display = 'none'; };
+                cancelReply.onclick = resetReply;
+
+                submitBtn.onclick = async () => {
+                    const text = input.value.trim();
+                    if (!text || !user) return;
+                    
+                    submitBtn.disabled = true;
+                    try {
+                        await addDoc(collection(db, 'memories', memoryId, 'comments'), {
+                            userId: user.uid,
+                            userName: user.displayName || "Friend",
+                            userPhoto: user.photoURL || "https://ui-avatars.com/api/?name=" + (user.displayName || "F"),
+                            text: text,
+                            parentId: replyingTo ? replyingTo.id : null,
+                            timestamp: serverTimestamp()
+                        });
+                        input.value = '';
+                        resetReply();
+                    } catch (e) { showToast("Error posting comment", "error"); }
+                    submitBtn.disabled = false;
+                };
+
+                // Global function for replies (called from renderComments)
+                window.setReply = (id, name) => {
+                    replyingTo = { id, name };
+                    replyName.textContent = name;
+                    replyInfo.style.display = 'flex';
+                    input.focus();
+                };
+            }
+        };
+
+        function renderComments(comments, container) {
+            container.innerHTML = '';
+            const parents = comments.filter(c => !c.parentId);
+            if (parents.length === 0) {
+                container.innerHTML = '<p class="no-comments">Be the first to leave a note...</p>';
+                return;
+            }
+
+            parents.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                const time = c.timestamp ? new Date(c.timestamp.toDate()).toLocaleDateString() : 'Just now';
+                
+                item.innerHTML = `
+                    <div class="comment-main">
+                        <img src="${c.userPhoto}" class="comment-author-pic">
+                        <div class="comment-text-content">
+                            <span class="comment-author-name">${c.userName}</span>
+                            <span class="comment-text">${c.text}</span>
+                            <div class="comment-meta">
+                                <span>${time}</span>
+                                <button class="comment-reply-btn" onclick="window.setReply('${c.id}', '${c.userName}')">Reply</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Render Replies
+                const replies = comments.filter(r => r.parentId === c.id);
+                if (replies.length > 0) {
+                    const repliesContainer = document.createElement('div');
+                    repliesContainer.className = 'comment-replies';
+                    replies.forEach(r => {
+                        const rItem = document.createElement('div');
+                        rItem.className = 'comment-main';
+                        const rTime = r.timestamp ? new Date(r.timestamp.toDate()).toLocaleDateString() : 'Just now';
+                        rItem.innerHTML = `
+                            <img src="${r.userPhoto}" class="comment-author-pic">
+                            <div class="comment-text-content">
+                                <span class="comment-author-name">${r.userName}</span>
+                                <span class="comment-text">${r.text}</span>
+                                <div class="comment-meta"><span>${rTime}</span></div>
+                            </div>
+                        `;
+                        repliesContainer.appendChild(rItem);
+                    });
+                    item.appendChild(repliesContainer);
+                }
+                container.appendChild(item);
+            });
+        }
+
+        // Static Close Panel Logic (Only needs to be set once, but inside the loop for safety in this structure)
+        const setupGlobalPanelClose = () => {
+            const panel = document.getElementById('comment-panel');
+            if (!panel || panel.dataset.initialized) return;
+            
+            const closeBtn = document.getElementById('close-comment-panel');
+            const backdrop = panel.querySelector('.comment-panel-backdrop');
+            const close = () => panel.classList.remove('active');
+            
+            if (closeBtn) closeBtn.onclick = close;
+            if (backdrop) backdrop.onclick = close;
+            panel.dataset.initialized = "true";
+        };
+        setupGlobalPanelClose();
+        
+        // Download Logic
+        reel.querySelector('.download-btn').onclick = () => {
+            const downloadUrl = meta.video ? resolvePath(meta.video, item.folder) : resolvePath(meta.images[0], item.folder);
+            showToast("Saving to your device...", "info");
+            downloadResource(downloadUrl, meta.title);
+        };
+
+        // Media Playback Logic (Support for Video + Background Audio)
+        const video = reel.querySelector('video');
+        let backgroundAudio = null;
+        if (meta.audio && !meta.video) {
+            backgroundAudio = new Audio(resolvePath(meta.audio, item.folder));
+            backgroundAudio.loop = true;
+        }
+
+        container.appendChild(reel);
+        
+        // Intersection Observer per reel for precise control
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    reel.classList.add('is-visible');
+                    if (video) video.play().catch(() => {});
+                    if (backgroundAudio) backgroundAudio.play().catch(() => {});
+                    
+                    // Handle carousels specifically
+                    if (carousel) {
+                        const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                        const v = carousel.querySelectorAll('.carousel-item')[index]?.querySelector('video');
+                        if (v) v.play().catch(() => {});
+                    }
+                } else {
+                    reel.classList.remove('is-visible');
+                    if (video) { video.pause(); video.currentTime = 0; }
+                    if (backgroundAudio) { backgroundAudio.pause(); backgroundAudio.currentTime = 0; }
+                    
+                    // Pause all videos in carousel
+                    if (carousel) {
+                        carousel.querySelectorAll('video').forEach(v => { v.pause(); v.currentTime = 0; });
+                    }
+                }
+            });
+        }, { threshold: 0.6 });
+        observer.observe(reel);
     });
-    container.appendChild(fragment);
-    initMemoryScrollbar(); initMemoryAutoScrollToggle();
 }
 
 function setupMediaListeners(card, meta, folder) {
@@ -896,8 +1214,7 @@ export function loadJokes() {
 function initMemoriesNav() {
     if (document.querySelector('.memories-gate')) return;
     const nav = document.querySelector('.navbar');
-    const header = document.querySelector('.header-section');
-    if (!nav || !header) return;
+    if (!nav) return;
 
     if (!sessionStorage.getItem('memories_unlocked')) {
         const gate = document.createElement('div');
@@ -921,21 +1238,25 @@ function initMemoriesNav() {
                 gate.classList.add('unlocked');
                 document.body.style.overflow = '';
                 sessionStorage.setItem('memories_unlocked', 'true');
-                startMemoryAutoScroll();
                 setTimeout(() => gate.remove(), 1200);
             });
         };
-    } else {
-        startMemoryAutoScroll();
     }
 
-    let lastY = window.scrollY;
-    window.onscroll = () => {
-        const rect = header.getBoundingClientRect();
-        if (window.scrollY > lastY && rect.bottom < 0) nav.classList.add('navbar-hidden');
-        if (rect.bottom >= 0) nav.classList.remove('navbar-hidden');
-        lastY = window.scrollY;
-    };
+    const memContainer = document.getElementById('memories-container');
+    if (memContainer) {
+        let lastScrollTop = 0;
+        memContainer.addEventListener('scroll', () => {
+            let st = memContainer.scrollTop;
+            if (st > lastScrollTop && st > 100) {
+                nav.classList.add('navbar-hidden');
+            } else {
+                nav.classList.remove('navbar-hidden');
+            }
+            lastScrollTop = st <= 0 ? 0 : st;
+        }, { passive: true });
+    }
+    
     window.onmousemove = (e) => { if (e.clientY < 60) nav.classList.remove('navbar-hidden'); };
 }
 
