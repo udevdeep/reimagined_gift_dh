@@ -441,14 +441,17 @@
             <!-- Section: Add Memory -->
             <section id="memories-add" class="admin-section">
                 <div class="section-header">
-                    <h2>Create New Memory</h2>
+                    <h2>Create New Reel Memory</h2>
                 </div>
                 <div class="card">
                     <label>Memory Title:</label>
                     <input type="text" id="mem-title" placeholder="e.g. That night at the beach">
                     
-                    <label>Narrative Description:</label>
-                    <textarea id="mem-text" rows="6" placeholder="Tell the story..."></textarea>
+                    <label>Main Description (Public):</label>
+                    <textarea id="mem-text" rows="4" placeholder="The short caption she sees first..."></textarea>
+
+                    <label>Director's Cut Backstory (The Secret Layer):</label>
+                    <textarea id="mem-backstory" rows="6" placeholder="The real story behind the memory..."></textarea>
                     
                     <div class="grid-2">
                         <div>
@@ -456,24 +459,22 @@
                             <input type="date" id="mem-date">
                         </div>
                         <div>
-                            <label>Theme Accent Color:</label>
-                            <input type="color" id="mem-color" value="#ffffff" style="height: 48px; cursor: pointer;">
+                            <label>Audio Track Label:</label>
+                            <input type="text" id="mem-audio-name" placeholder="e.g. Our Roadtrip Anthem">
                         </div>
                     </div>
 
                     <div class="grid-2">
                         <div>
-                            <label>Photos (Multiple):</label>
-                            <input type="file" id="mem-images" multiple accept="image/*">
+                            <label>Carousel Media (Photos/Videos):</label>
+                            <input type="file" id="mem-media" multiple accept="image/*,video/*">
+                            <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px;">Upload all images and videos for this reel.</p>
                         </div>
                         <div>
-                            <label>Main Video (Optional):</label>
-                            <input type="file" id="mem-video" accept="video/*">
+                            <label>Background Music (MP3):</label>
+                            <input type="file" id="mem-audio" accept="audio/*">
                         </div>
                     </div>
-
-                    <label>Background Audio Track:</label>
-                    <input type="file" id="mem-audio" accept="audio/*">
 
                     <div style="display: flex; align-items: center; gap: 12px; margin-top: 25px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 12px;">
                         <input type="checkbox" id="mem-private" style="width: 20px; height: 20px; cursor: pointer;">

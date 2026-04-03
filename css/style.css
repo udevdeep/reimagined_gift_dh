@@ -253,7 +253,7 @@ p {
 }
 
 /* Performance: will-change for heavy animations */
-.memory-card, .gallery-item, .journal-body {
+.gallery-item, .journal-body {
     will-change: transform, opacity;
 }
 
@@ -355,18 +355,6 @@ p {
     0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
     40% {transform: translateX(-50%) translateY(-10px);}
     60% {transform: translateX(-50%) translateY(-5px);}
-}
-
-/* --- Staggered Fade-In (Memories) --- */
-.memory-card {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.memory-card.reveal {
-    opacity: 1;
-    transform: translateY(0);
 }
 
 /* --- Random Memory FAB --- */
@@ -662,40 +650,8 @@ p {
   border-color: var(--accent-primary);
 }
 
-/* --- Memories Vertical Layout --- */
-#memories-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 80px; /* Comfortable spacing */
-  padding: 40px 0 100px;
-  width: 100%;
-  max-width: 800px; /* Optimal reading width */
-  margin: 0 auto;
-}
-
 /* Remove Timeline Center Line */
 #memories-container::before {
-  display: none;
-}
-
-.memory-card {
-  position: relative;
-  width: 100%; /* Full width within container */
-  max-width: 600px; /* Card max width */
-  z-index: 1;
-  text-align: left;
-  margin: 0 auto;
-}
-
-/* Reset Timeline Positioning */
-.memory-card:nth-child(odd),
-.memory-card:nth-child(even) {
-  align-self: center;
-}
-
-/* Remove Timeline Dots */
-.memory-card::after {
   display: none;
 }
 
@@ -773,9 +729,8 @@ p {
       white-space: nowrap;
   }
 
-  #memories-container { gap: 60px; }
-  
   /* Move Auto-scroll up to clear the new Dock */
+
   #memory-autoscroll-toggle {
       top: unset !important;
       bottom: 100px; 
@@ -822,72 +777,8 @@ p {
     pointer-events: none;
 }
 
-.memory-media-wrapper img,
-.memory-media-wrapper video {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    height: 100%;
-    object-fit: contain; 
-    background: transparent !important;
-    display: block;
-    transition: transform 0.5s ease;
-}
-
-.memory-card:hover .memory-media-wrapper img,
-.memory-card:hover .memory-media-wrapper video {
-    transform: scale(1.03) translateY(-5px);
-}
-
-/* For video specifically, inherit the blurred look if a poster is available */
-.memory-media-wrapper.video-wrapper {
-    background-color: #000;
-}
-/* Image Arrows */
-.img-arrow {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0,0,0,0.5);
-    color: white;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 10;
-    transition: background 0.2s;
-}
-.img-arrow:hover { background: rgba(0,0,0,0.8); }
-.img-arrow.left { left: 10px; }
-.img-arrow.right { right: 10px; }
-
-.memory-content h3 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-main);
-}
-
-/* Ensure themed cards use the calculated contrast color for all text */
-.memory-card[style*="--card-text-color"] .memory-content h3,
-.memory-card[style*="--card-text-color"] .memory-content p,
-.memory-card[style*="--card-text-color"] .memory-date {
-    color: inherit !important;
-}
-
-.memory-date {
-  display: block;
-  font-family: var(--font-heading);
-  font-style: italic;
-  color: var(--accent-primary);
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
 /* --- Gallery Masonry (Apple Photos Style) --- */
+
 :root {
     --gallery-min-width: 200px;
     --gallery-gap: 2px;
@@ -1079,104 +970,6 @@ p {
   25% { transform: scale(1.05) skewX(-2deg) skewY(2deg); }
   50% { transform: scale(0.95) skewX(2deg) skewY(-2deg); }
   75% { transform: scale(1.02) skewX(-1deg) skewY(1deg); }
-}
-
-/* --- Memory Scrollbar (Fixed Right) --- */
-.memory-scroll-bar {
-    position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 40px;
-    padding: 10px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    background: var(--nav-bg);
-    backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    z-index: 100;
-}
-
-.memory-scroll-item {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    z-index: 2;
-    background: transparent;
-}
-
-.memory-scroll-item:hover, .memory-scroll-item.active {
-    color: var(--bg-color);
-    background: var(--accent-primary);
-    box-shadow: 0 0 10px var(--accent-glow);
-}
-
-#memory-scroll-indicator {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--accent-primary);
-    opacity: 0.2;
-    z-index: 1;
-    transition: top 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    pointer-events: none;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-#memory-scroll-tooltip {
-    position: fixed;
-    background: rgba(0,0,0,0.8);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    pointer-events: none;
-    z-index: 2000;
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(5px);
-}
-
-/* --- Auto-scroll Toggle (Fixed Top Right) --- */
-#memory-autoscroll-toggle {
-    position: fixed;
-    top: 100px;
-    right: 20px;
-    z-index: 1500;
-    padding: 8px 16px;
-    border-radius: 20px;
-    background: var(--nav-bg);
-    border: 1px solid var(--card-border);
-    backdrop-filter: blur(10px);
-    color: var(--text-main);
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-#memory-autoscroll-toggle:hover {
-    background: var(--btn-hover);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
 }
 
 /* --- Create Memory Modal --- */
@@ -1938,57 +1731,7 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
 .sound-visualizer:hover .bar { animation: soundWave 0.6s infinite ease-in-out alternate; }
 @keyframes soundWave { from { height: 6px; } to { height: 20px; } }
 
-/* --- Memory Scrollbar --- */
-.memory-scroll-bar {
-    position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    background: var(--nav-bg);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 10px 0;
-    z-index: 100;
-}
-.memory-scroll-item {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.3s;
-}
-.memory-scroll-item.active { background: var(--accent-primary); color: var(--bg-color); }
-#memory-scroll-indicator { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-primary); opacity: 0.2; pointer-events: none; transition: top 0.3s; }
-#memory-scroll-tooltip { position: fixed; background: rgba(0,0,0,0.8); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; pointer-events: none; z-index: 2000; opacity: 0; transition: opacity 0.2s; }
-
-/* --- Auto-scroll Toggle --- */
-#memory-autoscroll-toggle {
-    position: fixed;
-    top: 100px;
-    right: 20px;
-    z-index: 1500;
-    padding: 8px 16px;
-    border-radius: 20px;
-    background: var(--nav-bg);
-    border: 1px solid var(--card-border);
-    backdrop-filter: blur(10px);
-    color: var(--text-main);
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.3s;
-}
+/* --- Archive Note (Letter) --- */
 /* --- Instagram Reels Layout --- */
 .memories-page {
     overflow: hidden !important;
@@ -2337,12 +2080,107 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     margin-top: 10px;
 }
 
-.view-replies-link::before {
-    content: "";
-    width: 24px;
-    height: 1px;
-    background: var(--text-muted);
-    opacity: 0.5;
+/* --- Archive Grid Overlay --- */
+.grid-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 11000;
+    display: none;
+    flex-direction: column;
+    padding: 40px 20px;
+    backdrop-filter: blur(20px);
+}
+
+.grid-overlay.active {
+    display: flex;
+}
+
+.grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1000px;
+    margin: 0 auto 40px;
+    width: 100%;
+}
+
+.grid-header h3 {
+    font-family: var(--font-heading);
+    font-style: italic;
+    font-size: 1.8rem;
+    color: var(--accent-primary);
+}
+
+#close-grid {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2.5rem;
+    cursor: pointer;
+}
+
+.archive-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.grid-item {
+    aspect-ratio: 9 / 16;
+    background: #111;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.grid-item:hover {
+    transform: scale(0.98);
+    opacity: 0.8;
+}
+
+.grid-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.grid-item-type {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+}
+
+.grid-item-title {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 10px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    .archive-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+    }
+    
+    .grid-header h3 {
+        font-size: 1.4rem;
+    }
 }
 
 /* Threaded Comments Styling */
@@ -2716,11 +2554,5 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
 @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
-}
-
-/* Hide old scrollbar and auto-scroll toggle on reels page */
-.memories-page .memory-scroll-bar,
-.memories-page #memory-autoscroll-toggle {
-    display: none !important;
 }
 

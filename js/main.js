@@ -65,8 +65,6 @@ let GALLERY_DATA = [];
 let JOKES_DATA = [];
 let galleryState = [];
 
-let _memoryAutoScrollTimer = null;
-let _memoryAutoScrollEnabled = true;
 
 // Robust initialization that runs even if DOMContentLoaded already fired
 function initAll() {
@@ -535,6 +533,14 @@ export function loadMemories() {
 
     const userMemories = JSON.parse(localStorage.getItem('user_memories') || '[]');
     const all = [...userMemories, ...MEMORIES_DATA];
+    
+    // Sort Chronologically: Oldest to Newest
+    all.sort((a, b) => {
+        const dateA = a.meta.date ? new Date(a.meta.date) : new Date(0);
+        const dateB = b.meta.date ? new Date(b.meta.date) : new Date(0);
+        return dateA - dateB;
+    });
+
     container.innerHTML = '';
     
     all.forEach((item, index) => {
@@ -884,48 +890,59 @@ export function loadMemories() {
         }, { threshold: 0.6 });
         observer.observe(reel);
     });
+
+    // Archive Grid Logic
+    setupArchiveGrid(all);
 }
 
-function setupMediaListeners(card, meta, folder) {
-    const video = card.querySelector('video');
-    const wrapper = card.querySelector('.memory-media-wrapper');
-    let audio = meta.audio ? new Audio(resolvePath(meta.audio, folder)) : null;
-    if (audio) audio.volume = 0.5;
-    card.onmouseenter = () => {
-        if (audio) audio.play().catch(()=>{});
-        if (video) { video.muted = false; video.play().catch(()=>{}); }
-        if (wrapper?.classList.contains('image-wrapper')) startSlider(wrapper);
-    };
-    card.onmouseleave = () => {
-        if (audio) { audio.pause(); audio.currentTime = 0; }
-        if (video) { video.pause(); video.currentTime = 0; video.muted = true; }
-        if (wrapper?.classList.contains('image-wrapper')) stopSlider(wrapper);
-    };
-    if (wrapper?.classList.contains('image-wrapper')) setupSliderButtons(wrapper);
-}
+function setupArchiveGrid(memories) {
+    const openBtn = document.getElementById('open-grid');
+    const closeBtn = document.getElementById('close-grid');
+    const overlay = document.getElementById('grid-overlay');
+    const grid = document.getElementById('archive-grid');
+    const reelsContainer = document.getElementById('memories-container');
 
-let sliderIntervals = new Map();
-function startSlider(wrapper) {
-    const images = JSON.parse(wrapper.dataset.images || '[]'); if (images.length <= 1) return;
-    sliderIntervals.set(wrapper, setInterval(() => {
-        wrapper.dataset.index = (parseInt(wrapper.dataset.index) + 1) % images.length;
-        updateSliderImg(wrapper);
-    }, 4000));
-}
-function stopSlider(wrapper) { clearInterval(sliderIntervals.get(wrapper)); sliderIntervals.delete(wrapper); }
-function updateSliderImg(wrapper) {
-    const thumbs = JSON.parse(wrapper.dataset.thumbs || '[]');
-    const src = resolvePath(thumbs[parseInt(wrapper.dataset.index)], wrapper.dataset.folder);
-    const img = wrapper.querySelector('.memory-main-img');
-    if (img) img.src = src; wrapper.style.backgroundImage = `url('${src}')`;
-}
-function setupSliderButtons(wrapper) {
-    const images = JSON.parse(wrapper.dataset.images || '[]');
-    if (images.length <= 1) return;
-    const left = wrapper.querySelector('.left');
-    const right = wrapper.querySelector('.right');
-    if (left) left.onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) - 1 + images.length) % images.length; updateSliderImg(wrapper); };
-    if (right) right.onclick = (e) => { e.stopPropagation(); wrapper.dataset.index = (parseInt(wrapper.dataset.index) + 1) % images.length; updateSliderImg(wrapper); };
+    if (!openBtn || !overlay || !grid || !reelsContainer) return;
+
+    openBtn.onclick = () => {
+        // Populate Grid
+        grid.innerHTML = '';
+        memories.forEach((item, index) => {
+            const meta = item.meta;
+            if (meta.private && !localStorage.getItem('private_unlocked')) return;
+
+            const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
+            
+            const gridItem = document.createElement('div');
+            gridItem.className = 'grid-item';
+            gridItem.innerHTML = `
+                <img src="${thumb}" loading="lazy">
+                <div class="grid-item-type">
+                    ${meta.video ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>' : (meta.images?.length > 1 ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><rect x="3" y="3" width="13" height="13" rx="2" ry="2"></rect><path d="M21 8v10a3 3 0 0 1-3 3H8"></path></svg>' : '')}
+                </div>
+                <div class="grid-item-title">${meta.title}</div>
+            `;
+
+            gridItem.onclick = () => {
+                overlay.classList.remove('active');
+                const reelElements = reelsContainer.querySelectorAll('.reel-item');
+                // Find the reel with this data-id to be safe
+                const targetId = item.folder || `user-${index}`;
+                const targetReel = Array.from(reelElements).find(r => r.dataset.id === targetId);
+                
+                if (targetReel) {
+                    targetReel.scrollIntoView({ behavior: 'auto' });
+                }
+            };
+
+            grid.appendChild(gridItem);
+        });
+
+        overlay.classList.add('active');
+    };
+
+    if (closeBtn) closeBtn.onclick = () => overlay.classList.remove('active');
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.remove('active'); };
 }
 
 export function loadGallery() {
@@ -1287,30 +1304,6 @@ function initMemoryScrollbar() {
     });
 }
 
-function initMemoryAutoScrollToggle() {
-    if (document.getElementById('memory-autoscroll-toggle')) return;
-    const btn = document.createElement("button"); btn.id = "memory-autoscroll-toggle"; btn.textContent = "⏸ Auto-scroll";
-    btn.onclick = () => {
-        _memoryAutoScrollEnabled = !_memoryAutoScrollEnabled;
-        if (_memoryAutoScrollEnabled) { btn.textContent = "⏸ Auto-scroll"; startMemoryAutoScroll(); } 
-        else { btn.textContent = "▶ Auto-scroll"; clearInterval(_memoryAutoScrollTimer); }
-    };
-    document.body.appendChild(btn);
-}
-
-function startMemoryAutoScroll() {
-    if (!_memoryAutoScrollEnabled) return;
-    const cards = document.querySelectorAll('.memory-card'); if (!cards.length) return;
-    if (_memoryAutoScrollTimer) clearInterval(_memoryAutoScrollTimer);
-    _memoryAutoScrollTimer = setInterval(() => {
-        const mid = window.innerHeight / 2; let cur = -1;
-        cards.forEach((c, i) => { const r = c.getBoundingClientRect(); if (r.top <= mid && r.bottom >= mid) cur = i; });
-        if (cur === -1) { for (let i = 0; i < cards.length; i++) { if (cards[i].getBoundingClientRect().top > 0) { cur = i - 1; break; } } }
-        const next = (cur + 1) % cards.length;
-        cards[next].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 5000);
-}
-
 function setupPrivacyToggle(id) {
     const btn = document.getElementById(id); if (!btn) return;
     const isUnlocked = localStorage.getItem('private_unlocked');
@@ -1429,8 +1422,6 @@ function initSecretGesture(btn) {
             countText.style.display = 'none';
             container.style.transform = `translateY(0px)`;
             container.style.transition = 'transform 0.3s';
-            
-            if (_memoryAutoScrollEnabled && typeof startMemoryAutoScroll === 'function') startMemoryAutoScroll();
         } else {
             frameId = requestAnimationFrame(updateVisuals);
         }
@@ -1442,8 +1433,6 @@ function initSecretGesture(btn) {
         const pageHeight = document.body.offsetHeight;
         
         if (scrollBottom >= pageHeight - 15) {
-            if (_memoryAutoScrollTimer) { clearInterval(_memoryAutoScrollTimer); _memoryAutoScrollTimer = null; }
-
             if (!holdStart) {
                 holdStart = Date.now();
                 frameId = requestAnimationFrame(updateVisuals);
@@ -1463,11 +1452,6 @@ function initSecretGesture(btn) {
         holdStart = 0;
         cancelAnimationFrame(frameId);
         requestAnimationFrame(updateVisuals);
-        
-        if (_memoryAutoScrollEnabled && typeof startMemoryAutoScroll === 'function') {
-            const scrollBottom = window.innerHeight + window.scrollY;
-            if (scrollBottom < document.body.offsetHeight - 100) startMemoryAutoScroll();
-        }
     };
 
     window.addEventListener('wheel', (e) => { if (e.deltaY > 0) handleInput('wheel'); }, { passive: true });
@@ -1498,7 +1482,6 @@ function initSecretGesture(btn) {
             countText.style.display = 'block';
             countText.style.opacity = '0';
             holdStart = 0;
-            if (_memoryAutoScrollEnabled && typeof startMemoryAutoScroll === 'function') startMemoryAutoScroll();
         }
     });
 }

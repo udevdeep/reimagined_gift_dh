@@ -50,8 +50,24 @@
             <a href="jokes.html">Jokes</a>
             <a href="feeling-low.html" class="nav-low">Feeling Low?</a>
         </div>
-        <button class="theme-toggle-btn" id="theme-toggle">Barbie Mode</button>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button id="open-grid" title="View Archive Grid" style="background: transparent; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </button>
+            <button class="theme-toggle-btn" id="theme-toggle">Barbie Mode</button>
+        </div>
     </nav>
+
+    <!-- Archive Grid Overlay -->
+    <div id="grid-overlay" class="grid-overlay">
+        <div class="grid-header">
+            <h3>The Era of Us</h3>
+            <button id="close-grid">&times;</button>
+        </div>
+        <div id="archive-grid" class="archive-grid">
+            <!-- Thumbnails injected here -->
+        </div>
+    </div>
 
     <div class="container">
         
