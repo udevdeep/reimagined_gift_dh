@@ -528,6 +528,30 @@ export function loadMemories() {
     const container = document.getElementById('memories-container');
     if (!container) return;
 
+    // Kebab Menu Toggle (Mobile)
+    const kebabBtn = document.getElementById('kebab-menu-btn');
+    const navbar = document.querySelector('.navbar');
+    if (kebabBtn && navbar) {
+        kebabBtn.onclick = (e) => {
+            e.stopPropagation();
+            document.body.classList.toggle('menu-active');
+        };
+
+        // Close on scroll
+        container.addEventListener('scroll', () => {
+            if (document.body.classList.contains('menu-active')) document.body.classList.remove('menu-active');
+        }, { passive: true });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!navbar.contains(e.target) && document.body.classList.contains('menu-active')) {
+                const dock = document.querySelector('.mobile-dock');
+                if (dock && dock.contains(e.target)) return; // Don't close if clicking the dock itself
+                document.body.classList.remove('menu-active');
+            }
+        });
+    }
+
     // Privacy Toggle Logic
     setupPrivacyToggle('private-toggle');
 
@@ -564,7 +588,13 @@ export function loadMemories() {
             let itemsHtml = '';
             let dotsHtml = '';
             allMedia.forEach((media, i) => {
-                itemsHtml += `<div class="carousel-item">${media.type === 'video' ? `<video src="${media.src}" loop playsinline class="reel-media"></video>` : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`}</div>`;
+                const mediaTag = media.type === 'video' 
+                    ? `<div class="video-container">
+                         <video src="${media.src}" loop playsinline class="reel-media"></video>
+                         <div class="pause-overlay"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></div>
+                       </div>`
+                    : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
+                itemsHtml += `<div class="carousel-item">${mediaTag}</div>`;
                 dotsHtml += `<div class="carousel-dot ${i === 0 ? 'active' : ''}"></div>`;
             });
             mediaHtml = `
@@ -578,7 +608,12 @@ export function loadMemories() {
         } else if (allMedia.length === 1) {
             // Render Single Media
             const media = allMedia[0];
-            mediaHtml = media.type === 'video' ? `<video src="${media.src}" loop playsinline class="reel-media"></video>` : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
+            mediaHtml = media.type === 'video' 
+                ? `<div class="video-container">
+                     <video src="${media.src}" loop playsinline class="reel-media"></video>
+                     <div class="pause-overlay"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></div>
+                   </div>`
+                : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
         }
 
         // 1. Audio Name Refinement
@@ -609,9 +644,9 @@ export function loadMemories() {
                 </div>
 
                 <div class="reel-actions">
-                    <button class="action-btn keep-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                        <span>Keep</span>
+                    <button class="action-btn cherish-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        <span>Cherish</span>
                     </button>
                     <button class="action-btn comment-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
@@ -652,9 +687,28 @@ export function loadMemories() {
                 
                 items.forEach((item, i) => {
                     const v = item.querySelector('video');
+                    const container = item.querySelector('.video-container');
                     if (v) {
-                        if (i === index && reelIsVisible) v.play().catch(() => {});
-                        else { v.pause(); v.currentTime = 0; }
+                        if (i === index && reelIsVisible) {
+                            v.play().catch(() => {});
+                            if (container) container.classList.remove('paused');
+                        } else {
+                            v.pause();
+                            v.currentTime = 0;
+                            if (container) container.classList.remove('paused');
+                        }
+                        
+                        // Toggle play/pause on click
+                        v.onclick = (e) => {
+                            e.stopPropagation();
+                            if (v.paused) {
+                                v.play();
+                                if (container) container.classList.remove('paused');
+                            } else {
+                                v.pause();
+                                if (container) container.classList.add('paused');
+                            }
+                        };
                     }
                 });
             };
@@ -662,25 +716,41 @@ export function loadMemories() {
             carousel.addEventListener('scroll', updateCarouselState, { passive: true });
             leftBtn.onclick = () => carousel.scrollBy({ left: -carousel.offsetWidth, behavior: 'smooth' });
             rightBtn.onclick = () => carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
+        } else {
+            // Single Media Case: Add click-to-toggle play/pause for the single video
+            const v = reel.querySelector('video.reel-media');
+            const container = reel.querySelector('.video-container');
+            if (v) {
+                v.onclick = (e) => {
+                    e.stopPropagation();
+                    if (v.paused) {
+                        v.play();
+                        if (container) container.classList.remove('paused');
+                    } else {
+                        v.pause();
+                        if (container) container.classList.add('paused');
+                    }
+                };
+            }
         }
 
-        // 3. Keep Button Logic (Firestore Backed)
-        const keepBtn = reel.querySelector('.keep-btn');
+        // 3. Cherish Button Logic (Firestore Backed)
+        const cherishBtn = reel.querySelector('.cherish-btn');
         const memoryId = reel.dataset.id;
         const user = auth.currentUser;
 
         if (user) {
             getDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId)).then(snap => {
-                if (snap.exists()) keepBtn.classList.add('active');
+                if (snap.exists()) cherishBtn.classList.add('active');
             });
         }
 
-        keepBtn.onclick = function() { 
+        cherishBtn.onclick = function() { 
             if (!user) return showToast("Please sign in first.", "info");
             const active = this.classList.toggle('active'); 
             if (active) {
                 setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { timestamp: serverTimestamp() });
-                showToast("Stored in your stars ✨", "success");
+                showToast("Tucked away for forever 🌸", "success");
             } else {
                 // deleteDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId));
                 setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { removed: true }, { merge: true });
@@ -1260,6 +1330,8 @@ function initMemoriesNav() {
         };
     }
 
+    // Navbar visibility is now constant on memories page
+    /*
     const memContainer = document.getElementById('memories-container');
     if (memContainer) {
         let lastScrollTop = 0;
@@ -1275,6 +1347,7 @@ function initMemoriesNav() {
     }
     
     window.onmousemove = (e) => { if (e.clientY < 60) nav.classList.remove('navbar-hidden'); };
+    */
 }
 
 function initMemoryScrollbar() {
@@ -1374,116 +1447,128 @@ function showPrivatePrompt() {
 }
 
 function initSecretGesture(btn) {
-    let holdStart = 0, resetTimer = null, frameId = null, unlocked = false;
+    const logo = document.querySelector('.nav-brand');
+    if (!logo) return;
+    
+    // Cleanup any existing elements from previous calls or old logic
+    document.getElementById('secret-loader')?.remove();
+    document.getElementById('secret-timer')?.remove();
+
+    if (logo.dataset.gestureInitialized) return;
+    logo.dataset.gestureInitialized = 'true';
+
+    let holdStart = 0, frameId = null, unlocked = false, hideTimeout = null;
     const REQUIRED_TIME = 3000;
     
-    // Inject Visuals
+    // Unified Visual: Circle with number inside
     const loader = document.createElement('div');
     loader.id = 'secret-loader';
-    loader.style.cssText = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:50px; height:50px; border-radius:50%; background: transparent; display:flex; align-items:center; justify-content:center; font-weight:bold; color:var(--text-main); font-size:1.2rem; opacity:0; transition: opacity 0.3s; z-index:9999; mask-image: radial-gradient(transparent 55%, black 56%); -webkit-mask-image: radial-gradient(transparent 55%, black 56%);";
+    loader.style.cssText = `
+        position: fixed; 
+        bottom: 40px; 
+        left: 50%; 
+        transform: translateX(-50%); 
+        width: 60px; 
+        height: 60px; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-weight: bold; 
+        color: var(--text-main); 
+        font-size: 1.2rem; 
+        opacity: 0; 
+        transition: opacity 0.3s; 
+        z-index: 10000; 
+        border: 2px solid rgba(255,255,255,0.05);
+        background: rgba(0,0,0,0.2);
+        backdrop-filter: blur(10px);
+        font-family: var(--font-body);
+    `;
     document.body.appendChild(loader);
-    
-    const countText = document.createElement('div');
-    countText.style.cssText = "position:fixed; bottom:32px; left:50%; transform:translateX(-50%); font-weight:bold; color:var(--text-main); font-size:1.2rem; opacity:0; z-index:10000; pointer-events:none;";
-    document.body.appendChild(countText);
 
-    const container = document.querySelector('.container');
-    if(!container) return;
+    const hideButton = () => {
+        unlocked = false;
+        btn.style.opacity = '0';
+        btn.style.pointerEvents = 'none';
+        logo.style.textShadow = 'none';
+    };
 
     const updateVisuals = () => {
         if (unlocked) return;
         if (!holdStart) {
-            container.style.transform = `translateY(0px)`;
-            container.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
             loader.style.opacity = '0';
-            countText.style.opacity = '0';
+            logo.style.transform = 'scale(1)';
+            logo.style.textShadow = 'none';
             return;
         }
 
         const elapsed = Date.now() - holdStart;
         const progress = Math.min(elapsed / REQUIRED_TIME, 1);
-        const stretch = Math.pow(progress, 0.5) * 80; 
         
-        container.style.transition = 'none';
-        container.style.transform = `translateY(-${stretch}px)`;
+        logo.style.transform = `scale(${1 + progress * 0.2})`;
+        logo.style.textShadow = `0 0 ${progress * 20}px var(--accent-primary)`;
+        
         loader.style.opacity = '1';
         loader.style.background = `conic-gradient(var(--accent-primary) ${progress * 360}deg, rgba(255,255,255,0.1) 0deg)`;
-        countText.style.opacity = '1';
-        countText.textContent = Math.ceil((REQUIRED_TIME - elapsed) / 1000);
+        loader.textContent = Math.ceil((REQUIRED_TIME - elapsed) / 1000);
 
         if (progress >= 1) {
             unlocked = true;
             btn.style.opacity = '1';
             btn.style.pointerEvents = 'auto';
             btn.textContent = "🔒 Show Private";
-            if (navigator.vibrate) navigator.vibrate(200);
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             
-            loader.style.display = 'none';
-            countText.style.display = 'none';
-            container.style.transform = `translateY(0px)`;
-            container.style.transition = 'transform 0.3s';
+            loader.style.opacity = '0';
+            logo.style.transform = 'scale(1)';
+            logo.style.textShadow = '0 0 20px var(--accent-primary)';
+            
+            // Start 30s auto-hide timer
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(hideButton, 30000);
+            
+            setTimeout(() => { loader.style.display = 'none'; }, 300);
         } else {
             frameId = requestAnimationFrame(updateVisuals);
         }
     };
 
-    const handleInput = (source) => {
-        if (unlocked) return;
-        const scrollBottom = window.innerHeight + window.scrollY;
-        const pageHeight = document.body.offsetHeight;
-        
-        if (scrollBottom >= pageHeight - 15) {
-            if (!holdStart) {
-                holdStart = Date.now();
-                frameId = requestAnimationFrame(updateVisuals);
-            }
-            
-            if (source === 'drag') {
-                clearTimeout(resetTimer); 
-            } else {
-                clearTimeout(resetTimer);
-                resetTimer = setTimeout(() => { resetGesture(); }, 150);
-            }
-        }
-    };
-
     const resetGesture = () => {
-        if (unlocked) return;
-        holdStart = 0;
+        const isLongHold = holdStart && (Date.now() - holdStart > 500);
+        if (unlocked && !isLongHold) return; 
+        
+        if (!unlocked) holdStart = 0;
         cancelAnimationFrame(frameId);
-        requestAnimationFrame(updateVisuals);
+        updateVisuals();
     };
 
-    window.addEventListener('wheel', (e) => { if (e.deltaY > 0) handleInput('wheel'); }, { passive: true });
-    window.addEventListener('touchmove', (e) => handleInput('touch'), { passive: true });
-    window.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown') handleInput('key'); });
+    const startHold = (e) => {
+        if (unlocked) return;
+        if (e.type === 'touchstart') e.preventDefault();
+        holdStart = Date.now();
+        frameId = requestAnimationFrame(updateVisuals);
+    };
 
-    let isDragging = false;
-    window.addEventListener('mousedown', () => { isDragging = true; });
-    window.addEventListener('mouseup', () => { isDragging = false; resetGesture(); });
-    window.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-            if (e.movementY > 5) { resetGesture(); return; }
-            if (e.movementY < 0) { handleInput('drag'); }
-        }
+    logo.addEventListener('mousedown', startHold);
+    logo.addEventListener('touchstart', startHold, { passive: false });
+    window.addEventListener('mouseup', resetGesture, true);
+    window.addEventListener('touchend', resetGesture, true);
+    logo.addEventListener('mouseleave', resetGesture);
+
+    btn.addEventListener('click', () => {
+        clearTimeout(hideTimeout);
     });
 
-    window.addEventListener('scroll', () => {
-        const scrollBottom = window.innerHeight + window.scrollY;
-        const pageHeight = document.body.offsetHeight;
-        const nearBottom = scrollBottom >= pageHeight - 100;
-
-        if (unlocked && !nearBottom) {
-            unlocked = false;
-            btn.style.opacity = '0';
-            btn.style.pointerEvents = 'none';
-            loader.style.display = 'flex';
-            loader.style.opacity = '0';
-            countText.style.display = 'block';
-            countText.style.opacity = '0';
-            holdStart = 0;
+    logo.onclick = (e) => {
+        const elapsed = holdStart ? Date.now() - holdStart : 0;
+        if (elapsed > 500 || unlocked) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (elapsed > 500) holdStart = 0;
+            return false;
         }
-    });
+    };
 }
 
 let map;

@@ -1823,6 +1823,45 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     z-index: 1;
 }
 
+/* Pause Overlay */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pause-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1.2);
+    width: 70px;
+    height: 60px; /* Slight oval like IG */
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.pause-overlay svg {
+    width: 30px;
+    height: 30px;
+    fill: #fff;
+}
+
+.video-container.paused .pause-overlay {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
 .reel-overlay-bg {
     position: absolute;
     inset: 0;
@@ -1959,8 +1998,13 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     opacity: 0.8;
 }
 
-.action-btn.keep-btn.active span {
-    color: #ffcc33;
+.action-btn.cherish-btn.active svg {
+    fill: #ff4d6d;
+    stroke: #ff4d6d;
+}
+
+.action-btn.cherish-btn.active span {
+    color: #ff4d6d;
     opacity: 1;
 }
 
@@ -2513,26 +2557,68 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     .memories-page .navbar {
         padding: 15px 20px;
     }
-    
+
+    /* Hide these by default on memories page mobile */
+    .memories-page .navbar .theme-toggle-btn,
+    .memories-page .nav-links.mobile-dock {
+        display: none !important;
+    }
+
+    /* Keep these visible */
+    .memories-page .navbar .nav-brand,
+    .memories-page .navbar #open-grid,
+    .memories-page .kebab-btn {
+        display: flex !important;
+    }
+
+    /* Reveal when active */
+    body.memories-page.menu-active .navbar .theme-toggle-btn,
+    body.memories-page.menu-active .nav-links.mobile-dock {
+        display: flex !important;
+    }
+
+    /* Ensure bottom dock stays at bottom when revealed */
+    body.memories-page.menu-active .nav-links.mobile-dock {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(0,0,0,0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 20px;
+        z-index: 2000;
+        border-radius: 24px 24px 0 0;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
     .reel-content-wrapper {
         width: 100vw;
         aspect-ratio: unset;
     }
-    
+
     .reel-actions {
         right: 10px;
-        bottom: 120px; /* Leave space for mobile dock */
-    }
-    
-    .reel-info {
-        padding-bottom: 120px; /* Leave space for mobile dock */
+        bottom: 20px;
+        transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .memories-page .nav-links {
-        bottom: 20px !important;
+    body.menu-active .reel-actions {
+        bottom: 130px; /* Move up when dock shows */
+    }
+
+    .reel-info {
+        padding-bottom: 20px;
+        transition: padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.menu-active .reel-info {
+        padding-bottom: 130px; /* Move up when dock shows */
     }
 }
 
+/* Default state for kebab-btn */
+.kebab-btn { display: none; }
 .reel-audio {
     display: flex;
     align-items: center;
