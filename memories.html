@@ -43,15 +43,17 @@
     </div>
 
     <nav class="navbar">
-        <a href="index.html" class="nav-brand">dh</a>
-        <div class="nav-links">
-            <a href="memories.html" class="active">Our Timeline</a>
-            <a href="gallery.html">Evidence</a>
-            <a href="jokes.html">Jokes</a>
-            <a href="feeling-low.html" class="nav-low">Feeling Low?</a>
+        <div class="nav-pill-left">
+            <a href="index.html" class="nav-brand">dh</a>
+            <div class="nav-links">
+                <a href="memories.html" class="active">Our Timeline</a>
+                <a href="gallery.html">Evidence</a>
+                <a href="jokes.html">Jokes</a>
+                <a href="feeling-low.html" class="nav-low">Feeling Low?</a>
+            </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <button id="open-grid" title="View Archive Grid" style="background: transparent; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+        <div class="nav-actions-right">
+            <button id="open-grid" title="View Archive Grid">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             </button>
             <button class="theme-toggle-btn" id="theme-toggle">Barbie Mode</button>
@@ -65,6 +67,10 @@
     <div id="grid-overlay" class="grid-overlay">
         <div class="grid-header">
             <h3>The Era of Us</h3>
+            <div class="grid-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="cherished">Cherished</button>
+            </div>
             <button id="close-grid">&times;</button>
         </div>
         <div id="archive-grid" class="archive-grid">
@@ -80,7 +86,7 @@
 
         <!-- Discrete Controls -->
         <footer style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
-             <button id="private-toggle" style="background: transparent; border: none; font-size: 0.8rem; color: rgba(255,255,255,0.3); cursor: pointer;">Private Access</button>
+
         </footer>
 
     </div>
@@ -116,6 +122,7 @@
                 </div>
             </div>
             <div class="comment-input-area">
+                <div id="mentions-suggestions" class="mentions-suggestions"></div>
                 <div id="replying-to-info" class="replying-to-info" style="display: none;">
                     Replying to <span id="replying-to-name"></span>
                     <button id="cancel-reply">&times;</button>

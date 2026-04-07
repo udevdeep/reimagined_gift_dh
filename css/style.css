@@ -1738,17 +1738,72 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     background: #000 !important;
 }
 
-.memories-page .navbar {
-    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-    border: none;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    top: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: 0;
-    padding: 20px 40px;
+/* Desktop Split Navbar for Memories Page */
+@media (min-width: 769px) {
+    .memories-page .navbar {
+        width: 100%;
+        max-width: none;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        left: 0;
+        transform: none;
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        pointer-events: none;
+    }
+
+    .memories-page .nav-pill-left {
+        background: var(--nav-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--card-border);
+        border-radius: 50px;
+        padding: 10px 25px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        pointer-events: auto;
+        box-shadow: var(--glass-shadow);
+    }
+
+    .memories-page .nav-actions-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        pointer-events: auto;
+    }
+    
+    .memories-page .nav-actions-right button {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: #fff;
+        padding: 10px 15px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .memories-page .nav-actions-right button:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .memories-page .nav-actions-right #open-grid {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
 }
 
 .memories-page .container {
@@ -1857,8 +1912,38 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     fill: #fff;
 }
 
-.video-container.paused .pause-overlay {
+.mute-overlay {
+    position: absolute;
+    top: calc(50% - 60px); /* Positioned above pause icon */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+.mute-overlay svg {
+    width: 20px;
+    height: 20px;
+    fill: #fff;
+}
+
+.video-container.paused .pause-overlay,
+.video-container.paused .mute-overlay {
     opacity: 1;
+    pointer-events: auto;
+}
+
+.video-container.paused .pause-overlay {
     transform: translate(-50%, -50%) scale(1);
 }
 
@@ -2147,6 +2232,42 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     max-width: 1000px;
     margin: 0 auto 40px;
     width: 100%;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.grid-filters {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 50px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-btn.active {
+    background: var(--accent-primary);
+    color: #fff;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+@media (max-width: 768px) {
+    .grid-header {
+        flex-direction: column;
+        text-align: center;
+        margin-bottom: 20px;
+    }
 }
 
 .grid-header h3 {
@@ -2298,17 +2419,20 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
 
 .comment-text-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .comment-author-name {
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     margin-right: 8px;
     color: #fff;
 }
 
 .comment-text {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     line-height: 1.4;
     color: #efefef;
 }
@@ -2334,6 +2458,57 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     color: #fff;
 }
 
+.comment-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.comment-delete-btn:hover {
+    color: #ff4444;
+}
+
+.comment-delete-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.view-replies-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 44px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.view-replies-btn::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: rgba(255,255,255,0.2);
+}
+
+.view-replies-btn:hover {
+    color: #fff;
+}
+
+.comment-replies.hidden {
+    display: none;
+}
+
 /* Replies Indentation */
 .comment-replies {
     margin-left: 44px;
@@ -2344,8 +2519,52 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     padding-left: 15px;
 }
 
+.mentions-suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 20px;
+    right: 20px;
+    background: #222;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    z-index: 100;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+    margin-bottom: 10px;
+}
+
+.mention-item {
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.mention-item:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.mention-item img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.mention-tag {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
 /* Input Area */
 .comment-input-area {
+    position: relative;
     margin-top: auto;
     border-top: 1px solid var(--card-border);
     padding-top: 20px;
@@ -2508,9 +2727,14 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 4px;
+    gap: 6px;
     z-index: 30;
     pointer-events: none;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 6px 10px;
+    border-radius: 20px;
 }
 
 .carousel-dot {
@@ -2518,23 +2742,25 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     height: 6px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.4);
-    transition: all 0.3s;
+    transition: all 0.3s ease;
 }
 
 .carousel-dot.active {
     background: #fff;
-    transform: scale(1.2);
+    transform: scale(1.1);
 }
 
 .carousel-arrow {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0,0,0,0.3);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #000;
     border: none;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -2542,7 +2768,14 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     cursor: pointer;
     z-index: 30;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: all 0.3s;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.carousel-arrow:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: translateY(-50%) scale(1.1);
 }
 
 .reel-content-wrapper:hover .carousel-arrow {
@@ -2554,6 +2787,25 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
 
 /* Mobile Adjustments */
 @media (max-width: 768px) {
+    .memories-page .nav-actions-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .memories-page .nav-actions-right button {
+        background: transparent !important;
+        border: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 0 !important;
+        color: #fff !important;
+        box-shadow: none !important;
+        transform: none !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
     .memories-page .navbar {
         padding: 15px 20px;
     }
@@ -2580,16 +2832,23 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     /* Ensure bottom dock stays at bottom when revealed */
     body.memories-page.menu-active .nav-links.mobile-dock {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: rgba(0,0,0,0.95);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        padding: 20px;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: auto;
+        min-width: 280px;
+        max-width: 90%;
+        background: var(--nav-bg);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        padding: 12px 25px;
         z-index: 2000;
-        border-radius: 24px 24px 0 0;
-        border-top: 1px solid rgba(255,255,255,0.1);
+        border-radius: 40px;
+        border: 1px solid var(--card-border);
+        display: flex !important;
+        justify-content: space-evenly;
+        align-items: center;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
     .reel-content-wrapper {

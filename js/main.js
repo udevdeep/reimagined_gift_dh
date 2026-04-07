@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, collection, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { resolvePath, getContrastYIQ, showToast, downloadResource } from "./utils.js";
 
@@ -69,6 +69,15 @@ let galleryState = [];
 // Robust initialization that runs even if DOMContentLoaded already fired
 function initAll() {
     console.log("Initializing Archive...");
+
+    // Check for "Vault locked" toast flag
+    if (sessionStorage.getItem('show_vault_locked_toast')) {
+        sessionStorage.removeItem('show_vault_locked_toast');
+        setTimeout(() => {
+            showToast("Vault locked. ✨", "info");
+        }, 1000);
+    }
+
     try { initTheme(); } catch(e) { console.warn("Theme init failed", e); }
     try { applyCacheImmediate(); } catch(e) { console.warn("Cache apply failed", e); }
     try { initFirebaseLock(); } catch(e) { console.warn("Firebase lock init failed", e); }
@@ -93,12 +102,48 @@ function handleMobileNav() {
     const nav = document.querySelector('.navbar');
     const links = document.querySelector('.nav-links');
     if (!nav || !links) return;
+    
     if (window.innerWidth <= 768) {
-        if (links.parentNode === nav) { document.body.appendChild(links); links.classList.add('mobile-dock'); }
+        if (nav.contains(links)) { 
+            document.body.appendChild(links); 
+            links.classList.add('mobile-dock'); 
+        }
     } else {
+        // Cleanup mobile state
+        if (document.body.classList.contains('menu-active')) {
+            document.body.classList.remove('menu-active');
+        }
+
         if (links.parentNode === document.body) {
-            const toggle = nav.querySelector('.theme-toggle-btn');
-            if (toggle) nav.insertBefore(links, toggle); else nav.appendChild(links);
+            // Find the correct insertion point: it must be a direct child of nav or a specific sub-container
+            const themeToggle = nav.querySelector('.theme-toggle-btn');
+            const kebabBtn = nav.querySelector('.kebab-btn');
+            const navPillLeft = nav.querySelector('.nav-pill-left');
+            
+            if (navPillLeft) {
+                // Specific structure for memories page
+                navPillLeft.appendChild(links);
+            } else {
+                // Fallback for other pages
+                const actionTarget = (themeToggle || kebabBtn);
+                let insertBefore = null;
+                
+                if (actionTarget) {
+                    let current = actionTarget;
+                    while (current && current.parentNode !== nav && current.parentNode !== document.body) {
+                        current = current.parentNode;
+                    }
+                    if (current && current.parentNode === nav) {
+                        insertBefore = current;
+                    }
+                }
+                
+                if (insertBefore) {
+                    nav.insertBefore(links, insertBefore);
+                } else {
+                    nav.appendChild(links);
+                }
+            }
             links.classList.remove('mobile-dock');
         }
     }
@@ -166,6 +211,12 @@ function initFirebaseLock() {
     const overlay = document.getElementById('lock-overlay');
     const loginBtn = document.getElementById('google-login-btn');
     const isIndex = document.body.classList.contains('index-page');
+
+    // Immediate check to prevent flickering
+    const expiry = parseInt(localStorage.getItem(LOCK_KEY) || '0', 10);
+    if (expiry > Date.now()) {
+        if (overlay) overlay.style.display = 'none';
+    }
 
     if (loginBtn) loginBtn.onclick = () => {
         const msg = document.getElementById('lock-msg');
@@ -272,10 +323,28 @@ function hideLoader() {
 }
 
 async function recordVisit() {
-    if (!auth.currentUser || sessionStorage.getItem('visit_recorded')) return;
+    const user = auth.currentUser;
+    if (!user || sessionStorage.getItem('visit_recorded')) return;
     try {
-        await addDoc(collection(db, 'site_visits'), { userId: auth.currentUser.uid, userName: auth.currentUser.displayName || "Friend", userEmail: auth.currentUser.email || "Anonymous", timestamp: serverTimestamp() });
+        await addDoc(collection(db, 'site_visits'), { 
+            userId: user.uid, 
+            userName: user.displayName || "Friend", 
+            userEmail: user.email || "Anonymous", 
+            timestamp: serverTimestamp() 
+        });
         sessionStorage.setItem('visit_recorded', 'true');
+
+        // Update whitelist with latest profile info for mentions
+        const whiteRef = doc(db, 'whitelist', user.uid);
+        const whiteSnap = await getDoc(whiteRef);
+        if (whiteSnap.exists()) {
+            await setDoc(whiteRef, {
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                email: user.email,
+                lastSeen: serverTimestamp()
+            }, { merge: true });
+        }
     } catch (e) {}
 }
 
@@ -524,6 +593,9 @@ function initCinematicScroll() {
     }, 1500);
 }
 
+let isGlobalPaused = false;
+let isGlobalMuted = false;
+
 export function loadMemories() {
     const container = document.getElementById('memories-container');
     if (!container) return;
@@ -590,8 +662,9 @@ export function loadMemories() {
             allMedia.forEach((media, i) => {
                 const mediaTag = media.type === 'video' 
                     ? `<div class="video-container">
-                         <video src="${media.src}" loop playsinline class="reel-media"></video>
+                         <video src="${media.src}" loop playsinline class="reel-media" ${isGlobalMuted ? 'muted' : ''}></video>
                          <div class="pause-overlay"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></div>
+                         <div class="mute-overlay"><svg viewBox="0 0 24 24" class="mute-icon"></svg></div>
                        </div>`
                     : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
                 itemsHtml += `<div class="carousel-item">${mediaTag}</div>`;
@@ -610,8 +683,9 @@ export function loadMemories() {
             const media = allMedia[0];
             mediaHtml = media.type === 'video' 
                 ? `<div class="video-container">
-                     <video src="${media.src}" loop playsinline class="reel-media"></video>
+                     <video src="${media.src}" loop playsinline class="reel-media" ${isGlobalMuted ? 'muted' : ''}></video>
                      <div class="pause-overlay"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></div>
+                     <div class="mute-overlay"><svg viewBox="0 0 24 24" class="mute-icon"></svg></div>
                    </div>`
                 : `<img src="${media.src}" class="reel-media" crossorigin="anonymous">`;
         }
@@ -672,6 +746,19 @@ export function loadMemories() {
 
         // Carousel Navigation Logic
         const carousel = reel.querySelector('.reel-carousel');
+        const updateMuteIcons = () => {
+            const allMuteIcons = document.querySelectorAll('.mute-icon');
+            const mutedPath = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path><line x1="1" y1="1" x2="23" y2="23" stroke="white" stroke-width="2"></line>';
+            const unmutedPath = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>';
+
+            allMuteIcons.forEach(icon => {
+                icon.innerHTML = isGlobalMuted ? mutedPath : unmutedPath;
+            });
+            document.querySelectorAll('.reel-media').forEach(video => {
+                if (video instanceof HTMLVideoElement) video.muted = isGlobalMuted;
+            });
+        };
+
         if (carousel) {
             const dots = reel.querySelectorAll('.carousel-dot');
             const leftBtn = reel.querySelector('.carousel-arrow.left');
@@ -679,19 +766,41 @@ export function loadMemories() {
 
             const updateCarouselState = () => {
                 const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                const items = carousel.querySelectorAll('.carousel-item');
+                
                 dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
                 
-                // Play video in current carousel item if reel is visible
-                const items = carousel.querySelectorAll('.carousel-item');
+                // Show/Hide arrows based on index
+                if (leftBtn) leftBtn.style.display = index === 0 ? 'none' : 'flex';
+                if (rightBtn) rightBtn.style.display = index === items.length - 1 ? 'none' : 'flex';
+
+                // Play video in current carousel item if reel is visible AND not globally paused
                 const reelIsVisible = reel.classList.contains('is-visible');
                 
                 items.forEach((item, i) => {
                     const v = item.querySelector('video');
                     const container = item.querySelector('.video-container');
+                    const muteBtn = item.querySelector('.mute-overlay');
+                    const muteIcon = item.querySelector('.mute-icon');
+
                     if (v) {
+                        v.muted = isGlobalMuted;
+                        if (muteBtn) {
+                            muteBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                isGlobalMuted = !isGlobalMuted;
+                                updateMuteIcons();
+                            };
+                        }
+
                         if (i === index && reelIsVisible) {
-                            v.play().catch(() => {});
-                            if (container) container.classList.remove('paused');
+                            if (!isGlobalPaused) {
+                                v.play().catch(() => {});
+                                if (container) container.classList.remove('paused');
+                            } else {
+                                v.pause();
+                                if (container) container.classList.add('paused');
+                            }
                         } else {
                             v.pause();
                             v.currentTime = 0;
@@ -703,9 +812,11 @@ export function loadMemories() {
                             e.stopPropagation();
                             if (v.paused) {
                                 v.play();
+                                isGlobalPaused = false; // Manually playing resumes global state
                                 if (container) container.classList.remove('paused');
                             } else {
                                 v.pause();
+                                isGlobalPaused = true; // Manually pausing sets global state
                                 if (container) container.classList.add('paused');
                             }
                         };
@@ -716,23 +827,40 @@ export function loadMemories() {
             carousel.addEventListener('scroll', updateCarouselState, { passive: true });
             leftBtn.onclick = () => carousel.scrollBy({ left: -carousel.offsetWidth, behavior: 'smooth' });
             rightBtn.onclick = () => carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
+            
+            // Initial state check
+            updateCarouselState();
         } else {
             // Single Media Case: Add click-to-toggle play/pause for the single video
             const v = reel.querySelector('video.reel-media');
             const container = reel.querySelector('.video-container');
+            const muteBtn = reel.querySelector('.mute-overlay');
+
             if (v) {
+                v.muted = isGlobalMuted;
+                if (muteBtn) {
+                    muteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        isGlobalMuted = !isGlobalMuted;
+                        updateMuteIcons();
+                    };
+                }
+
                 v.onclick = (e) => {
                     e.stopPropagation();
                     if (v.paused) {
                         v.play();
+                        isGlobalPaused = false; // Manually playing resumes global state
                         if (container) container.classList.remove('paused');
                     } else {
                         v.pause();
+                        isGlobalPaused = true; // Manually pausing sets global state
                         if (container) container.classList.add('paused');
                     }
                 };
             }
         }
+        updateMuteIcons(); // Initial sync for this reel
 
         // 3. Cherish Button Logic (Firestore Backed)
         const cherishBtn = reel.querySelector('.cherish-btn');
@@ -740,8 +868,8 @@ export function loadMemories() {
         const user = auth.currentUser;
 
         if (user) {
-            getDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId)).then(snap => {
-                if (snap.exists()) cherishBtn.classList.add('active');
+            getDoc(doc(db, 'shared_profile_data', `cherished_${memoryId}`)).then(snap => {
+                if (snap.exists() && !snap.data().removed) cherishBtn.classList.add('active');
             });
         }
 
@@ -749,29 +877,158 @@ export function loadMemories() {
             if (!user) return showToast("Please sign in first.", "info");
             const active = this.classList.toggle('active'); 
             if (active) {
-                setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { timestamp: serverTimestamp() });
+                setDoc(doc(db, 'shared_profile_data', `cherished_${memoryId}`), { 
+                    memoryId: memoryId,
+                    timestamp: serverTimestamp(), 
+                    removed: false 
+                });
                 showToast("Tucked away for forever 🌸", "success");
             } else {
-                // deleteDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId));
-                setDoc(doc(db, 'user_data', user.uid, 'kept_memories', memoryId), { removed: true }, { merge: true });
+                setDoc(doc(db, 'shared_profile_data', `cherished_${memoryId}`), { removed: true }, { merge: true });
             }
         };
 
         // 4. Comment & Vibe Panel Logic (Firestore Backed)
         let commentsUnsubscribe = null;
         let replyingTo = null;
+        let currentComments = [];
+        let allUsers = []; // Cache for mentions
 
-        reel.querySelector('.comment-btn').onclick = () => { 
+        const fetchAllUsers = async () => {
+            if (allUsers.length > 0) return allUsers;
+            try {
+                const [whiteSnap, adminSnap, commentSnap] = await Promise.all([
+                    getDocs(collection(db, 'whitelist')),
+                    getDocs(collection(db, 'admin_whitelist')),
+                    getDocs(query(collection(db, 'memory_comments'), orderBy('timestamp', 'desc'), limit(100)))
+                ]);
+                
+                const users = [];
+                const seenUids = new Set();
+
+                const processDoc = (doc, isComment = false) => {
+                    const data = doc.data();
+                    const uid = isComment ? data.userId : doc.id;
+                    if (!uid || seenUids.has(uid)) return;
+                    
+                    let name = data.displayName || data.name || data.userName;
+                    if (!name && data.email) name = data.email.split('@')[0];
+                    if (!name) name = uid.substring(0, 6);
+
+                    seenUids.add(uid);
+                    users.push({ 
+                        id: uid, 
+                        name: name,
+                        photo: data.photoURL || data.photo || data.userPhoto || `https://ui-avatars.com/api/?name=${name}`
+                    });
+                };
+
+                // Prioritize whitelist info
+                whiteSnap.forEach(d => processDoc(d));
+                adminSnap.forEach(d => processDoc(d));
+                // Supplement with info from recent comments
+                commentSnap.forEach(d => processDoc(d, true));
+
+                // Deduplicate by name
+                const unique = new Map();
+                users.forEach(u => unique.set(u.name, u));
+                allUsers = Array.from(unique.values());
+                return allUsers;
+            } catch (e) {
+                console.error("Error fetching users for mentions:", e);
+                return [];
+            }
+        };
+
+        const highlightMentions = (text) => {
+            // First replace @[Name] format, then fallback to single word @Name
+            return text.replace(/@\[([^\]]+)\]/g, '<span class="mention-tag">@$1</span>')
+                       .replace(/@(\w+)/g, '<span class="mention-tag">@$1</span>');
+        };
+
+        // Real-time Comment Listener (Always active for this reel to update count)
+        const q = query(collection(db, 'memory_comments'), where('memoryId', '==', memoryId), orderBy('timestamp', 'asc'));
+        onSnapshot(q, (snapshot) => {
+            currentComments = [];
+            snapshot.forEach(doc => currentComments.push({ id: doc.id, ...doc.data() }));
+            
+            // Update comment count on reel instantly (including replies)
+            const count = currentComments.length;
+            reel.querySelector('.comment-btn span').textContent = count;
+
+            // If panel is open for THIS memory, re-render the list
+            const panel = document.getElementById('comment-panel');
+            if (panel && panel.classList.contains('active') && panel.dataset.currentMemoryId === memoryId) {
+                const listEl = document.getElementById('comments-list');
+                renderComments(currentComments, listEl);
+            }
+        });
+
+        reel.querySelector('.comment-btn').onclick = async () => { 
             const panel = document.getElementById('comment-panel');
             const backstoryEl = document.getElementById('director-backstory');
             if (panel && backstoryEl) {
                 backstoryEl.textContent = meta.backstory || meta.text || "No extra notes for this one... yet. Just a pure moment.";
+                panel.dataset.currentMemoryId = memoryId; // Track which memory the panel is showing
                 panel.classList.add('active');
                 
+                const listEl = document.getElementById('comments-list');
+                renderComments(currentComments, listEl); // Render current state immediately
+                
+                // Fetch users for mentions in background
+                fetchAllUsers();
+
+                // Mentions Logic
+                const input = document.getElementById('comment-input');
+                const suggestionsEl = document.getElementById('mentions-suggestions');
+                
+                input.oninput = async (e) => {
+                    const value = input.value;
+                    const cursorIdx = input.selectionStart;
+                    const textBeforeCursor = value.substring(0, cursorIdx);
+                    const lastAtIdx = textBeforeCursor.lastIndexOf('@');
+
+                    if (lastAtIdx !== -1) {
+                        const query = textBeforeCursor.substring(lastAtIdx + 1).toLowerCase();
+                        const users = await fetchAllUsers();
+                        const filtered = users.filter(u => u.name.toLowerCase().includes(query));
+
+                        if (filtered.length > 0) {
+                            suggestionsEl.innerHTML = '';
+                            filtered.forEach(u => {
+                                const item = document.createElement('div');
+                                item.className = 'mention-item';
+                                item.innerHTML = `<img src="${u.photo}"> <span>${u.name}</span>`;
+                                item.onclick = () => {
+                                    const before = value.substring(0, lastAtIdx);
+                                    const after = value.substring(cursorIdx);
+                                    // Use @[Name] format for multi-word safety
+                                    input.value = `${before}@[${u.name}] ${after}`;
+                                    suggestionsEl.style.display = 'none';
+                                    input.focus();
+                                };
+                                suggestionsEl.appendChild(item);
+                            });
+                            suggestionsEl.style.display = 'flex';
+                        } else {
+                            suggestionsEl.style.display = 'none';
+                        }
+                    } else {
+                        suggestionsEl.style.display = 'none';
+                    }
+                };
+
+                // Close suggestions on outside click
+                document.addEventListener('click', (e) => {
+                    if (!suggestionsEl.contains(e.target) && e.target !== input) {
+                        suggestionsEl.style.display = 'none';
+                    }
+                });
+
                 // Vibe Check (Firestore Backed)
                 const vibeButtons = panel.querySelectorAll('.vibe-btn');
                 if (user) {
-                    getDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId)).then(snap => {
+                    getDoc(doc(db, 'shared_profile_data', `vibe_${memoryId}`)).then(snap => {
                         const savedVibe = snap.data()?.vibe;
                         vibeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.vibe === savedVibe));
                     });
@@ -785,31 +1042,19 @@ export function loadMemories() {
                         vibeButtons.forEach(b => b.classList.remove('active'));
                         if (!isRemoving) {
                             btn.classList.add('active');
-                            setDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId), { vibe: btn.dataset.vibe, timestamp: serverTimestamp() });
+                            setDoc(doc(db, 'shared_profile_data', `vibe_${memoryId}`), { 
+                                memoryId: memoryId,
+                                vibe: btn.dataset.vibe, 
+                                timestamp: serverTimestamp() 
+                            });
                             showToast(`Vibe check: ${btn.dataset.vibe}`, "success");
                         } else {
-                            setDoc(doc(db, 'user_data', user.uid, 'memory_vibes', memoryId), { vibe: null });
+                            setDoc(doc(db, 'shared_profile_data', `vibe_${memoryId}`), { vibe: null });
                         }
                     };
                 });
 
-                // Load Comments Real-time
-                const listEl = document.getElementById('comments-list');
-                if (commentsUnsubscribe) commentsUnsubscribe();
-                
-                const q = query(collection(db, 'memories', memoryId, 'comments'), orderBy('timestamp', 'asc'));
-                commentsUnsubscribe = onSnapshot(q, (snapshot) => {
-                    const comments = [];
-                    snapshot.forEach(doc => comments.push({ id: doc.id, ...doc.data() }));
-                    renderComments(comments, listEl);
-                    
-                    // Update comment count on reel
-                    const count = comments.filter(c => !c.parentId).length;
-                    reel.querySelector('.comment-btn span').textContent = count;
-                });
-
                 // Comment Submission Logic
-                const input = document.getElementById('comment-input');
                 const submitBtn = document.getElementById('submit-comment');
                 const replyInfo = document.getElementById('replying-to-info');
                 const replyName = document.getElementById('replying-to-name');
@@ -824,7 +1069,8 @@ export function loadMemories() {
                     
                     submitBtn.disabled = true;
                     try {
-                        await addDoc(collection(db, 'memories', memoryId, 'comments'), {
+                        await addDoc(collection(db, 'memory_comments'), {
+                            memoryId: memoryId,
                             userId: user.uid,
                             userName: user.displayName || "Friend",
                             userPhoto: user.photoURL || "https://ui-avatars.com/api/?name=" + (user.displayName || "F"),
@@ -834,7 +1080,11 @@ export function loadMemories() {
                         });
                         input.value = '';
                         resetReply();
-                    } catch (e) { showToast("Error posting comment", "error"); }
+                        suggestionsEl.style.display = 'none';
+                    } catch (e) { 
+                        console.error("Comment Error:", e);
+                        showToast("Error posting comment", "error"); 
+                    }
                     submitBtn.disabled = false;
                 };
 
@@ -843,6 +1093,8 @@ export function loadMemories() {
                     replyingTo = { id, name };
                     replyName.textContent = name;
                     replyInfo.style.display = 'flex';
+                    // Auto-mention with bracketed format for full name support
+                    input.value = `@[${name}] ` + input.value.replace(/^@\[?[\w\s]+\]?\s/, '');
                     input.focus();
                 };
             }
@@ -850,7 +1102,9 @@ export function loadMemories() {
 
         function renderComments(comments, container) {
             container.innerHTML = '';
+            const user = auth.currentUser;
             const parents = comments.filter(c => !c.parentId);
+            
             if (parents.length === 0) {
                 container.innerHTML = '<p class="no-comments">Be the first to leave a note...</p>';
                 return;
@@ -860,45 +1114,90 @@ export function loadMemories() {
                 const item = document.createElement('div');
                 item.className = 'comment-item';
                 const time = c.timestamp ? new Date(c.timestamp.toDate()).toLocaleDateString() : 'Just now';
+                const canDelete = user && (user.uid === c.userId || localStorage.getItem('isAdmin')); // Basic check for UI
+                
+                const deleteIcon = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>`;
                 
                 item.innerHTML = `
                     <div class="comment-main">
                         <img src="${c.userPhoto}" class="comment-author-pic">
                         <div class="comment-text-content">
                             <span class="comment-author-name">${c.userName}</span>
-                            <span class="comment-text">${c.text}</span>
+                            <span class="comment-text">${highlightMentions(c.text)}</span>
                             <div class="comment-meta">
                                 <span>${time}</span>
                                 <button class="comment-reply-btn" onclick="window.setReply('${c.id}', '${c.userName}')">Reply</button>
+                                ${canDelete ? `<button class="comment-delete-btn" title="Delete Comment" onclick="window.deleteComment('${c.id}')">${deleteIcon}</button>` : ''}
                             </div>
                         </div>
                     </div>
                 `;
 
-                // Render Replies
+                // Render Replies (Support for replying to replies by keeping them under top parent)
                 const replies = comments.filter(r => r.parentId === c.id);
                 if (replies.length > 0) {
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'view-replies-btn';
+                    toggleBtn.textContent = `View ${replies.length} more ${replies.length === 1 ? 'reply' : 'replies'}`;
+                    
                     const repliesContainer = document.createElement('div');
-                    repliesContainer.className = 'comment-replies';
+                    repliesContainer.className = 'comment-replies hidden';
+                    
+                    toggleBtn.onclick = () => {
+                        const isHidden = repliesContainer.classList.toggle('hidden');
+                        toggleBtn.textContent = isHidden 
+                            ? `View ${replies.length} more ${replies.length === 1 ? 'reply' : 'replies'}`
+                            : 'Hide replies';
+                    };
+
                     replies.forEach(r => {
                         const rItem = document.createElement('div');
                         rItem.className = 'comment-main';
                         const rTime = r.timestamp ? new Date(r.timestamp.toDate()).toLocaleDateString() : 'Just now';
+                        const rCanDelete = user && (user.uid === r.userId || localStorage.getItem('isAdmin'));
+                        
                         rItem.innerHTML = `
                             <img src="${r.userPhoto}" class="comment-author-pic">
                             <div class="comment-text-content">
                                 <span class="comment-author-name">${r.userName}</span>
-                                <span class="comment-text">${r.text}</span>
-                                <div class="comment-meta"><span>${rTime}</span></div>
+                                <span class="comment-text">${highlightMentions(r.text)}</span>
+                                <div class="comment-meta">
+                                    <span>${rTime}</span>
+                                    <button class="comment-reply-btn" onclick="window.setReply('${c.id}', '${r.userName}')">Reply</button>
+                                    ${rCanDelete ? `<button class="comment-delete-btn" title="Delete Comment" onclick="window.deleteComment('${r.id}')">${deleteIcon}</button>` : ''}
+                                </div>
                             </div>
                         `;
                         repliesContainer.appendChild(rItem);
                     });
+                    item.appendChild(toggleBtn);
                     item.appendChild(repliesContainer);
                 }
                 container.appendChild(item);
             });
         }
+
+        // Global functions for comments
+        window.deleteComment = async (id) => {
+            if (!confirm("Remove this comment and all its replies?")) return;
+            try {
+                // Fetch all replies to this comment first
+                const q = query(collection(db, 'memory_comments'), where('parentId', '==', id));
+                const snap = await getDocs(q);
+                
+                // Delete the comment itself
+                await deleteDoc(doc(db, 'memory_comments', id));
+                
+                // Delete all its replies from Firestore
+                const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+                await Promise.all(deletePromises);
+                
+                showToast("Comment thread removed.", "success");
+            } catch (e) {
+                console.error("Delete Error:", e);
+                showToast("You don't have permission to delete this.", "error");
+            }
+        };
 
         // Static Close Panel Logic (Only needs to be set once, but inside the loop for safety in this structure)
         const setupGlobalPanelClose = () => {
@@ -937,17 +1236,42 @@ export function loadMemories() {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     reel.classList.add('is-visible');
-                    if (video) video.play().catch(() => {});
-                    if (backgroundAudio) backgroundAudio.play().catch(() => {});
-                    
+                    if (video) {
+                        video.muted = isGlobalMuted;
+                        if (!isGlobalPaused) {
+                            video.play().catch(() => {});
+                            const vContainer = reel.querySelector('.video-container');
+                            if (vContainer) vContainer.classList.remove('paused');
+                        } else {
+                            video.pause();
+                            const vContainer = reel.querySelector('.video-container');
+                            if (vContainer) vContainer.classList.add('paused');
+                        }
+                    }
+                    if (backgroundAudio) {
+                        backgroundAudio.muted = isGlobalMuted;
+                        if (!isGlobalPaused) backgroundAudio.play().catch(() => {});
+                        else backgroundAudio.pause();
+                    }
+
                     // Handle carousels specifically
                     if (carousel) {
                         const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
-                        const v = carousel.querySelectorAll('.carousel-item')[index]?.querySelector('video');
-                        if (v) v.play().catch(() => {});
+                        const items = carousel.querySelectorAll('.carousel-item');
+                        const v = items[index]?.querySelector('video');
+                        const container = items[index]?.querySelector('.video-container');
+                        if (v) {
+                            v.muted = isGlobalMuted;
+                            if (!isGlobalPaused) {
+                                v.play().catch(() => {});
+                                if (container) container.classList.remove('paused');
+                            } else {
+                                v.pause();
+                                if (container) container.classList.add('paused');
+                            }
+                        }
                     }
-                } else {
-                    reel.classList.remove('is-visible');
+                } else {                    reel.classList.remove('is-visible');
                     if (video) { video.pause(); video.currentTime = 0; }
                     if (backgroundAudio) { backgroundAudio.pause(); backgroundAudio.currentTime = 0; }
                     
@@ -966,53 +1290,118 @@ export function loadMemories() {
 }
 
 function setupArchiveGrid(memories) {
+    console.log("Setting up Archive Grid with", memories?.length, "items");
     const openBtn = document.getElementById('open-grid');
     const closeBtn = document.getElementById('close-grid');
     const overlay = document.getElementById('grid-overlay');
     const grid = document.getElementById('archive-grid');
     const reelsContainer = document.getElementById('memories-container');
+    const filterBtns = document.querySelectorAll('.filter-btn');
 
-    if (!openBtn || !overlay || !grid || !reelsContainer) return;
+    if (!openBtn || !overlay || !grid || !reelsContainer) {
+        console.warn("Archive grid elements not found:", { openBtn: !!openBtn, overlay: !!overlay, grid: !!grid, reelsContainer: !!reelsContainer });
+        return;
+    }
 
-    openBtn.onclick = () => {
-        // Populate Grid
-        grid.innerHTML = '';
-        memories.forEach((item, index) => {
-            const meta = item.meta;
-            if (meta.private && !localStorage.getItem('private_unlocked')) return;
+    let currentFilter = 'all';
+    let cherishedIds = new Set();
 
-            const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
+    const fetchCherished = async () => {
+        try {
+            const user = auth.currentUser;
+            if (!user) return;
+            // Fetch documents directly from shared_profile_data where id starts with cherished_
+            // Using where memoryId != null as a filter for cherished docs
+            const q = query(collection(db, 'shared_profile_data'), where('memoryId', '!=', null));
+            const snap = await getDocs(q);
+            cherishedIds = new Set(
+                snap.docs
+                    .filter(d => d.id.startsWith('cherished_') && !d.data().removed)
+                    .map(d => d.data().memoryId)
+            );
+            console.log("Fetched", cherishedIds.size, "cherished items.");
+        } catch (e) {
+            console.error("Error fetching cherished memories:", e);
+        }
+    };
+
+    const renderGrid = () => {
+        try {
+            grid.innerHTML = '';
+            const isPrivateUnlocked = localStorage.getItem('private_unlocked');
             
-            const gridItem = document.createElement('div');
-            gridItem.className = 'grid-item';
-            gridItem.innerHTML = `
-                <img src="${thumb}" loading="lazy">
-                <div class="grid-item-type">
-                    ${meta.video ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>' : (meta.images?.length > 1 ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><rect x="3" y="3" width="13" height="13" rx="2" ry="2"></rect><path d="M21 8v10a3 3 0 0 1-3 3H8"></path></svg>' : '')}
-                </div>
-                <div class="grid-item-title">${meta.title}</div>
-            `;
-
-            gridItem.onclick = () => {
-                overlay.classList.remove('active');
-                const reelElements = reelsContainer.querySelectorAll('.reel-item');
-                // Find the reel with this data-id to be safe
-                const targetId = item.folder || `user-${index}`;
-                const targetReel = Array.from(reelElements).find(r => r.dataset.id === targetId);
+            const filtered = memories.filter((item, index) => {
+                const meta = item?.meta;
+                if (!meta) return false;
+                if (meta.private && !isPrivateUnlocked) return false;
                 
-                if (targetReel) {
-                    targetReel.scrollIntoView({ behavior: 'auto' });
+                if (currentFilter === 'cherished') {
+                    const id = item.folder || `user-${index}`;
+                    return cherishedIds.has(id);
                 }
-            };
+                return true;
+            });
 
-            grid.appendChild(gridItem);
-        });
+            console.log("Rendering grid with", filtered.length, "items (Filter:", currentFilter, ")");
 
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">No memories found here yet. ✨</div>`;
+                return;
+            }
+
+            filtered.forEach((item) => {
+                const meta = item.meta;
+                const thumb = (meta.thumbs?.length) ? resolvePath(meta.thumbs[0], item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
+                
+                const gridItem = document.createElement('div');
+                gridItem.className = 'grid-item';
+                gridItem.innerHTML = `
+                    <img src="${thumb}" loading="lazy">
+                    <div class="grid-item-type">
+                        ${meta.video ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>' : (meta.images?.length > 1 ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><rect x="3" y="3" width="13" height="13" rx="2" ry="2"></rect><path d="M21 8v10a3 3 0 0 1-3 3H8"></path></svg>' : '')}
+                    </div>
+                    <div class="grid-item-title">${meta.title || 'Untitled'}</div>
+                `;
+
+                gridItem.onclick = () => {
+                    overlay.classList.remove('active');
+                    const targetId = item.folder || `user-${memories.indexOf(item)}`;
+                    const targetReel = Array.from(reelsContainer.querySelectorAll('.reel-item')).find(r => r.dataset.id === targetId);
+                    if (targetReel) targetReel.scrollIntoView({ behavior: 'auto' });
+                };
+                grid.appendChild(gridItem);
+            });
+        } catch (e) {
+            console.error("Error rendering grid:", e);
+        }
+    };
+
+    openBtn.onclick = async () => {
+        console.log("Archive grid opening...");
         overlay.classList.add('active');
+        renderGrid(); // Initial render with available data
+        
+        // Background fetch cherished items
+        await fetchCherished();
+        
+        // Only re-render if we actually got some cherished items or if we are on the cherished filter
+        if (cherishedIds.size > 0 || currentFilter === 'cherished') {
+            renderGrid();
+        }
     };
 
     if (closeBtn) closeBtn.onclick = () => overlay.classList.remove('active');
     overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.remove('active'); };
+
+    filterBtns.forEach(btn => {
+        btn.onclick = () => {
+            console.log("Changing grid filter to:", btn.dataset.filter);
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            renderGrid();
+        };
+    });
 }
 
 export function loadGallery() {
@@ -1377,17 +1766,9 @@ function initMemoryScrollbar() {
     });
 }
 
-function setupPrivacyToggle(id) {
-    const btn = document.getElementById(id); if (!btn) return;
-    const isUnlocked = localStorage.getItem('private_unlocked');
-    if (isUnlocked) { btn.textContent = "Hide Private"; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; } 
-    else { btn.textContent = "Private Access"; btn.style.opacity = '0'; btn.style.pointerEvents = 'none'; initSecretGesture(btn); }
-    btn.onclick = () => {
-        if (isUnlocked) { localStorage.removeItem('private_unlocked'); location.reload(); } 
-        else { showPrivatePrompt(); }
-    };
+function setupPrivacyToggle() {
+    initSecretGesture();
 }
-
 function showPrivatePrompt() {
     if (document.getElementById('private-prompt')) {
         const p = document.getElementById('private-prompt');
@@ -1446,18 +1827,17 @@ function showPrivatePrompt() {
     };
 }
 
-function initSecretGesture(btn) {
+function initSecretGesture() {
     const logo = document.querySelector('.nav-brand');
     if (!logo) return;
     
-    // Cleanup any existing elements from previous calls or old logic
+    // Cleanup any existing elements
     document.getElementById('secret-loader')?.remove();
-    document.getElementById('secret-timer')?.remove();
 
     if (logo.dataset.gestureInitialized) return;
     logo.dataset.gestureInitialized = 'true';
 
-    let holdStart = 0, frameId = null, unlocked = false, hideTimeout = null;
+    let holdStart = 0, frameId = null, unlocked = false;
     const REQUIRED_TIME = 3000;
     
     // Unified Visual: Circle with number inside
@@ -1487,13 +1867,6 @@ function initSecretGesture(btn) {
     `;
     document.body.appendChild(loader);
 
-    const hideButton = () => {
-        unlocked = false;
-        btn.style.opacity = '0';
-        btn.style.pointerEvents = 'none';
-        logo.style.textShadow = 'none';
-    };
-
     const updateVisuals = () => {
         if (unlocked) return;
         if (!holdStart) {
@@ -1515,18 +1888,22 @@ function initSecretGesture(btn) {
 
         if (progress >= 1) {
             unlocked = true;
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
-            btn.textContent = "🔒 Show Private";
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             
             loader.style.opacity = '0';
             logo.style.transform = 'scale(1)';
             logo.style.textShadow = '0 0 20px var(--accent-primary)';
             
-            // Start 30s auto-hide timer
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(hideButton, 30000);
+            const isUnlocked = localStorage.getItem('private_unlocked');
+            if (isUnlocked) {
+                // Already showing private media, so hide it
+                localStorage.removeItem('private_unlocked');
+                sessionStorage.setItem('show_vault_locked_toast', 'true');
+                location.reload();
+            } else {
+                // Directly trigger the vault prompt
+                showPrivatePrompt();
+            }
             
             setTimeout(() => { loader.style.display = 'none'; }, 300);
         } else {
@@ -1535,10 +1912,8 @@ function initSecretGesture(btn) {
     };
 
     const resetGesture = () => {
-        const isLongHold = holdStart && (Date.now() - holdStart > 500);
-        if (unlocked && !isLongHold) return; 
-        
-        if (!unlocked) holdStart = 0;
+        if (unlocked) return; 
+        holdStart = 0;
         cancelAnimationFrame(frameId);
         updateVisuals();
     };
@@ -1555,10 +1930,6 @@ function initSecretGesture(btn) {
     window.addEventListener('mouseup', resetGesture, true);
     window.addEventListener('touchend', resetGesture, true);
     logo.addEventListener('mouseleave', resetGesture);
-
-    btn.addEventListener('click', () => {
-        clearTimeout(hideTimeout);
-    });
 
     logo.onclick = (e) => {
         const elapsed = holdStart ? Date.now() - holdStart : 0;
