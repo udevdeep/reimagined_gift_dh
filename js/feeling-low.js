@@ -1211,10 +1211,13 @@ window.releaseWorry = () => {
     if(!input?.value.trim()) return;
     const plane = document.createElement('div'); plane.className = 'paper-plane';
     plane.innerHTML = `<svg viewBox="0 0 24 24" fill="white"><path d="M2 12L22 2L15 22L11 13L2 12Z" stroke="#333"/></svg>`;
-    const r = box.getBoundingClientRect(); plane.style.left = (r.left + r.width/2)+'px'; plane.style.top = (r.top + r.height/2)+'px';
+    const r = box.getBoundingClientRect(); 
+    // Fix: Add window.scrollX/Y to get absolute page coordinates instead of viewport coordinates
+    plane.style.left = (window.scrollX + r.left + r.width/2)+'px'; 
+    plane.style.top = (window.scrollY + r.top + r.height/2)+'px';
     plane.style.transform = `translate(-50%,-50%) rotate(${(Math.random()-0.5)*30}deg)`;
     document.body.appendChild(plane); input.value = '';
-    setTimeout(() => plane.classList.add('fly-away'), 50); setTimeout(() => plane.remove(), 3100);
+    setTimeout(() => plane.classList.add('fly-away'), 50); setTimeout(() => plane.remove(), 8100);
 };
 
 window.burnVent = () => {
@@ -1271,11 +1274,47 @@ window.toggleAloneCard = (card) => {
         if (window.innerWidth > 768) {
             if (nav) nav.classList.add('hidden');
             if (tab) tab.style.display = 'block';
+        } else {
+            // UI/UX Expert Fix: Hide top buttons on mobile to avoid overlap
+            const backBtn = document.getElementById('back-link-container');
+            const giftBtn = document.getElementById('gift-btn-container');
+            
+            const handleMobileNoteScroll = () => {
+                const rect = card.getBoundingClientRect();
+                // If the top of the card is below 60px, show the buttons again
+                if (rect.top > 60) {
+                    if (backBtn) backBtn.style.opacity = '1';
+                    if (giftBtn) giftBtn.style.opacity = '1';
+                    if (backBtn) backBtn.style.pointerEvents = 'auto';
+                    if (giftBtn) giftBtn.style.pointerEvents = 'auto';
+                } else {
+                    if (backBtn) backBtn.style.opacity = '0';
+                    if (giftBtn) giftBtn.style.opacity = '0';
+                    if (backBtn) backBtn.style.pointerEvents = 'none';
+                    if (giftBtn) giftBtn.style.pointerEvents = 'none';
+                }
+            };
+
+            if (backBtn) { backBtn.style.transition = 'opacity 0.3s'; }
+            if (giftBtn) { giftBtn.style.transition = 'opacity 0.3s'; }
+            
+            window.addEventListener('scroll', handleMobileNoteScroll);
+            handleMobileNoteScroll(); // Initial check
+            
+            // Store reference to remove it later
+            card._scrollHandler = handleMobileNoteScroll;
         }
         setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); 
     }
     else {
         card.classList.remove('resonance-card');
+        if (window.innerWidth <= 768) {
+            const backBtn = document.getElementById('back-link-container');
+            const giftBtn = document.getElementById('gift-btn-container');
+            if (backBtn) { backBtn.style.opacity = '1'; backBtn.style.pointerEvents = 'auto'; }
+            if (giftBtn) { giftBtn.style.opacity = '1'; giftBtn.style.pointerEvents = 'auto'; }
+            window.removeEventListener('scroll', card._scrollHandler);
+        }
         if (nav) nav.classList.remove('hidden');
         if (tab) tab.style.display = 'none';
     }
