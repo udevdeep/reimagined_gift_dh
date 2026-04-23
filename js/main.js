@@ -1609,7 +1609,13 @@ export function loadJokes() {
         }
     };
     const onEnd = () => {
-        physicsBubbles.forEach(b => b.isDragging = false);
+        physicsBubbles.forEach(b => {
+            b.isDragging = false;
+            b.isHovered = false;
+        });
+        // UI/UX Expert Fix: Reset mouse position so bubbles stop repelling the last touch area
+        mouse.x = -1000;
+        mouse.y = -1000;
     };
 
     window.onmousemove = onMove;
