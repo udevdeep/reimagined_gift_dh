@@ -1,28 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { initializeFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { auth, db, storage } from "./main.js";
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
 import { upload } from "https://esm.sh/@vercel/blob@0.22.1/client";
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDwNkXXzs_mhFNqOwI_NYtB-n6H_g93Pd4",
-    authDomain: "dharchive-9f1a9.firebaseapp.com",
-    projectId: "dharchive-9f1a9",
-    storageBucket: "dharchive-9f1a9.firebasestorage.app",
-    messagingSenderId: "485441238973",
-    appId: "1:485441238973:web:7a28ff735f8ec19b1744d4",
-    measurementId: "G-4ZP822MQ5J"
-};
-
-const app = initializeApp(FIREBASE_CONFIG);
-const auth = getAuth(app);
-
-// Use initializeFirestore with long-polling to fix "access control check" / CORS-like errors
-const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true
-});
-const storage = getStorage(app);
+// --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
 /* Auth */
 const loginBtn = document.getElementById('login-btn');
