@@ -472,7 +472,14 @@ function initCinematicScroll() {
     let currentScroll = 0;
     let scrollActive = true;
     let resumeTimeout = null;
-    const speed = 0.8; 
+    
+    // UI/UX Expert Fix: Adjust speed based on device capability and screen size
+    const isMobile = window.innerWidth <= 768;
+    const speed = isMobile ? 0.45 : 0.6; 
+
+    // Performance Optimization: Force 'auto' to prevent stutter conflict with CSS smooth scroll
+    container.style.scrollBehavior = 'auto';
+    container.style.willChange = 'scroll-position';
 
     // --- Navbar & Indicator logic from old code ---
     let mouseAtTop = true;

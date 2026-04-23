@@ -1618,6 +1618,9 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
     z-index: 10; 
     position: relative; 
     
+    /* UI/UX Expert Fix: Prevent bounce stutter on mobile */
+    overscroll-behavior: none;
+    
     /* Cinematic Fade Mask: Text emerges from and vanishes into the void */
     mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
     -webkit-mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
