@@ -2030,7 +2030,7 @@ function addToMap(lat, lon, thumb, index, mapList) {
         iconAnchor: [22, 44]
     });
     const marker = L.marker([lat, lon], { icon }).addTo(window.map);
-    marker.bindPopup(`<div style="text-align:center;"><img src="${thumb}" style="width:120px; height:80px; object-fit:cover; border-radius:5px; margin-bottom:5px;"><br><span style="font-size:0.8rem; font-weight:bold; color:#333;">Click to Open Evidence</span></div>`, { closeButton: false, offset: [0, -10] });
+    marker.bindPopup(`<div style="text-align:center;"><img src="${thumb}" style="width:120px; height:80px; object-fit:cover; border-radius:5px; margin-bottom:5px;"><br><span style="font-size:0.8rem; font-weight:bold; color:#fff;">Click to Open Evidence</span></div>`, { closeButton: false, offset: [0, -10] });
     marker.on('mouseover', function() { this.openPopup(); });
     marker.on('mouseout', function() { this.closePopup(); });
     marker.on('click', () => openLightbox(index, mapList));
