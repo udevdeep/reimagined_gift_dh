@@ -577,15 +577,20 @@ async function deleteFilesForDoc(col, id, data) {
     // Helper: translate URL or path to Storage Ref
     const getRefFromUrl = (url) => {
         if (!url || typeof url !== 'string') return null;
-        // Ignore Vercel Blobs or local files
-        if (url.includes('vercel-storage.com') || url.startsWith('/') || url.startsWith('http://localhost')) return null;
+        // Ignore Vercel Blobs, relative paths, or local files
+        if (url.includes('vercel-storage.com') || url.startsWith('/') || url.startsWith('http://localhost') || url.startsWith('blob:')) return null;
+        
         try {
-            // Firebase Storage URLs contain "firebasestorage.googleapis.com"
+            // Firebase Storage check: verify it belongs to your bucket
             if (url.includes('firebasestorage.googleapis.com')) {
+                // If it's a full Firebase URL, ref(storage, url) will handle it automatically
                 return ref(storage, url);
             }
             return null;
-        } catch(e) { return null; }
+        } catch(e) { 
+            console.warn("Invalid URL for storage ref:", url);
+            return null; 
+        }
     };
 
     // 1. Check primary media (src or videoUrl)
