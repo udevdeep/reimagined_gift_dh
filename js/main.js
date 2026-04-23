@@ -19,7 +19,8 @@ export const auth = getAuth(app);
 
 // Use initializeFirestore with long-polling to fix "access control check" / CORS-like errors
 export const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
 });
 export const storage = getStorage(app);
 

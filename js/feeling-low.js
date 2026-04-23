@@ -606,14 +606,22 @@ export function toggleGame() {
 window.toggleGame = toggleGame;
 
 function saveHighScore(score) {
+    if (score <= (window.currentHighScore || 0)) return;
+    window.currentHighScore = score;
     localStorage.setItem('star_drive_highscore', score);
-    setDoc(doc(db, 'global_state', 'star_drive'), { highScore: score }, { merge: true })
-        .then(() => {
-            if (document.getElementById('game-container')?.style.display === 'block') {
-                showToast("New Global High Score! 🚀", "success");
-            }
-        })
-        .catch(console.error);
+    
+    setDoc(doc(db, 'global_state', 'star_drive'), { 
+        highScore: score,
+        updatedAt: Date.now(),
+        lastPlayer: auth.currentUser?.displayName || "Friend"
+    }, { merge: true })
+    .then(() => {
+        showToast("New Global High Score! 🚀", "success");
+        // Update both possible score elements
+        const fullHigh = document.getElementById('full-game-high');
+        if (fullHigh) fullHigh.textContent = score;
+    })
+    .catch(console.error);
 }
 
 async function loadHighScore() {
@@ -622,8 +630,10 @@ async function loadHighScore() {
         if (snap.exists()) {
             window.currentHighScore = snap.data().highScore || 0;
             localStorage.setItem('star_drive_highscore', window.currentHighScore);
+            const fullHigh = document.getElementById('full-game-high');
+            if (fullHigh) fullHigh.textContent = window.currentHighScore;
         }
-    } catch(e) {}
+    } catch(e) { console.error("High score sync error:", e); }
 }
 
 /* --- FAMILIAR SOUNDS & VISUALIZER --- */
