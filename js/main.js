@@ -1863,8 +1863,17 @@ function showPrivatePrompt() {
         toggleBtn.textContent = input.type === 'password' ? '👁️' : '🙈';
     };
 
-    form.onsubmit = (e) => {
+    form.onsubmit = async (e) => {
         e.preventDefault();
+        
+        // Final attempt to fetch key if it's missing (fixes 'Key not loaded' bug)
+        if (!window.SECRET_KEY) {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'secrets'));
+                if (snap.exists()) window.SECRET_KEY = snap.data().privateKey;
+            } catch(err) { console.error("Emergency key fetch failed:", err); }
+        }
+
         const target = window.SECRET_KEY;
         if (!target) {
             msg.textContent = 'System error: Key not loaded.';
