@@ -359,7 +359,11 @@ async function loadAllData() {
             if (JSON.stringify(freshGallery) !== JSON.stringify(GALLERY_DATA)) {
                 GALLERY_DATA = freshGallery; window.GALLERY_DATA = GALLERY_DATA;
                 sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
-                if (document.getElementById('gallery-grid')) loadGallery();
+                const grid = document.getElementById('gallery-grid');
+                if (grid) {
+                    grid.innerHTML = ''; // Force clear stale media
+                    loadGallery();
+                }
                 changed = true;
             }
         }

@@ -537,14 +537,20 @@ window.toggleSelectAll = () => {
 
 window.deleteSelectedItems = async () => {
     const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');
-    if (!checked.length || !confirm(`Delete ${checked.length} items and all their associated data?`)) return;
+    if (!checked.length || !confirm(`Delete ${checked.length} items and all their files?`)) return;
     
-    const batch = writeBatch(db);
     const ids = Array.from(checked).map(cb => cb.dataset.id);
+    const batch = writeBatch(db);
     
     try {
+        // Storage cleanup requires async await, we must do it before commit
         for (const id of ids) {
-            batch.delete(doc(db, col, id));
+            const docRef = doc(db, col, id);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                await deleteFilesForDoc(col, id, snap.data());
+            }
+            batch.delete(docRef);
             
             // Collect associated data for cleanup
             if (col === 'memories' || col === 'gallery') {
@@ -557,7 +563,7 @@ window.deleteSelectedItems = async () => {
             }
         }
         await batch.commit();
-        showToast(`Successfully deleted ${ids.length} items.`, "success");
+        showToast(`Successfully deleted ${ids.length} items and files.`, "success");
         loadContentList();
     } catch (e) {
         console.error("Batch delete error:", e);
@@ -565,32 +571,73 @@ window.deleteSelectedItems = async () => {
     }
 };
 
+async function deleteFilesForDoc(col, id, data) {
+    const filePromises = [];
+
+    // Helper: translate URL or path to Storage Ref
+    const getRefFromUrl = (url) => {
+        if (!url || typeof url !== 'string') return null;
+        // Ignore Vercel Blobs or local files
+        if (url.includes('vercel-storage.com') || url.startsWith('/') || url.startsWith('http://localhost')) return null;
+        try {
+            // Firebase Storage URLs contain "firebasestorage.googleapis.com"
+            if (url.includes('firebasestorage.googleapis.com')) {
+                return ref(storage, url);
+            }
+            return null;
+        } catch(e) { return null; }
+    };
+
+    // 1. Check primary media (src or videoUrl)
+    const primaryRef = getRefFromUrl(data.src || data.videoUrl);
+    if (primaryRef) filePromises.push(deleteObject(primaryRef).catch(e => console.warn("Storage delete failed (primary):", e)));
+
+    // 2. Check thumbnail
+    const thumbRef = getRefFromUrl(data.thumb || data.thumbnailUrl);
+    if (thumbRef) filePromises.push(deleteObject(thumbRef).catch(e => console.warn("Storage delete failed (thumb):", e)));
+
+    // 3. Check specific storagePath field if it exists
+    if (data.storagePath) {
+        const pathRef = ref(storage, data.storagePath);
+        filePromises.push(deleteObject(pathRef).catch(e => console.warn("Storage delete failed (path):", e)));
+    }
+
+    await Promise.all(filePromises);
+}
+
 window.deleteItem = async (col, id) => {
-    if(!confirm("Permanently delete this and all its associated data (comments, likes, etc.)?")) return;
+    if(!confirm("Permanently delete this and all its associated data (Files, comments, etc.)?")) return;
     try {
-        await deleteDoc(doc(db, col, id));
-        
-        // Recursive Cleanup for memories and gallery
+        // 1. Fetch data first to get file paths
+        const docRef = doc(db, col, id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            await deleteFilesForDoc(col, id, snap.data());
+        }
+
+        // 2. Delete the main document
+        await deleteDoc(docRef);
+
+        // 3. Recursive Cleanup for memories and gallery (comments, etc.)
         if (col === 'memories' || col === 'gallery') {
             const commentQuery = query(collection(db, 'memory_comments'), where('memoryId', '==', id));
             const commentSnap = await getDocs(commentQuery);
             const deletePromises = commentSnap.docs.map(d => deleteDoc(d.ref));
-            
+
             // Clean up shared profile state
             deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `cherished_${id}`)));
             deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `vibe_${id}`)));
-            
+
             await Promise.all(deletePromises);
         }
-        
-        showToast("Deleted and cleaned up!", "success");
+
+        showToast("Deleted everything!", "success");
         loadContentList();
     } catch (e) {
         console.error("Delete error:", e);
         showToast("Error during deletion", "error");
     }
 };
-
 window.signOutUser = async () => {
     try {
         await signOut(auth);
