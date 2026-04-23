@@ -1999,16 +1999,22 @@ async function initMap() {
         markerZoomAnimation: true
     }).setView([20, 0], 2);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
         maxZoom: 19
     }).addTo(window.map);
+    
+    // UI/UX Expert Fix: Apply a slight brightness filter to the map tiles only
+    const tiles = mapEl.querySelector('.leaflet-tile-pane');
+    if (tiles) tiles.style.filter = 'brightness(0.8) contrast(1.1) saturate(0.8)';
 }
 
 function updateMapMarkers() {
     if (!window.map) return;
-    const mapList = galleryState.filter(item => item.lat && item.lon);
+    // Expert Fix: Use window.GALLERY_DATA which is already sorted and fetched
+    const mapList = (window.GALLERY_DATA || []).filter(item => item.lat && item.lon);
+    console.log("Updating Map Markers with", mapList.length, "items.");
+    
     const bounds = [];
-
     mapList.forEach((item, index) => {
         addToMap(item.lat, item.lon, item.thumb || item.src, index, mapList);
         bounds.push([item.lat, item.lon]);
@@ -2019,12 +2025,12 @@ function updateMapMarkers() {
 function addToMap(lat, lon, thumb, index, mapList) {
     const icon = L.divIcon({
         className: 'custom-map-marker',
-        html: `<div class="marker-thumb" style="background-image: url(${thumb})"></div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40]
+        html: `<div class="marker-thumb" style="background-image: url(${thumb}); border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.5);"></div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 44]
     });
     const marker = L.marker([lat, lon], { icon }).addTo(window.map);
-    marker.bindPopup(`<img src="${thumb}" style="width:100px; border-radius:5px; margin-bottom:5px;"><br>Click to view`, { closeButton: false, offset: [0, -10] });
+    marker.bindPopup(`<div style="text-align:center;"><img src="${thumb}" style="width:120px; height:80px; object-fit:cover; border-radius:5px; margin-bottom:5px;"><br><span style="font-size:0.8rem; font-weight:bold; color:#333;">Click to Open Evidence</span></div>`, { closeButton: false, offset: [0, -10] });
     marker.on('mouseover', function() { this.openPopup(); });
     marker.on('mouseout', function() { this.closePopup(); });
     marker.on('click', () => openLightbox(index, mapList));
