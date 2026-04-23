@@ -81,7 +81,7 @@ function initAll() {
     try { initTheme(); } catch(e) { console.warn("Theme init failed", e); }
     try { applyCacheImmediate(); } catch(e) { console.warn("Cache apply failed", e); }
     try { initFirebaseLock(); } catch(e) { console.warn("Firebase lock init failed", e); }
-    try { handleMobileNav(); } catch(e) { console.warn("Nav init failed", e); }
+    try { initMobileMenu(); } catch(e) { console.warn("Mobile menu init failed", e); }
     
     const introVideo = document.getElementById('intro-video');
     if (introVideo) {
@@ -90,6 +90,34 @@ function initAll() {
     }
     
     window.addEventListener('resize', handleMobileNav);
+}
+
+function initMobileMenu() {
+    const kebabBtn = document.getElementById('kebab-menu-btn');
+    const nav = document.querySelector('.navbar');
+    if (!kebabBtn) return;
+
+    kebabBtn.onclick = (e) => {
+        e.stopPropagation();
+        document.body.classList.toggle('menu-active');
+    };
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (document.body.classList.contains('menu-active')) {
+            const links = document.querySelector('.nav-links');
+            if (links && !links.contains(e.target) && !kebabBtn.contains(e.target)) {
+                document.body.classList.remove('menu-active');
+            }
+        }
+    });
+
+    // Close on scroll
+    window.addEventListener('scroll', () => {
+        if (document.body.classList.contains('menu-active')) {
+            document.body.classList.remove('menu-active');
+        }
+    }, { passive: true });
 }
 
 if (document.readyState === 'loading') {
@@ -493,6 +521,13 @@ function initCinematicScroll() {
             else indicator.classList.remove('hidden');
         }
 
+        // UI/UX Expert Fix: If cinematic scroll is active, ALWAYS hide navbar 
+        // to prevent distraction from the letter narrative.
+        if (scrollActive) {
+            nav.classList.add('navbar-hidden');
+            return;
+        }
+
         if (wasAtTop || mouseAtTop) {
             nav.classList.remove('navbar-hidden');
         } else if (currentScroll > 100) {
@@ -579,30 +614,6 @@ let isGlobalMuted = false;
 export function loadMemories() {
     const container = document.getElementById('memories-container');
     if (!container) return;
-
-    // Kebab Menu Toggle (Mobile)
-    const kebabBtn = document.getElementById('kebab-menu-btn');
-    const navbar = document.querySelector('.navbar');
-    if (kebabBtn && navbar) {
-        kebabBtn.onclick = (e) => {
-            e.stopPropagation();
-            document.body.classList.toggle('menu-active');
-        };
-
-        // Close on scroll
-        container.addEventListener('scroll', () => {
-            if (document.body.classList.contains('menu-active')) document.body.classList.remove('menu-active');
-        }, { passive: true });
-
-        // Close on outside click
-        document.addEventListener('click', (e) => {
-            if (!navbar.contains(e.target) && document.body.classList.contains('menu-active')) {
-                const dock = document.querySelector('.mobile-dock');
-                if (dock && dock.contains(e.target)) return; // Don't close if clicking the dock itself
-                document.body.classList.remove('menu-active');
-            }
-        });
-    }
 
     // Privacy Toggle Logic
     setupPrivacyToggle('private-toggle');

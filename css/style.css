@@ -704,7 +704,7 @@ p {
       position: fixed !important;
       bottom: 20px !important;
       left: 50% !important;
-      transform: translateX(-50%);
+      transform: translateX(-50%) translateY(120px); /* Hidden by default */
       width: calc(100% - 30px); 
       min-width: 280px;
       max-width: 440px;
@@ -721,6 +721,15 @@ p {
       padding: 8px 10px;
       z-index: 3000; /* Increased to stay above everything */
       margin-top: 0;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+  }
+
+  body.menu-active .nav-links {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
   }
   
   .nav-links a {
@@ -737,6 +746,29 @@ p {
   .nav-links a.active {
       color: var(--text-main);
       background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Kebab Button Visibility on Mobile */
+  .kebab-btn {
+      display: none; /* Default */
+      background: var(--nav-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 3001;
+      position: relative;
+  }
+
+  @media (max-width: 768px) {
+      .kebab-btn {
+          display: flex;
+      }
   }
 
   /* Specific fix for memories page pill box on mobile */
