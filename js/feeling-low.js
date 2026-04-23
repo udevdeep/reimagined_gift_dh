@@ -8,7 +8,7 @@ import { showToast, formatNoteText } from "./utils.js";
 
 /* --- GLOBAL & SHARED STATE --- */
 window.gameActive = false;
-window.animationFrameId = null;
+let currentAnimId = null;
 window.currentHighScore = parseInt(localStorage.getItem('star_drive_highscore') || '0');
 
 /* --- TABS --- */
