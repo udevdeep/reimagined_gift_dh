@@ -715,11 +715,11 @@ p {
       border-radius: 40px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       display: flex;
-      justify-content: center; /* Center the links with a gap */
+      justify-content: center;
       gap: 5px;
       align-items: center;
       padding: 8px 10px;
-      z-index: 3000; /* Increased to stay above everything */
+      z-index: 3000;
       margin-top: 0;
       opacity: 0;
       transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -733,7 +733,6 @@ p {
   }
   
   .nav-links a {
-      /* Fluid font size: Min 0.7rem, scales with 2% of screen width, Max 0.9rem */
       font-size: clamp(0.7rem, 2.2vw, 0.9rem); 
       padding: 8px clamp(6px, 1.5vw, 12px); 
       white-space: nowrap;
@@ -748,15 +747,16 @@ p {
       background: rgba(255, 255, 255, 0.05);
   }
 
-  /* Kebab Button Visibility on Mobile */
+  /* Force Kebab Button Visibility on all mobile pages */
   .kebab-btn {
-      display: none; /* Default */
+      display: flex !important;
       background: var(--nav-bg);
       backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--card-border);
       color: var(--text-main);
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       align-items: center;
       justify-content: center;
@@ -765,11 +765,6 @@ p {
       position: relative;
   }
 
-  @media (max-width: 768px) {
-      .kebab-btn {
-          display: flex;
-      }
-  }
 
   /* Specific fix for memories page pill box on mobile */
   .memories-page .nav-pill-left {
