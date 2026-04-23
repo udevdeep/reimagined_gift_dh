@@ -171,8 +171,8 @@
             bottom: 32px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 20, 35, 0.4); /* More transparent */
-            backdrop-filter: blur(25px); /* Increased blur */
+            background: rgba(15, 20, 35, 0.4);
+            backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 100px;
@@ -182,6 +182,34 @@
             z-index: 1000;
             box-shadow: 0 20px 50px rgba(0,0,0,0.4);
             transition: all 0.3s ease;
+        }
+
+        .tab-label { display: none; } /* Default: Icons only */
+
+        @media (max-width: 768px) {
+            .tab-bar {
+                top: 80px; /* Positioned below the Back/Gift buttons */
+                bottom: auto;
+                width: calc(100% - 32px);
+                max-width: 440px;
+                padding: 4px;
+                gap: 4px;
+            }
+            .tab-btn {
+                flex: 1;
+                height: 44px;
+                flex-direction: row;
+                gap: 6px;
+                padding: 0 10px;
+            }
+            .tab-label { 
+                display: block; 
+                font-size: 0.75rem; 
+                font-weight: 500;
+            }
+            #main-view {
+                padding-top: 150px; /* Space for the new top nav */
+            }
         }
 
         /* Breathing Prompt */
@@ -692,6 +720,26 @@
         <button id="reel-close" onclick="closeReel()" style="position:relative; z-index:2; display:none; margin-top: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--text-main); padding: 10px 30px; border-radius: 30px; cursor: pointer;">Close ✨</button>
     </div>
 
+    <!-- Tab Bar (Moved to Top for mobile via CSS) -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('home')" title="Pause">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span class="tab-label">Pause</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('release')" title="Release">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+            <span class="tab-label">Release</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('play')" title="Distractions">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><circle cx="15.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="18.5" cy="13.5" r=".5" fill="currentColor"></circle></svg>
+            <span class="tab-label">Play</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('Reflection')" title="Reflection">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+            <span class="tab-label">Reflect</span>
+        </button>
+    </div>
+
     <!-- Main Views -->
     <div id="main-view">
         
@@ -918,22 +966,6 @@
 
         </div>
 
-    </div>
-
-    <!-- Tab Bar -->
-    <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('home')" title="Pause">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        </button>
-        <button class="tab-btn" onclick="switchTab('release')" title="Release">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
-        </button>
-        <button class="tab-btn" onclick="switchTab('play')" title="Distractions">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><circle cx="15.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="18.5" cy="13.5" r=".5" fill="currentColor"></circle></svg>
-        </button>
-        <button class="tab-btn" onclick="switchTab('Reflection')" title="Reflection">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
-        </button>
     </div>
 
     <!-- Lightbox (Required for Emergency Smile) -->
