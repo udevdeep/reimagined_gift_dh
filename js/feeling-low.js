@@ -420,82 +420,93 @@ window.catApp = catApp;
         }
     }
 
-    window.initGame = function() {
-        if (!canvas || !ctx) return;
+    window.initGame = function(canvasId = 'bubble-canvas') {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Reset game state for this canvas
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width; canvas.height = rect.height;
         player.x = canvas.width / 2; player.y = canvas.height - 40;
         score = 0; speedMultiplier = 1; obstacles = []; gameState = 'start';
-        canvas.onclick = handleInput;
+        
+        // Mobile specific: show fullscreen button if on standard canvas
+        if (canvasId === 'bubble-canvas' && window.innerWidth <= 768) {
+            const fsBtn = document.getElementById('mobile-game-fullscreen');
+            if (fsBtn) fsBtn.style.display = 'block';
+            fsBtn.onclick = (e) => { e.stopPropagation(); openFullGame(); };
+        }
+
+        const handleGameInput = () => {
+            if (gameState === 'start' || gameState === 'gameover') startGame();
+            else if (gameState === 'paused') gameState = 'playing';
+        };
+
+        canvas.onclick = handleGameInput;
         canvas.ontouchstart = (e) => { 
             if (e.cancelable) e.preventDefault(); 
-            handleInput(); 
-            // Also update position on start so ship jumps to finger
+            handleGameInput(); 
             const r = canvas.getBoundingClientRect();
-            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top, canvas);
         };
-        const updatePos = (x, y) => {
+
+        const updatePos = (x, y, targetCanvas) => {
             if (gameState !== 'playing') return;
-            player.x = Math.max(player.size, Math.min(canvas.width - player.size, x));
-            player.y = Math.max(player.size, Math.min(canvas.height - player.size, y));
+            player.x = Math.max(player.size, Math.min(targetCanvas.width - player.size, x));
+            player.y = Math.max(player.size, Math.min(targetCanvas.height - player.size, y));
         };
-        canvas.onmousemove = (e) => { const r = canvas.getBoundingClientRect(); updatePos(e.clientX - r.left, e.clientY - r.top); };
+
+        canvas.onmousemove = (e) => { const r = canvas.getBoundingClientRect(); updatePos(e.clientX - r.left, e.clientY - r.top, canvas); };
         canvas.ontouchmove = (e) => { 
             if (e.cancelable) e.preventDefault(); 
             const r = canvas.getBoundingClientRect(); 
-            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); 
+            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top, canvas); 
         };
+
+        // Inner Game Loop
+        const tick = () => {
+            if (!window.gameActive || !ctx) return;
+            // Prevent background mini-canvas from running when overlay is active
+            if (canvasId === 'bubble-canvas' && document.getElementById('star-drive-overlay').style.display === 'flex') return;
+
+            ctx.fillStyle = 'rgba(15, 12, 41, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameState === 'start') {
+                drawCenteredText(ctx, canvas, "Star Drive", -20, "24px EB Garamond");
+                drawCenteredText(ctx, canvas, "Tap to Start", 20, "16px Inter", "#4facfe");
+                drawPlayer(ctx); 
+            } 
+            else if (gameState === 'playing') {
+                drawPlayer(ctx);
+                obstacles.forEach(obs => {
+                    obs.update(canvas); obs.draw(ctx);
+                    if(Math.hypot(player.x - obs.x, (player.y + 12) - obs.y) < (player.size + obs.size - 5)) endGame();
+                });
+                score++; if (score % 500 === 0) speedMultiplier += 0.1;
+                drawHUD(ctx);
+            } 
+            else if (gameState === 'gameover') {
+                drawCenteredText(ctx, canvas, "Game Over", -20, "30px EB Garamond", "#ff6b6b");
+                drawCenteredText(ctx, canvas, "Score: " + score, 20, "20px Inter");
+                drawCenteredText(ctx, canvas, "Tap to Retry", 50, "16px Inter", "#ccc");
+            }
+            window.animationFrameId = requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
     };
 
-    window.addEventListener('mousedown', (e) => {
-        if (gameState === 'playing' && e.target !== canvas) {
-            gameState = 'paused';
-            drawCenteredText("Paused", 0, "24px sans-serif");
-        }
-    });
-
-    function handleInput() {
-        if (gameState === 'start' || gameState === 'gameover') startGame();
-        else if (gameState === 'paused') gameState = 'playing';
-    }
-
-    function startGame() { score = 0; speedMultiplier = 1; obstacles = Array.from({length: 8}, () => new Obstacle()); gameState = 'playing'; }
-
-    window.gameLoop = function() {
-        if (!window.gameActive || !ctx) return;
-        ctx.fillStyle = 'rgba(15, 12, 41, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (gameState === 'start') {
-            drawCenteredText("Star Drive", -20, "24px sans-serif");
-            drawCenteredText("Tap to Start", 20, "16px sans-serif", "#4facfe");
-            drawPlayer(); 
-        } 
-        else if (gameState === 'playing') {
-            drawPlayer();
-            obstacles.forEach(obs => {
-                obs.update(); obs.draw();
-                if(Math.hypot(player.x - obs.x, (player.y + 12) - obs.y) < (player.size + obs.size - 5)) endGame();
-            });
-            score++; if (score % 500 === 0) speedMultiplier += 0.1;
-            drawHUD();
-        } 
-        else if (gameState === 'gameover') {
-            drawCenteredText("Game Over", -20, "30px sans-serif", "#ff6b6b");
-            drawCenteredText("Score: " + score, 20, "20px sans-serif");
-            drawCenteredText("Tap to Retry", 50, "16px sans-serif", "#ccc");
-        }
-        window.animationFrameId = requestAnimationFrame(window.gameLoop);
-    };
-
-    function drawPlayer() {
+    function drawPlayer(ctx) {
         ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(player.x - 12, player.y + 30); ctx.lineTo(player.x + 12, player.y + 30);
         ctx.fillStyle = '#4facfe'; ctx.shadowBlur = 10; ctx.shadowColor = '#4facfe'; ctx.fill(); ctx.shadowBlur = 0; 
     }
-    function drawHUD() {
-        ctx.fillStyle = "white"; ctx.font = "14px sans-serif";
+    function drawHUD(ctx) {
+        ctx.fillStyle = "white"; ctx.font = "14px Inter";
         ctx.fillText(`Score: ${score}`, 10, 20);
         ctx.fillText(`☁️ High: ${window.currentHighScore || 0}`, 10, 40);
     }
-    function drawCenteredText(text, yOff, font, color="white") {
+    function drawCenteredText(ctx, canvas, text, yOff, font, color="white") {
         ctx.fillStyle = color; ctx.font = font; ctx.textAlign = "center";
         ctx.fillText(text, canvas.width / 2, canvas.height / 2 + yOff); ctx.textAlign = "left"; 
     }
@@ -503,6 +514,30 @@ window.catApp = catApp;
         gameState = 'gameover';
         if(score > window.currentHighScore) { window.currentHighScore = score; saveHighScore(score); }
     }
+
+    function startGame() { 
+        score = 0; speedMultiplier = 1; obstacles = Array.from({length: 8}, () => new Obstacle()); 
+        gameState = 'playing'; 
+        const msg = document.getElementById('full-game-start-msg');
+        if (msg) msg.style.opacity = '0';
+    }
+
+    window.openFullGame = function() {
+        const overlay = document.getElementById('star-drive-overlay');
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        window.gameActive = true;
+        window.initGame('star-drive-full-canvas');
+        const msg = document.getElementById('full-game-start-msg');
+        if (msg) msg.style.opacity = '1';
+    };
+
+    window.closeFullGame = function() {
+        const overlay = document.getElementById('star-drive-overlay');
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+        window.initGame('bubble-canvas'); // Restart mini version
+    };
 })();
 
 export function toggleGame() {
@@ -748,7 +783,18 @@ export function openCruise() {
     initCruiseCanvas();
 
     const content = document.getElementById('cruise-content');
-    content.querySelector('h2').textContent = "Hold Space to ride.";
+    const driveBtn = document.getElementById('mobile-drive-btn');
+    if (window.innerWidth <= 768) {
+        content.querySelector('h2').textContent = "Tap Drive to ride.";
+        if (driveBtn) {
+            driveBtn.style.display = 'block';
+            driveBtn.ontouchstart = (e) => { if(e.cancelable) e.preventDefault(); startCruise(); };
+            driveBtn.ontouchend = (e) => { if(e.cancelable) e.preventDefault(); stopCruise(); };
+        }
+    } else {
+        content.querySelector('h2').textContent = "Hold Space to ride.";
+        if (driveBtn) driveBtn.style.display = 'none';
+    }
     content.querySelector('p').textContent = "The wind is yours today.";
 
     window.addEventListener('keydown', handleCruiseKD); window.addEventListener('keyup', handleCruiseKU);
@@ -778,9 +824,14 @@ function stopCruise() {
     cruiseActive = false; document.getElementById('cruise-overlay').classList.remove('cruise-active');
     const content = document.getElementById('cruise-content');
     content.style.opacity = '1';
-    content.querySelector('h2').textContent = "Pulled over.";
-    content.querySelector('p').textContent = "Tap the stars while you rest, or hold Space to ride again.";
-    
+    if (window.innerWidth <= 768) {
+        content.querySelector('h2').textContent = "Pulled over.";
+        content.querySelector('p').textContent = "Tap the stars while you rest, or tap Drive to ride again.";
+    } else {
+        content.querySelector('h2').textContent = "Pulled over.";
+        content.querySelector('p').textContent = "Tap the stars while you rest, or hold Space to ride again.";
+    }
+
     document.getElementById('cruise-stats').style.opacity = '0';
     SoundFX.cruise(false); if (cruiseVibrateId) clearInterval(cruiseVibrateId);
     if (navigator.vibrate) navigator.vibrate(0);
@@ -789,10 +840,11 @@ function stopCruise() {
 function initCruiseCanvas() {
     const canvas = document.getElementById('cruise-canvas'), ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const stars = Array.from({ length: 150 }, () => ({ 
-        x: Math.random() * canvas.width, 
-        y: Math.random() * canvas.height, 
-        size: Math.random() * 1.5, 
+
+    const stars = Array.from({ length: 150 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1.5,
         p: Math.random() * Math.PI * 2,
         twinkle: 0
     }));
@@ -802,10 +854,12 @@ function initCruiseCanvas() {
     const handleSkyInteraction = (e) => {
         if (cruiseActive) return;
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX || e.touches?.[0].clientX) - rect.left;
-        const my = (e.clientY || e.touches?.[0].clientY) - rect.top;
-        
-        // Moon Detection
+        const mx = ((e.touches ? e.touches[0].clientX : e.clientX)) - rect.left;
+        const my = ((e.touches ? e.touches[0].clientY : e.clientY)) - rect.top;
+
+        // UI/UX Expert Fix: Don't interact with stars if tapping near the Drive button
+        if (window.innerWidth <= 768 && my > canvas.height - 120) return;
+
         const mX = canvas.width * 0.85, mY = canvas.height * 0.12, mS = 25;
         if (Math.hypot(mx - mX, my - mY) < mS * 2) {
             moonPulse = 40;
