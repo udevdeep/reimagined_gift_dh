@@ -468,8 +468,19 @@ window.catApp = catApp;
         };
 
         const tick = () => {
-            if (!window.gameActive || !ctx) return;
+            // STOP condition: if window is not active or context is lost
+            if (!window.gameActive || !ctx) {
+                currentAnimId = null;
+                return;
+            }
 
+            // Expert Fix: If we are mini-canvas but overlay is visible, stop this loop immediately
+            if (canvasId === 'bubble-canvas' && document.getElementById('star-drive-overlay').style.display === 'flex') {
+                currentAnimId = null;
+                return;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
             ctx.fillStyle = 'rgba(15, 12, 41, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             if (gameState === 'start') {
@@ -493,7 +504,8 @@ window.catApp = catApp;
             }
             currentAnimId = requestAnimationFrame(tick);
         };
-        requestAnimationFrame(tick);
+        // Only start one loop
+        currentAnimId = requestAnimationFrame(tick);
     };
 
     function drawPlayer() {
