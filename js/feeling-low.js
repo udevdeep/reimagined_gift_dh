@@ -1258,8 +1258,10 @@ window.toggleAloneCard = (card) => {
     
     if (!vis) { 
         card.classList.add('resonance-card'); 
-        if (nav) nav.classList.add('hidden');
-        if (tab) tab.style.display = 'block';
+        if (window.innerWidth > 768) {
+            if (nav) nav.classList.add('hidden');
+            if (tab) tab.style.display = 'block';
+        }
         setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); 
     }
     else {
