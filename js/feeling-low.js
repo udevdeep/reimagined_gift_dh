@@ -628,10 +628,12 @@ async function loadHighScore() {
     try {
         const snap = await getDoc(doc(db, 'global_state', 'star_drive'));
         if (snap.exists()) {
-            window.currentHighScore = snap.data().highScore || 0;
-            localStorage.setItem('star_drive_highscore', window.currentHighScore);
+            const remoteHigh = snap.data().highScore || 0;
+            window.currentHighScore = remoteHigh; // SYNC TO GLOBAL
+            localStorage.setItem('star_drive_highscore', remoteHigh);
             const fullHigh = document.getElementById('full-game-high');
-            if (fullHigh) fullHigh.textContent = window.currentHighScore;
+            if (fullHigh) fullHigh.textContent = remoteHigh;
+            console.log("High score synced from Firestore:", remoteHigh);
         }
     } catch(e) { console.error("High score sync error:", e); }
 }
@@ -1443,7 +1445,7 @@ window.toggleCat = () => {
 /* --- INIT --- */
 onAuthStateChanged(auth, user => {
     if (user) {
-        initFluidMirror(); initRain(); catApp.init(); loadFamiliarSounds(); initConstellation(); loadResilience();
+        initFluidMirror(); initRain(); catApp.init(); loadFamiliarSounds(); initConstellation(); loadResilience(); loadHighScore();
         getDoc(doc(db, 'config', 'feelingLow')).then(snap => {
             if (snap.exists()) {
                 const el = document.getElementById('reassurance-text');
