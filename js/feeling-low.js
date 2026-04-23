@@ -606,22 +606,39 @@ export function toggleGame() {
 window.toggleGame = toggleGame;
 
 function saveHighScore(score) {
-    if (score <= (window.currentHighScore || 0)) return;
+    const currentHigh = window.currentHighScore || 0;
+    if (score <= currentHigh) {
+        console.log("Score", score, "is not higher than current high", currentHigh);
+        return;
+    }
+    
+    console.log("Attempting to save new High Score:", score);
     window.currentHighScore = score;
     localStorage.setItem('star_drive_highscore', score);
     
+    showToast("New Personal Best! 🚀", "success");
+    const fullHigh = document.getElementById('full-game-high');
+    if (fullHigh) fullHigh.textContent = score;
+    
+    if (!db) {
+        console.error("Firestore 'db' object is not initialized. Cannot save.");
+        return;
+    }
+
     setDoc(doc(db, 'global_state', 'star_drive'), { 
         highScore: score,
         updatedAt: Date.now(),
         lastPlayer: auth.currentUser?.displayName || "Friend"
     }, { merge: true })
     .then(() => {
-        showToast("New Global High Score! 🚀", "success");
-        // Update both possible score elements
-        const fullHigh = document.getElementById('full-game-high');
-        if (fullHigh) fullHigh.textContent = score;
+        console.log("✅ High score successfully saved to Firestore!");
     })
-    .catch(console.error);
+    .catch(err => {
+        console.error("❌ Firestore Save Failed:", err.message);
+        if (err.code === 'permission-denied') {
+            console.error("Check your Firebase Rules and Whitelist status.");
+        }
+    });
 }
 
 async function loadHighScore() {
