@@ -1594,7 +1594,16 @@ export function loadJokes() {
     container.innerHTML = '';
     const physicsBubbles = [];
     const mouse = { x: -1000, y: -1000 };
-    window.onmousemove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };
+    const updateMouse = (e) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        mouse.x = clientX; mouse.y = clientY;
+    };
+    window.onmousemove = updateMouse;
+    window.ontouchmove = (e) => {
+        updateMouse(e);
+        if (physicsBubbles.some(b => b.isDragging)) e.preventDefault();
+    };
     
     const updateSizes = () => {
         const isMob = window.innerWidth < 768;
@@ -1626,15 +1635,33 @@ export function loadJokes() {
         bubble.onmouseleave = () => obj.isHovered = false;
         
         let downPos = {x:0, y:0};
-        bubble.onmousedown = e => { obj.isDragging = true; downPos = {x:e.clientX, y:e.clientY}; };
-        window.addEventListener('mouseup', () => obj.isDragging = false);
-        bubble.onclick = e => {
-            if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) < 5) {
+        
+        const startDrag = (e) => {
+            obj.isDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            downPos = {x: clientX, y: clientY};
+        };
+        const stopDrag = () => { obj.isDragging = false; };
+
+        bubble.onmousedown = startDrag;
+        bubble.ontouchstart = startDrag;
+        
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
+
+        const handleSelect = (e) => {
+            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            // Movement threshold for click vs drag
+            if (Math.hypot(clientX - downPos.x, clientY - downPos.y) < 10) {
                 document.getElementById('joke-title').innerHTML = formatNoteText(joke.title);
                 document.getElementById('joke-text').innerHTML = formatNoteText(joke.text);
                 modal.classList.add('active');
             }
         };
+
+        bubble.onclick = handleSelect;
         physicsBubbles.push(obj);
     });
 
