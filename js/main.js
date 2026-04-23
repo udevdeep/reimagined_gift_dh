@@ -1595,16 +1595,28 @@ export function loadJokes() {
     const physicsBubbles = [];
     const mouse = { x: -1000, y: -1000 };
     const updateMouse = (e) => {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        mouse.x = clientX; mouse.y = clientY;
+        const t = (e.touches && e.touches.length > 0) ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
+        if (t) {
+            mouse.x = t.clientX;
+            mouse.y = t.clientY;
+        }
     };
-    window.onmousemove = updateMouse;
-    window.ontouchmove = (e) => {
+    
+    const onMove = (e) => {
         updateMouse(e);
-        // Force prevent default to stop pull-to-refresh and page bounce
-        if (e.cancelable) e.preventDefault();
+        if (physicsBubbles.some(b => b.isDragging)) {
+            if (e.cancelable) e.preventDefault();
+        }
     };
+    const onEnd = () => {
+        physicsBubbles.forEach(b => b.isDragging = false);
+    };
+
+    window.onmousemove = onMove;
+    window.ontouchmove = onMove;
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchend', onEnd);
+    window.addEventListener('touchcancel', onEnd);
     
     // Extra security: Global touch listener for this page to kill scrolling
     document.addEventListener('touchmove', (e) => {
@@ -1645,24 +1657,18 @@ export function loadJokes() {
         let downPos = {x:0, y:0};
         
         const startDrag = (e) => {
+            updateMouse(e); // Fix jump: sync mouse pos immediately
             obj.isDragging = true;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            downPos = {x: clientX, y: clientY};
+            downPos = {x: mouse.x, y: mouse.y};
         };
-        const stopDrag = () => { obj.isDragging = false; };
 
         bubble.onmousedown = startDrag;
         bubble.ontouchstart = startDrag;
-        
-        window.addEventListener('mouseup', stopDrag);
-        window.addEventListener('touchend', stopDrag);
 
         const handleSelect = (e) => {
-            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const t = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e;
             // Movement threshold for click vs drag
-            if (Math.hypot(clientX - downPos.x, clientY - downPos.y) < 10) {
+            if (Math.hypot(t.clientX - downPos.x, t.clientY - downPos.y) < 15) {
                 document.getElementById('joke-title').innerHTML = formatNoteText(joke.title);
                 document.getElementById('joke-text').innerHTML = formatNoteText(joke.text);
                 modal.classList.add('active');
@@ -1670,6 +1676,10 @@ export function loadJokes() {
         };
 
         bubble.onclick = handleSelect;
+        bubble.addEventListener('touchend', (e) => {
+            if (obj.isDragging) handleSelect(e);
+        });
+
         physicsBubbles.push(obj);
     });
 
