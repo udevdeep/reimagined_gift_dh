@@ -702,10 +702,10 @@ p {
   /* Floating Bottom Dock for Mobile */
   .nav-links { 
       position: fixed !important;
-      bottom: 25px !important;
+      bottom: 20px !important;
       left: 50% !important;
       transform: translateX(-50%);
-      width: calc(100% - 40px); 
+      width: calc(100% - 30px); 
       min-width: 280px;
       max-width: 440px;
       background: var(--nav-bg);
@@ -715,20 +715,34 @@ p {
       border-radius: 40px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       display: flex;
-      justify-content: space-evenly;
+      justify-content: center; /* Center the links with a gap */
+      gap: 5px;
       align-items: center;
-      padding: 12px 20px;
-      z-index: 2000;
+      padding: 8px 10px;
+      z-index: 3000; /* Increased to stay above everything */
       margin-top: 0;
   }
   
   .nav-links a {
-      font-size: 0.85rem;
-      padding: 8px 12px;
+      /* Fluid font size: Min 0.7rem, scales with 2% of screen width, Max 0.9rem */
+      font-size: clamp(0.7rem, 2.2vw, 0.9rem); 
+      padding: 8px clamp(6px, 1.5vw, 12px); 
       white-space: nowrap;
       color: var(--text-muted);
       text-decoration: none;
       transition: color 0.3s;
+      border-radius: 20px;
+  }
+
+  .nav-links a.active {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Specific fix for memories page pill box on mobile */
+  .memories-page .nav-pill-left {
+      max-width: none !important;
+      width: auto !important;
   }
 
   /* Prevent random-fab and spark-fab from overlapping the dock */
