@@ -543,7 +543,9 @@ window.catApp = catApp;
     }
     function endGame() {
         gameState = 'gameover';
-        if(score > window.currentHighScore) { window.currentHighScore = score; saveHighScore(score); }
+        if (score > (window.currentHighScore || 0)) {
+            saveHighScore(score);
+        }
     }
 
     function startGame() { 
@@ -606,12 +608,6 @@ export function toggleGame() {
 window.toggleGame = toggleGame;
 
 function saveHighScore(score) {
-    const currentHigh = window.currentHighScore || 0;
-    if (score <= currentHigh) {
-        console.log("Score", score, "is not higher than current high", currentHigh);
-        return;
-    }
-    
     console.log("Attempting to save new High Score:", score);
     window.currentHighScore = score;
     localStorage.setItem('star_drive_highscore', score);
@@ -635,9 +631,6 @@ function saveHighScore(score) {
     })
     .catch(err => {
         console.error("❌ Firestore Save Failed:", err.message);
-        if (err.code === 'permission-denied') {
-            console.error("Check your Firebase Rules and Whitelist status.");
-        }
     });
 }
 
