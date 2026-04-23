@@ -188,24 +188,27 @@
 
         @media (max-width: 768px) {
             .tab-bar {
-                position: fixed;
-                bottom: 25px;
-                top: auto;
-                left: 50%;
-                transform: translateX(-50%);
-                width: auto; /* Wrap around icons */
-                min-width: 260px;
-                max-width: 90%;
-                background: rgba(15, 20, 35, 0.6);
-                backdrop-filter: blur(25px);
-                -webkit-backdrop-filter: blur(25px);
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                position: relative; /* Scrolls with the page */
+                top: 0;
+                bottom: auto;
+                left: 0;
+                transform: none;
+                margin: 80px auto 20px; /* 80px top margin to clear the fixed Back/Gift buttons */
+                width: fit-content; /* Wrap tightly around icons */
+                display: flex;
+                justify-content: center;
+                background: rgba(15, 20, 35, 0.4);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 100px;
-                padding: 6px;
-                gap: 8px;
+                padding: 4px;
+                gap: 4px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+                z-index: 10;
             }
             .tab-btn {
-                width: 52px; height: 52px;
+                width: 48px; height: 48px; /* Slightly smaller for a tighter fit */
                 flex: none;
                 display: flex;
                 align-items: center;
@@ -215,8 +218,7 @@
                 display: none; 
             }
             #main-view {
-                padding-top: 100px; /* Standard top spacing */
-                padding-bottom: 120px; /* Ensure content clears the bottom dock */
+                padding-top: 0; /* Remove top padding as the tab-bar now provides the spacing */
             }
         }
 
