@@ -502,7 +502,9 @@ window.catApp = catApp;
                     drawHUD();
                 } else {
                     const fullScore = document.getElementById('full-game-score');
+                    const fullHigh = document.getElementById('full-game-high');
                     if (fullScore) fullScore.textContent = score;
+                    if (fullHigh) fullHigh.textContent = window.currentHighScore || 0;
                 }
             } 
             else if (gameState === 'gameover') {
