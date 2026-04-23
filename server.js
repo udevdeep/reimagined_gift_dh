@@ -38,6 +38,13 @@ app.post('/api/local-upload', upload.fields([
   { name: 'video', maxCount: 1 },
   { name: 'thumb', maxCount: 1 }
 ]), (req, res) => {
+  // Basic security check: only allow from localhost
+  const remoteAddress = req.socket.remoteAddress;
+  if (remoteAddress !== '::1' && remoteAddress !== '127.0.0.1' && remoteAddress !== '::ffff:127.0.0.1') {
+    console.warn(`Blocked unauthorized upload attempt from ${remoteAddress}`);
+    return res.status(403).json({ error: 'Forbidden: Local upload only allowed from localhost' });
+  }
+
   console.log('Video/Thumb replaced successfully on disk!');
   res.json({ 
     success: true, 

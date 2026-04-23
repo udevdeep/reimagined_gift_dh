@@ -167,20 +167,42 @@ async function processImage(file, type = 'thumb') {
         const canvas = document.createElement('canvas');
         let width = bitmap.width, height = bitmap.height;
         const MAX_DIM = (type === 'thumb') ? 400 : 2500;
+
         if (width > height) { if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; } }
         else { if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; } }
-        canvas.width = width; canvas.height = height;
+
+        // --- Step-Down Resizing (Bilinear Filtering) ---
+        let curCanvas = document.createElement('canvas');
+        curCanvas.width = bitmap.width;
+        curCanvas.height = bitmap.height;
+        let curCtx = curCanvas.getContext('2d');
+        curCtx.drawImage(bitmap, 0, 0);
+
+        while (curCanvas.width > width * 2) {
+            let nextCanvas = document.createElement('canvas');
+            nextCanvas.width = curCanvas.width * 0.5;
+            nextCanvas.height = curCanvas.height * 0.5;
+            let nextCtx = nextCanvas.getContext('2d');
+            nextCtx.imageSmoothingEnabled = true;
+            nextCtx.imageSmoothingQuality = 'high';
+            nextCtx.drawImage(curCanvas, 0, 0, nextCanvas.width, nextCanvas.height);
+            curCanvas = nextCanvas;
+        }
+
+        canvas.width = width; 
+        canvas.height = height;
         const ctx = canvas.getContext('2d', { alpha: false });
-        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(bitmap, 0, 0, width, height);
+        ctx.imageSmoothingEnabled = true; 
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(curCanvas, 0, 0, width, height);
         bitmap.close();
         
         // Use WebP with a fallback logic for older canvases (though rare now)
         return new Promise(resolve => {
             canvas.toBlob(blob => {
                 if (blob) resolve(blob);
-                else canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.6 : 0.85));
-            }, 'image/webp', (type === 'thumb' ? 0.6 : 0.8));
+                else canvas.toBlob(resolve, 'image/jpeg', (type === 'thumb' ? 0.7 : 0.9));
+            }, 'image/webp', (type === 'thumb' ? 0.7 : 0.85));
         });
     } catch (e) {
         return new Promise((resolve) => {
@@ -211,37 +233,24 @@ async function getVideoThumbnail(file) {
         video.src = URL.createObjectURL(file);
         
         video.onloadedmetadata = () => {
-            // Seek to 1 second or mid-point to avoid black intro frames
             video.currentTime = Math.min(1, video.duration / 2);
         };
 
         video.onseeked = () => {
-            // Small delay to ensure the decoder has actually rendered the frame
-            setTimeout(() => {
+            setTimeout(async () => {
                 const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
                 
-                // Cap at 400px to match image thumbnails
-                let width = video.videoWidth, height = video.videoHeight;
-                const MAX_DIM = 400;
-                if (width > height) { 
-                    if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; } 
-                } else { 
-                    if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; } 
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d', { alpha: false });
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                canvas.toBlob(blob => {
-                    if (blob) resolve(blob);
-                    else canvas.toBlob(resolve, 'image/jpeg', 0.6);
-                }, 'image/webp', 0.6);
-                
-                URL.revokeObjectURL(video.src);
+                canvas.toBlob(async blob => {
+                    const frameFile = new File([blob], "frame.jpg", { type: 'image/jpeg' });
+                    // Use our high-quality step-down processor!
+                    const optimizedBlob = await processImage(frameFile, 'thumb');
+                    resolve(optimizedBlob);
+                    URL.revokeObjectURL(video.src);
+                }, 'image/jpeg', 0.95);
             }, 200);
         };
         video.onerror = () => {
@@ -545,15 +554,58 @@ window.toggleSelectAll = () => {
 
 window.deleteSelectedItems = async () => {
     const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');
-    if (!checked.length || !confirm(`Delete ${checked.length} items?`)) return;
+    if (!checked.length || !confirm(`Delete ${checked.length} items and all their associated data?`)) return;
+    
     const batch = writeBatch(db);
-    checked.forEach(cb => batch.delete(doc(db, col, cb.dataset.id)));
-    await batch.commit();
-    loadContentList();
+    const ids = Array.from(checked).map(cb => cb.dataset.id);
+    
+    try {
+        for (const id of ids) {
+            batch.delete(doc(db, col, id));
+            
+            // Collect associated data for cleanup
+            if (col === 'memories' || col === 'gallery') {
+                const commentQuery = query(collection(db, 'memory_comments'), where('memoryId', '==', id));
+                const commentSnap = await getDocs(commentQuery);
+                commentSnap.forEach(d => batch.delete(d.ref));
+                
+                batch.delete(doc(db, 'shared_profile_data', `cherished_${id}`));
+                batch.delete(doc(db, 'shared_profile_data', `vibe_${id}`));
+            }
+        }
+        await batch.commit();
+        showToast(`Successfully deleted ${ids.length} items.`, "success");
+        loadContentList();
+    } catch (e) {
+        console.error("Batch delete error:", e);
+        showToast("Error during batch deletion", "error");
+    }
 };
 
 window.deleteItem = async (col, id) => {
-    if(confirm("Delete?")) { await deleteDoc(doc(db, col, id)); loadContentList(); }
+    if(!confirm("Permanently delete this and all its associated data (comments, likes, etc.)?")) return;
+    try {
+        await deleteDoc(doc(db, col, id));
+        
+        // Recursive Cleanup for memories and gallery
+        if (col === 'memories' || col === 'gallery') {
+            const commentQuery = query(collection(db, 'memory_comments'), where('memoryId', '==', id));
+            const commentSnap = await getDocs(commentQuery);
+            const deletePromises = commentSnap.docs.map(d => deleteDoc(d.ref));
+            
+            // Clean up shared profile state
+            deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `cherished_${id}`)));
+            deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `vibe_${id}`)));
+            
+            await Promise.all(deletePromises);
+        }
+        
+        showToast("Deleted and cleaned up!", "success");
+        loadContentList();
+    } catch (e) {
+        console.error("Delete error:", e);
+        showToast("Error during deletion", "error");
+    }
 };
 
 window.signOutUser = async () => {
@@ -760,14 +812,20 @@ async function uploadHomeVideo() {
         if (isLocal) {
             // ... (keep local logic as is)
         } else {
-            const uploadApiUrl = window.location.origin + '/api/upload';
+            const uploadApiUrl = new URL('/api/upload', window.location.origin).href;
             console.log("1. Starting Vercel Blob handshake at:", uploadApiUrl);
             status.textContent = "Connecting to Vercel (Handshake)...";
+            
+            // Get current user's ID token for authentication
+            const idToken = await auth.currentUser.getIdToken();
             
             try {
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: uploadApiUrl,
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`
+                    },
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
@@ -776,7 +834,6 @@ async function uploadHomeVideo() {
                             status.textContent = `Uploading: ${percent}%...`;
                         }
                         if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
-                        console.log(`Upload Progress: ${percent}%`);
                     }
                 });
                 console.log("3. Video upload complete! URL:", vBlob.url);
@@ -793,7 +850,10 @@ async function uploadHomeVideo() {
                 status.textContent = "Uploading thumbnail...";
                 const tBlob = await upload(`intro_thumb_${ts}`, thumbFile, {
                     access: 'public',
-                    handleUploadUrl: uploadApiUrl
+                    handleUploadUrl: uploadApiUrl,
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`
+                    }
                 });
                 tUrl = tBlob.url;
             } else {
@@ -802,7 +862,10 @@ async function uploadHomeVideo() {
                 if (tBlobFile) {
                     const vtBlob = await upload(`intro_thumb_auto_${ts}.jpg`, tBlobFile, {
                         access: 'public',
-                        handleUploadUrl: uploadApiUrl
+                        handleUploadUrl: uploadApiUrl,
+                        headers: {
+                            'Authorization': `Bearer ${idToken}`
+                        }
                     });
                     tUrl = vtBlob.url;
                 }

@@ -4,7 +4,7 @@ import {
     doc, getDoc, getDocs, setDoc, addDoc, collection, 
     query, orderBy, limit, serverTimestamp, increment 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { showToast } from "./utils.js";
+import { showToast, formatNoteText } from "./utils.js";
 
 /* --- GLOBAL & SHARED STATE --- */
 window.gameActive = false;
@@ -248,7 +248,10 @@ export const catApp = {
                     this.puke();
                     return;
                 }
-                return showToast("I'm full!", 'error');
+                if (document.getElementById('cat-container')?.style.display === 'block') {
+                    return showToast("I'm full!", 'error');
+                }
+                return;
             } else {
                 this.feedCount = 0;
             }
@@ -265,11 +268,18 @@ export const catApp = {
                 });
                 this.state.love = Math.min(100, this.state.love + 10);
                 this.animateCat('Sparkling! ✨', 'translateY(-10px)');
-                showToast("All clean now! 🧼", "success");
+                if (document.getElementById('cat-container')?.style.display === 'block') {
+                    showToast("All clean now! 🧼", "success");
+                }
                 this.saveState(); this.render();
                 return;
             }
-            if (this.state.bladder <= 10) return showToast("I don't need to go!", 'error');
+            if (this.state.bladder <= 10) {
+                if (document.getElementById('cat-container')?.style.display === 'block') {
+                    return showToast("I don't need to go!", 'error');
+                }
+                return;
+            }
             this.state.bladder = 0;
             this.state.love = Math.min(100, this.state.love + 5);
             this.animateCat('Relief... 💨', 'translateY(-10px)');
@@ -295,7 +305,9 @@ export const catApp = {
                 setTimeout(() => puddle.remove(), 500);
             }, 3500);
         }
-        showToast("The cat ate too much and puked!", "error");
+        if (document.getElementById('cat-container')?.style.display === 'block') {
+            showToast("The cat ate too much and puked!", "error");
+        }
         setTimeout(() => {
             this.isPuking = false;
             if (cat) { cat.innerText = '🐈'; cat.style.transform = 'scale(1) rotate(0deg)'; }
@@ -316,13 +328,17 @@ export const catApp = {
             requestAnimationFrame(() => { poop.style.transform = 'scale(1)'; });
             setTimeout(() => { if (cat.innerText === '😳') cat.innerText = '🐈'; cat.style.transform = 'translateY(0)'; }, 2000);
         }
-        showToast("Oops... accident! Better clean it up.", "normal");
+        if (document.getElementById('cat-container')?.style.display === 'block') {
+            showToast("Oops... accident! Better clean it up.", "normal");
+        }
         this.render(); this.saveState();
     },
     getSleepy() {
         this.petCount = 0; const cat = this.el.cat;
         if (cat) { cat.innerText = '😴'; cat.style.transform = 'scale(0.9)'; cat.style.opacity = '0.8'; }
-        showToast("The cat is getting sleepy... 😴", "normal");
+        if (document.getElementById('cat-container')?.style.display === 'block') {
+            showToast("The cat is getting sleepy... 😴", "normal");
+        }
         setTimeout(() => { if (cat) { cat.innerText = '🐈'; cat.style.transform = 'scale(1)'; cat.style.opacity = '1'; } }, 5000);
     },
     checkSuperHappy() {
@@ -341,7 +357,9 @@ export const catApp = {
             setTimeout(() => cat.style.transform = 'scale(1) rotate(0deg)', 600);
         }
         const msgs = ["You make my world bright! ✨", "So happy to be yours! ❤️", "You are doing amazing.", "Purrr... life is good.", "Thank you for the care.", "You deserve love."];
-        showToast(msgs[Math.floor(Math.random() * msgs.length)], 'success');
+        if (document.getElementById('cat-container')?.style.display === 'block') {
+            showToast(msgs[Math.floor(Math.random() * msgs.length)], 'success');
+        }
         for(let i=0; i<10; i++) setTimeout(() => this.spawnHeart(), i * 100);
     },
     render() {
@@ -497,7 +515,11 @@ window.toggleGame = toggleGame;
 function saveHighScore(score) {
     localStorage.setItem('star_drive_highscore', score);
     setDoc(doc(db, 'global_state', 'star_drive'), { highScore: score }, { merge: true })
-        .then(() => showToast("New Global High Score! 🚀", "success"))
+        .then(() => {
+            if (document.getElementById('game-container')?.style.display === 'block') {
+                showToast("New Global High Score! 🚀", "success");
+            }
+        })
         .catch(console.error);
 }
 
@@ -569,7 +591,12 @@ window.prevSong = prevSong;
 
 export function toggleAudio() {
     const audio = document.getElementById('calm-audio'), btn = document.getElementById('audio-play-btn');
-    if (!filteredSongs.length) return showToast("No songs available.", "normal");
+    if (!filteredSongs.length) {
+        if (document.getElementById('tab-Reflection')?.classList.contains('active')) {
+            showToast("No songs available.", "normal");
+        }
+        return;
+    }
     if (audio.paused) {
         if (!audio.src) prepareSong(0);
         audio.play(); btn.textContent = "⏸";
@@ -650,11 +677,17 @@ export const SoundFX = {
     },
     spark() {
         this.init(); if (this.ctx?.state !== 'running') return;
-        const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
-        g.gain.setValueAtTime(0.05, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-        osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+        const now = this.ctx.currentTime;
+        const playTing = (freq, vol, delay) => {
+            const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + delay);
+            g.gain.setValueAtTime(0, now + delay);
+            g.gain.linearRampToValueAtTime(vol, now + delay + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+            osc.connect(g); g.connect(this.ctx.destination);
+            osc.start(now + delay); osc.stop(now + delay + 0.3);
+        };
+        playTing(1800, 0.03, 0); playTing(2400, 0.02, 0.05); playTing(3200, 0.01, 0.1);
     },
     cruise(active) {
         this.init(); if (!this.ctx) return;
@@ -703,10 +736,11 @@ export function openCruise() {
     overlay.style.display = 'flex'; overlay.classList.remove('cruise-active');
     if (cruiseAnimId) cancelAnimationFrame(cruiseAnimId);
     initCruiseCanvas();
-    overlay.onmousedown = (e) => { if(e.button === 0) startCruise(); };
-    window.onmouseup = stopCruise;
-    overlay.ontouchstart = (e) => { e.preventDefault(); startCruise(); };
-    overlay.ontouchend = stopCruise;
+
+    const content = document.getElementById('cruise-content');
+    content.querySelector('h2').textContent = "Hold Space to ride.";
+    content.querySelector('p').textContent = "The wind is yours today.";
+
     window.addEventListener('keydown', handleCruiseKD); window.addEventListener('keyup', handleCruiseKU);
 }
 window.openCruise = openCruise;
@@ -726,12 +760,17 @@ function startCruise() {
     document.getElementById('cruise-overlay').classList.add('cruise-active');
     document.getElementById('cruise-content').style.opacity = '0';
     document.getElementById('cruise-stats').style.opacity = '1';
+    document.getElementById('cruise-stats').querySelector('span').textContent = "Cruising the night...";
     SoundFX.cruise(true);
     if (navigator.vibrate) cruiseVibrateId = setInterval(() => navigator.vibrate([15, 30]), 100);
 }
 function stopCruise() {
     cruiseActive = false; document.getElementById('cruise-overlay').classList.remove('cruise-active');
-    document.getElementById('cruise-content').style.opacity = '1';
+    const content = document.getElementById('cruise-content');
+    content.style.opacity = '1';
+    content.querySelector('h2').textContent = "Pulled over.";
+    content.querySelector('p').textContent = "Tap the stars while you rest, or hold Space to ride again.";
+    
     document.getElementById('cruise-stats').style.opacity = '0';
     SoundFX.cruise(false); if (cruiseVibrateId) clearInterval(cruiseVibrateId);
     if (navigator.vibrate) navigator.vibrate(0);
@@ -740,30 +779,92 @@ function stopCruise() {
 function initCruiseCanvas() {
     const canvas = document.getElementById('cruise-canvas'), ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const stars = Array.from({ length: 150 }, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 1.5, p: Math.random() * Math.PI * 2 }));
-    let objects = [], lastLight = 0, lightSide = 1;
+    const stars = Array.from({ length: 150 }, () => ({ 
+        x: Math.random() * canvas.width, 
+        y: Math.random() * canvas.height, 
+        size: Math.random() * 1.5, 
+        p: Math.random() * Math.PI * 2,
+        twinkle: 0
+    }));
+
+    let moonPulse = 0;
+    // Star & Moon Interaction
+    const handleSkyInteraction = (e) => {
+        if (cruiseActive) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX || e.touches?.[0].clientX) - rect.left;
+        const my = (e.clientY || e.touches?.[0].clientY) - rect.top;
+        
+        // Moon Detection
+        const mX = canvas.width * 0.85, mY = canvas.height * 0.12, mS = 25;
+        if (Math.hypot(mx - mX, my - mY) < mS * 2) {
+            moonPulse = 40;
+            SoundFX.spark();
+            return;
+        }
+
+        stars.forEach(s => {
+            if (Math.hypot(s.x - mx, s.y - my) < 30) {
+                s.twinkle = 30;
+                SoundFX.spark();
+            }
+        });
+    };
+    canvas.onclick = handleSkyInteraction;
+
+    let objects = [], lastLight = 0, lightSide = 1, lastBumblebeeOffset = 0;
     function spawn() {
-        if (Math.random() > 0.94) objects.push({ progress: 0, side: 1.2, type: 'bumblebee' });
+        // Ensure bumblebees don't clump and appear more predictably (every 6-12 lights approx)
+        const distSinceBumble = roadOffset - lastBumblebeeOffset;
+        const hasBumblebee = objects.some(o => o.type === 'bumblebee');
+        
+        if (!hasBumblebee && distSinceBumble > 10) { // Cooldown of ~6 lights
+            if (Math.random() > 0.7 || distSinceBumble > 25) { // Spawn chance or forced spawn
+                objects.push({ progress: 0, side: 1.2, type: 'bumblebee' });
+                lastBumblebeeOffset = roadOffset;
+                return; // Don't spawn a light pole if a bumblebee spawned
+            }
+        }
+        
         objects.push({ progress: 0, side: lightSide, type: 'light' }); lightSide *= -1;
     }
     function draw() {
         ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         // Moon
         const mX = canvas.width * 0.85, mY = canvas.height * 0.12, mS = 25;
-        const grad = ctx.createRadialGradient(mX, mY, 0, mX, mY, mS * 3);
-        grad.addColorStop(0, 'rgba(255, 255, 230, 0.1)'); grad.addColorStop(1, 'transparent');
-        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(mX, mY, mS * 3, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'rgba(255, 253, 224, 0.8)'; ctx.beginPath(); ctx.arc(mX, mY, mS, 0, Math.PI*2); ctx.fill();
-        ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(mX - 8, mY - 4, mS, 0, Math.PI*2); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+        const pulse = moonPulse > 0 ? (moonPulse / 40) * 15 : 0;
+        if (moonPulse > 0) moonPulse--;
+
+        const grad = ctx.createRadialGradient(mX, mY, 0, mX, mY, mS * 3 + pulse);
+        grad.addColorStop(0, `rgba(255, 255, 230, ${0.1 + (pulse/30)})`); grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(mX, mY, mS * 3 + pulse, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = `rgba(255, 253, 224, ${0.8 + (pulse/50)})`; 
+        ctx.beginPath(); ctx.arc(mX, mY, mS + (pulse/4), 0, Math.PI*2); ctx.fill();
+        
+        ctx.globalCompositeOperation = 'destination-out'; 
+        ctx.beginPath(); ctx.arc(mX - 8 - (pulse/8), mY - 4 - (pulse/8), mS + (pulse/4), 0, Math.PI*2); ctx.fill(); 
+        ctx.globalCompositeOperation = 'source-over';
         // Stars
         stars.forEach(s => {
-            const a = 0.2 + (Math.sin(s.p + Date.now() / 1000) + 1) / 2 * 0.5;
-            ctx.fillStyle = `rgba(255, 255, 255, ${a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI*2); ctx.fill();
+            let a = 0.2 + (Math.sin(s.p + Date.now() / 1000) + 1) / 2 * 0.5;
+            let sz = s.size;
+            if (s.twinkle > 0) {
+                a = Math.min(1, a + s.twinkle / 30);
+                sz *= (1 + s.twinkle / 15);
+                s.twinkle--;
+            }
+            ctx.fillStyle = `rgba(255, 255, 255, ${a})`; ctx.beginPath(); ctx.arc(s.x, s.y, sz, 0, Math.PI*2); ctx.fill();
         });
-        const tSpeed = cruiseActive ? 0.012 : 0.0015; roadSpeed += (tSpeed - roadSpeed) * 0.05; roadOffset += roadSpeed;
+        const tSpeed = cruiseActive ? 0.012 : 0; 
+        roadSpeed += (tSpeed - roadSpeed) * (cruiseActive ? 0.05 : 0.02); // Slower stop
+        roadOffset += roadSpeed;
+
         if (cruiseActive) SoundFX.updateCruiseDynamics((roadSpeed - 0.0015) / 0.0105);
+        
         const hY = canvas.height * 0.45, rW = canvas.width * 0.8;
-        if (roadOffset - lastLight > 1.6) { spawn(); lastLight = roadOffset; }
+        if (roadSpeed > 0.001 && roadOffset - lastLight > 1.6) { spawn(); lastLight = roadOffset; }
+        
         objects.forEach((obj, i) => {
             obj.progress += roadSpeed; if (obj.progress >= 1) { objects.splice(i, 1); return; }
             const p = Math.pow(obj.progress, 2), x = (canvas.width / 2) + (obj.side * rW * 0.5 * p), y = hY + (canvas.height - hY) * p, s = p * 150;
@@ -781,9 +882,13 @@ function initCruiseCanvas() {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 2; ctx.beginPath();
         ctx.moveTo(canvas.width * 0.1, canvas.height); ctx.lineTo(canvas.width / 2, hY);
         ctx.moveTo(canvas.width * 0.9, canvas.height); ctx.lineTo(canvas.width / 2, hY); ctx.stroke();
-        ctx.strokeStyle = `rgba(255, 255, 255, ${cruiseActive ? 0.3 : 0.1})`; ctx.setLineDash([canvas.height * 0.1, canvas.height * 0.15]);
-        ctx.lineDashOffset = roadOffset * 1000; ctx.beginPath(); ctx.moveTo(canvas.width / 2, canvas.height); ctx.lineTo(canvas.width / 2, hY); ctx.stroke();
-        ctx.setLineDash([]); cruiseAnimId = requestAnimationFrame(draw);
+        
+        if (roadSpeed > 0.0001) {
+            ctx.strokeStyle = `rgba(255, 255, 255, ${cruiseActive ? 0.3 : 0.1})`; ctx.setLineDash([canvas.height * 0.1, canvas.height * 0.15]);
+            ctx.lineDashOffset = roadOffset * 1000; ctx.beginPath(); ctx.moveTo(canvas.width / 2, canvas.height); ctx.lineTo(canvas.width / 2, hY); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        cruiseAnimId = requestAnimationFrame(draw);
     }
     draw();
 }
@@ -792,9 +897,20 @@ function initCruiseCanvas() {
 let isReelSpinning = false, reelConfetti;
 export async function showEmergencySmile() {
     if (isReelSpinning) return; SoundFX.init();
-    const data = window.GALLERY_DATA; if(!data?.length) return showToast("Loading memories...", "normal");
+    const data = window.GALLERY_DATA; 
+    if(!data?.length) {
+        if (document.getElementById('reel-overlay')?.style.display === 'flex') {
+            showToast("Loading memories...", "normal");
+        }
+        return;
+    }
     const imgs = data.filter(i => i.src && (i.src.startsWith('http') || i.src.startsWith('data:'))).map(i => ({ ...i, resSrc: i.src }));
-    if(!imgs.length) return showToast("No photos found!", "error");
+    if(!imgs.length) {
+        if (document.getElementById('reel-overlay')?.style.display === 'flex') {
+            showToast("No photos found!", "error");
+        }
+        return;
+    }
     const overlay = document.getElementById('reel-overlay'), status = document.getElementById('reel-status'), rImg = document.getElementById('reel-img'), closeBtn = document.getElementById('reel-close'), canvas = document.getElementById('reel-confetti-canvas');
     isReelSpinning = true; overlay.style.display = 'flex'; closeBtn.style.display = 'none'; status.textContent = "PREPARING..."; rImg.src = "";
     const pool = Array.from({length: 5}, () => imgs[Math.floor(Math.random() * imgs.length)].resSrc);
@@ -1031,7 +1147,9 @@ export async function saveResilience() {
         input.value = ''; window.toggleInputZone(false);
 
         if (isBD) {
-            showToast("The 11th star... birth star. ✨", "success");
+            if (document.getElementById('tab-Reflection')?.classList.contains('active')) {
+                showToast("The 11th star... birth star. ✨", "success");
+            }
             if (typeof confetti !== 'undefined') {
                 confetti({
                     particleCount: 150,
@@ -1041,11 +1159,17 @@ export async function saveResilience() {
                 });
             }
         } else {
-            showToast("New star born. ✨", "success");
+            if (document.getElementById('tab-Reflection')?.classList.contains('active')) {
+                showToast("New star born. ✨", "success");
+            }
         }
 
         loadResilience();
-    } catch(e) { showToast("Error saving", "error"); }
+    } catch(e) { 
+        if (document.getElementById('tab-Reflection')?.classList.contains('active')) {
+            showToast("Error saving", "error"); 
+        }
+    }
 }
 window.saveResilience = saveResilience;
 
@@ -1117,12 +1241,32 @@ window.burnVent = () => {
 })();
 
 /* --- MISC --- */
+window.showNavOverride = () => {
+    const nav = document.querySelector('.tab-bar');
+    const tab = document.getElementById('nav-pull-tab');
+    if (nav) nav.classList.remove('hidden');
+    if (tab) tab.style.display = 'none';
+};
+
 window.toggleAloneCard = (card) => {
     const content = document.getElementById('alone-content'); const vis = content.style.display === 'block';
+    const nav = document.querySelector('.tab-bar');
+    const tab = document.getElementById('nav-pull-tab');
+
     content.style.display = vis ? 'none' : 'block';
     card.querySelector('h3 span').textContent = vis ? '(Tap to read)' : '(Tap to close)';
-    if (!vis) { card.classList.add('resonance-card'); setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); }
-    else card.classList.remove('resonance-card');
+    
+    if (!vis) { 
+        card.classList.add('resonance-card'); 
+        if (nav) nav.classList.add('hidden');
+        if (tab) tab.style.display = 'block';
+        setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); 
+    }
+    else {
+        card.classList.remove('resonance-card');
+        if (nav) nav.classList.remove('hidden');
+        if (tab) tab.style.display = 'none';
+    }
 };
 
 window.toggleCat = () => { 
@@ -1139,7 +1283,8 @@ onAuthStateChanged(auth, user => {
         getDoc(doc(db, 'config', 'feelingLow')).then(snap => {
             if (snap.exists()) {
                 const el = document.getElementById('reassurance-text');
-                if (el) el.innerHTML = snap.data().aloneText.replace(/\n/g, '<br>');
+                const text = snap.data().aloneText || "";
+                if (el) el.innerHTML = formatNoteText(text);
             }
         });
     }

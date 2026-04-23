@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050505">
     <title>The Dh Archive | Admin</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
     
@@ -340,13 +341,16 @@
         <!-- Sidebar Navigation -->
         <aside class="admin-sidebar">
             <div class="sidebar-header">
-                <h1>Archive Admin</h1>
+                <h1>dh <span>Admin</span></h1>
+                <a href="index.html" target="_blank" style="font-size: 0.7rem; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px;">
+                    View Live Site <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
             </div>
             <nav class="sidebar-nav">
                 <ul>
-                    <li class="active" data-section="dashboard" onclick="showSection('dashboard')">📊 <span>Dashboard</span></li>
-                    <li data-section="gallery-upload" onclick="showSection('gallery-upload')">📸 <span>Gallery Upload</span></li>
-                    <li data-section="memories-add" onclick="showSection('memories-add')">🧠 <span>Add Memory</span></li>
+                    <li class="active" data-section="dashboard" onclick="showSection('dashboard')">📊 <span>Overview</span></li>
+                    <li data-section="gallery-upload" onclick="showSection('gallery-upload')">📸 <span>Gallery Evidence</span></li>
+                    <li data-section="memories-add" onclick="showSection('memories-add')">📱 <span>Timeline Reels</span></li>
                     <li data-section="jokes-manage" onclick="showSection('jokes-manage')">😂 <span>Inside Jokes</span></li>
                     <li data-section="edit-content" onclick="showSection('edit-content')">💌 <span>Site Messages</span></li>
                     <li data-section="manage-content" onclick="showSection('manage-content')">🗑️ <span>Manage Data</span></li>
@@ -520,6 +524,7 @@
                 </div>
                 <div class="card">
                     <h3>💌 Home Archive Note</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Supports <strong>**bold**</strong> and <strong>&lt;b&gt;bold&lt;/b&gt;</strong> tags.</p>
                     <label>Main Message (Serif / Playfair):</label>
                     <textarea id="letter-input" rows="8"></textarea>
                     <label>Emotional Closing Line:</label>
@@ -530,6 +535,7 @@
 
                 <div class="card">
                     <h3>🧘‍♀️ Resonance Archive</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Supports <strong>**bold**</strong> and <strong>&lt;b&gt;bold&lt;/b&gt;</strong> tags.</p>
                     <label>'Feeling Alone' Reassurance Message:</label>
                     <textarea id="alone-input" rows="6"></textarea>
                     <button class="btn-admin" onclick="updateAloneText()">Save Message</button>

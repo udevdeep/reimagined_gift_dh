@@ -96,3 +96,15 @@ export async function downloadResource(url, filename) {
         window.open(url, '_blank'); // Fallback
     }
 }
+
+/**
+ * Formats text for display in HTML, supporting:
+ * 1. Newlines -> <br>
+ * 2. **bold** -> <strong>bold</strong>
+ * @param {string} t 
+ * @returns {string}
+ */
+export const formatNoteText = (t) => {
+    if (!t) return "";
+    return t.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+};

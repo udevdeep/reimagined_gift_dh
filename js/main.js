@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { initializeFirestore, collection, addDoc, setDoc, deleteDoc, doc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { resolvePath, getContrastYIQ, showToast, downloadResource } from "./utils.js";
+import { resolvePath, getContrastYIQ, showToast, downloadResource, formatNoteText } from "./utils.js";
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDwNkXXzs_mhFNqOwI_NYtB-n6H_g93Pd4",
@@ -191,8 +191,8 @@ function applyCacheImmediate() {
     if (cachedLetter) try {
         const data = JSON.parse(cachedLetter);
         LETTER_TEXT = data.text || ''; window.LETTER_CLOSING = data.closingLine || '';
-        if (document.getElementById('letter-content')) document.getElementById('letter-content').textContent = LETTER_TEXT;
-        if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').textContent = window.LETTER_CLOSING || "";
+        if (document.getElementById('letter-content')) document.getElementById('letter-content').innerHTML = formatNoteText(LETTER_TEXT);
+        if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').innerHTML = formatNoteText(window.LETTER_CLOSING || "");
     } catch(e) {}
     
     if (cachedJokes) try { JOKES_DATA = JSON.parse(cachedJokes); window.JOKES_DATA = JOKES_DATA; } catch(e) {}
@@ -402,15 +402,16 @@ async function loadAllData() {
         }
 
         // Secrets
-        SECRET_KEY = secretsDoc.data()?.privateKey || 'bumblebee';
+        SECRET_KEY = secretsDoc.data()?.privateKey;
+        if (!SECRET_KEY) console.warn("Secret key not found in Firebase config.");
 
         // Letter
         if (letterDoc.exists()) {
             const freshLetter = letterDoc.data();
             if (JSON.stringify(freshLetter) !== sessionStorage.getItem('letter_cache')) {
                 LETTER_TEXT = freshLetter.text || ''; window.LETTER_CLOSING = freshLetter.closingLine || '';
-                if (document.getElementById('letter-content')) document.getElementById('letter-content').textContent = LETTER_TEXT;
-                if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').textContent = window.LETTER_CLOSING || "";
+                if (document.getElementById('letter-content')) document.getElementById('letter-content').innerHTML = formatNoteText(LETTER_TEXT);
+                if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').innerHTML = formatNoteText(window.LETTER_CLOSING || "");
                 sessionStorage.setItem('letter_cache', JSON.stringify(freshLetter));
             }
         }
@@ -444,9 +445,27 @@ function applyHomeConfig(data) {
     }
 }
 
+function updateThemeColor(isBarbie) {
+    let color = isBarbie ? '#fff0f5' : '#050505';
+    // Forced black pages
+    if (document.body.classList.contains('index-page') || document.body.classList.contains('memories-page')) {
+        color = '#000000';
+    }
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'theme-color';
+        document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', color);
+}
+
 function initTheme() {
     const btn = document.getElementById('theme-toggle');
-    const update = (isBarbie) => { if(btn) btn.innerHTML = isBarbie ? '🌙' : '🎀'; };
+    const update = (isBarbie) => { 
+        if(btn) btn.innerHTML = isBarbie ? '🌙' : '🎀'; 
+        updateThemeColor(isBarbie);
+    };
     const isBarbie = localStorage.getItem('theme') === 'barbie';
     if (isBarbie) document.documentElement.classList.add('barbie-mode');
     update(isBarbie);
@@ -709,7 +728,7 @@ export function loadMemories() {
                         <div class="reel-profile-pic">DH</div>
                         <span class="reel-title">${meta.title}</span>
                     </div>
-                    <div class="reel-description">${meta.text || ''}</div>
+                    <div class="reel-description">${formatNoteText(meta.text || '')}</div>
                     ${(meta.text || '').length > 60 ? `<span class="reel-more">read more</span>` : ''}
                     <div class="reel-audio">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M21.002 16.972V2.044a.999.999 0 0 0-.36-.769 1.012 1.012 0 0 0-.823-.214L6.816 3.479A1 1 0 0 0 6 4.462v10.864A3.75 3.75 0 1 0 9 19V9.56l9.003-1.675v5.442A3.75 3.75 0 1 0 21.005 17c0-.01-.003-.02-.003-.029Z"></path></svg>
@@ -765,7 +784,8 @@ export function loadMemories() {
             const rightBtn = reel.querySelector('.carousel-arrow.right');
 
             const updateCarouselState = () => {
-                const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                const width = carousel.offsetWidth || 1; // Prevent division by zero
+                const index = Math.round(carousel.scrollLeft / width);
                 const items = carousel.querySelectorAll('.carousel-item');
                 
                 dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
@@ -828,8 +848,8 @@ export function loadMemories() {
             leftBtn.onclick = () => carousel.scrollBy({ left: -carousel.offsetWidth, behavior: 'smooth' });
             rightBtn.onclick = () => carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
             
-            // Initial state check
-            updateCarouselState();
+            // Initial state check - small timeout to ensure DOM is measured
+            setTimeout(updateCarouselState, 50);
         } else {
             // Single Media Case: Add click-to-toggle play/pause for the single video
             const v = reel.querySelector('video.reel-media');
@@ -1120,7 +1140,7 @@ export function loadMemories() {
                 
                 item.innerHTML = `
                     <div class="comment-main">
-                        <img src="${c.userPhoto}" class="comment-author-pic">
+                        <img src="${c.userPhoto}" class="comment-author-pic" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.userName)}&background=random'">
                         <div class="comment-text-content">
                             <span class="comment-author-name">${c.userName}</span>
                             <span class="comment-text">${highlightMentions(c.text)}</span>
@@ -1157,7 +1177,7 @@ export function loadMemories() {
                         const rCanDelete = user && (user.uid === r.userId || localStorage.getItem('isAdmin'));
                         
                         rItem.innerHTML = `
-                            <img src="${r.userPhoto}" class="comment-author-pic">
+                            <img src="${r.userPhoto}" class="comment-author-pic" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(r.userName)}&background=random'">
                             <div class="comment-text-content">
                                 <span class="comment-author-name">${r.userName}</span>
                                 <span class="comment-text">${highlightMentions(r.text)}</span>
@@ -1638,8 +1658,8 @@ export function loadJokes() {
         window.addEventListener('mouseup', () => obj.isDragging = false);
         bubble.onclick = e => {
             if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) < 5) {
-                document.getElementById('joke-title').textContent = joke.title;
-                document.getElementById('joke-text').textContent = joke.text;
+                document.getElementById('joke-title').innerHTML = formatNoteText(joke.title);
+                document.getElementById('joke-text').innerHTML = formatNoteText(joke.text);
                 modal.classList.add('active');
             }
         };
@@ -1815,7 +1835,11 @@ function showPrivatePrompt() {
 
     form.onsubmit = (e) => {
         e.preventDefault();
-        const target = window.SECRET_KEY || 'bumblebee';
+        const target = window.SECRET_KEY;
+        if (!target) {
+            msg.textContent = 'System error: Key not loaded.';
+            return;
+        }
         if (input.value.trim().toLowerCase() === target.toLowerCase()) {
             localStorage.setItem('private_unlocked', 'true');
             location.reload();

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#050505">
     <title>Feeling Low? | The Dh Archive</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
 
@@ -604,9 +605,49 @@
             color: white;
             transform: scale(1.1);
         }
+
+        /* Nav Pull Tab */
+        .nav-pull-tab {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(0);
+            background: rgba(15, 20, 35, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: none;
+            border-radius: 16px 16px 0 0;
+            padding: 10px 30px;
+            cursor: pointer;
+            z-index: 999;
+            display: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .nav-pull-tab:hover {
+            background: rgba(25, 30, 50, 0.8);
+            transform: translateX(-50%) translateY(-5px);
+            color: var(--text-main);
+        }
+        
+        .tab-bar.hidden {
+            transform: translateX(-50%) translateY(120px);
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="grey-mode-forced feeling-low-page">
+
+    <!-- Nav Pull Tab -->
+    <div id="nav-pull-tab" class="nav-pull-tab" onclick="showNavOverride()">
+        <span>Menu ⌃</span>
+    </div>
 
     <!-- Loader -->
     <div id="loader">
@@ -673,7 +714,6 @@
                     <div id="reassurance-text" class="resonance-message">Loading...</div>
                     
                     <div style="margin-top: 30px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
-                        <p style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 15px;">If you want to send a silent signal back...</p>
                         <button class="spark-fab" onclick="sendSpark(); event.stopPropagation();" title="Send a Spark">Send a Spark ✨</button>
                     </div>
                 </div>
