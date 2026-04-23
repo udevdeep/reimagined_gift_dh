@@ -1,7 +1,11 @@
 [
   {
-    "origin": ["*"],
-    "method": ["GET"],
+    "origin": [
+      "https://dh-archive.vercel.app",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000"
+    ],
+    "method": ["GET", "HEAD"],
     "maxAgeSeconds": 3600
   }
 ]
