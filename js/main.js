@@ -524,8 +524,14 @@ function initCinematicScroll() {
 
         // UI/UX Expert Fix: If cinematic scroll is active, ALWAYS hide navbar 
         // to prevent distraction from the letter narrative.
+        // ON DESKTOP: Only hide if the mouse isn't at the top.
         if (scrollActive) {
-            nav.classList.add('navbar-hidden');
+            if (window.innerWidth > 768) {
+                if (mouseAtTop) nav.classList.remove('navbar-hidden');
+                else nav.classList.add('navbar-hidden');
+            } else {
+                nav.classList.add('navbar-hidden');
+            }
             return;
         }
 
