@@ -1602,8 +1602,16 @@ export function loadJokes() {
     window.onmousemove = updateMouse;
     window.ontouchmove = (e) => {
         updateMouse(e);
-        if (physicsBubbles.some(b => b.isDragging)) e.preventDefault();
+        // Force prevent default to stop pull-to-refresh and page bounce
+        if (e.cancelable) e.preventDefault();
     };
+    
+    // Extra security: Global touch listener for this page to kill scrolling
+    document.addEventListener('touchmove', (e) => {
+        if (document.body.classList.contains('jokes-page')) {
+            if (e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
     
     const updateSizes = () => {
         const isMob = window.innerWidth < 768;

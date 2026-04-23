@@ -940,6 +940,13 @@ p {
 }
 
 /* --- Jokes (Bubbles) --- */
+body.jokes-page {
+    overflow: hidden !important;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+}
+
 .bubble-container {
   position: fixed;
   inset: 0;
