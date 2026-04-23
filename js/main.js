@@ -99,54 +99,8 @@ if (document.readyState === 'loading') {
 }
 
 function handleMobileNav() {
-    const nav = document.querySelector('.navbar');
-    const links = document.querySelector('.nav-links');
-    if (!nav || !links) return;
-    
-    if (window.innerWidth <= 768) {
-        if (nav.contains(links)) { 
-            document.body.appendChild(links); 
-            links.classList.add('mobile-dock'); 
-        }
-    } else {
-        // Cleanup mobile state
-        if (document.body.classList.contains('menu-active')) {
-            document.body.classList.remove('menu-active');
-        }
-
-        if (links.parentNode === document.body) {
-            // Find the correct insertion point: it must be a direct child of nav or a specific sub-container
-            const themeToggle = nav.querySelector('.theme-toggle-btn');
-            const kebabBtn = nav.querySelector('.kebab-btn');
-            const navPillLeft = nav.querySelector('.nav-pill-left');
-            
-            if (navPillLeft) {
-                // Specific structure for memories page
-                navPillLeft.appendChild(links);
-            } else {
-                // Fallback for other pages
-                const actionTarget = (themeToggle || kebabBtn);
-                let insertBefore = null;
-                
-                if (actionTarget) {
-                    let current = actionTarget;
-                    while (current && current.parentNode !== nav && current.parentNode !== document.body) {
-                        current = current.parentNode;
-                    }
-                    if (current && current.parentNode === nav) {
-                        insertBefore = current;
-                    }
-                }
-                
-                if (insertBefore) {
-                    nav.insertBefore(links, insertBefore);
-                } else {
-                    nav.appendChild(links);
-                }
-            }
-            links.classList.remove('mobile-dock');
-        }
-    }
+    // Layout is now handled via CSS Media Queries for better performance and stability
+    return;
 }
 
 export async function sendSpark() {
@@ -1944,19 +1898,21 @@ function initSecretGesture() {
 
     const startHold = (e) => {
         if (unlocked) return;
-        if (e.type === 'touchstart') e.preventDefault();
+        // Don't preventDefault here, as it blocks scrolling.
+        // We only prevent it in the logo.onclick if it was a long press.
         holdStart = Date.now();
         frameId = requestAnimationFrame(updateVisuals);
     };
 
     logo.addEventListener('mousedown', startHold);
-    logo.addEventListener('touchstart', startHold, { passive: false });
+    logo.addEventListener('touchstart', startHold, { passive: true });
     window.addEventListener('mouseup', resetGesture, true);
     window.addEventListener('touchend', resetGesture, true);
     logo.addEventListener('mouseleave', resetGesture);
 
     logo.onclick = (e) => {
         const elapsed = holdStart ? Date.now() - holdStart : 0;
+        // If it was a hold longer than 500ms, prevent the click (navigation)
         if (elapsed > 500 || unlocked) {
             e.preventDefault();
             e.stopPropagation();
