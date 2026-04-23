@@ -608,7 +608,6 @@ export function toggleGame() {
 window.toggleGame = toggleGame;
 
 function saveHighScore(score) {
-    console.log("Attempting to save new High Score:", score);
     window.currentHighScore = score;
     localStorage.setItem('star_drive_highscore', score);
     
@@ -626,9 +625,6 @@ function saveHighScore(score) {
         updatedAt: Date.now(),
         lastPlayer: auth.currentUser?.displayName || "Friend"
     }, { merge: true })
-    .then(() => {
-        console.log("✅ High score successfully saved to Firestore!");
-    })
     .catch(err => {
         console.error("❌ Firestore Save Failed:", err.message);
     });
@@ -643,7 +639,6 @@ async function loadHighScore() {
             localStorage.setItem('star_drive_highscore', remoteHigh);
             const fullHigh = document.getElementById('full-game-high');
             if (fullHigh) fullHigh.textContent = remoteHigh;
-            console.log("High score synced from Firestore:", remoteHigh);
         }
     } catch(e) { console.error("High score sync error:", e); }
 }

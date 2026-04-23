@@ -69,8 +69,6 @@ let galleryState = [];
 
 // Robust initialization that runs even if DOMContentLoaded already fired
 function initAll() {
-    console.log("Initializing Archive...");
-
     // Check for "Vault locked" toast flag
     if (sessionStorage.getItem('show_vault_locked_toast')) {
         sessionStorage.removeItem('show_vault_locked_toast');
@@ -86,7 +84,6 @@ function initAll() {
     
     const introVideo = document.getElementById('intro-video');
     if (introVideo) {
-        console.log("Intro video detected, initializing Home...");
         try { initHome(); } catch(e) { console.error("Home init failed", e); }
     }
     
@@ -250,7 +247,6 @@ function initFirebaseLock() {
 }
 
 async function startApp() {
-    console.log("startApp() - User authenticated.");
     document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     recordVisit();
     
@@ -273,7 +269,6 @@ async function startApp() {
     // AUTO-ENTER: If they just logged in on the index page, clear the pre-landing automatically
     const pre = document.getElementById('pre-landing');
     if (pre && !sessionStorage.getItem('entered_archive')) {
-        console.log("Auto-entering archive after login...");
         enterArchive();
     } else if (pre && sessionStorage.getItem('entered_archive')) {
         pre.style.display = 'none';
@@ -333,8 +328,6 @@ async function recordVisit() {
 
 async function loadAllData() {
     try {
-        console.log("Archive: Fetching core narrative...");
-        
         // 1. HIGH PRIORITY: Letter, Home Config, Secrets
         const [homeDoc, secretsDoc, letterDoc] = await Promise.all([
             getDoc(doc(db, 'config', 'home')),
@@ -359,7 +352,6 @@ async function loadAllData() {
 
         // 2. LOW PRIORITY: Lists and secondary configs (Delayed to prioritize interactivity)
         setTimeout(async () => {
-            console.log("Archive: Fetching secondary media lists...");
             const [jokesSnap, gallerySnap, memoriesSnap, lowDoc] = await Promise.all([
                 getDocs(collection(db, 'jokes')),
                 getDocs(collection(db, 'gallery')),
@@ -430,7 +422,7 @@ function updateThemeColor(isBarbie) {
     meta.setAttribute('content', color);
 }
 
-function initTheme() {
+export function initTheme() {
     const btn = document.getElementById('theme-toggle');
     const update = (isBarbie) => { 
         if(btn) btn.innerHTML = isBarbie ? '🌙' : '🎀'; 
@@ -1276,7 +1268,6 @@ export function loadMemories() {
 }
 
 function setupArchiveGrid(memories) {
-    console.log("Setting up Archive Grid with", memories?.length, "items");
     const openBtn = document.getElementById('open-grid');
     const closeBtn = document.getElementById('close-grid');
     const overlay = document.getElementById('grid-overlay');
@@ -1305,7 +1296,6 @@ function setupArchiveGrid(memories) {
                     .filter(d => d.id.startsWith('cherished_') && !d.data().removed)
                     .map(d => d.data().memoryId)
             );
-            console.log("Fetched", cherishedIds.size, "cherished items.");
         } catch (e) {
             console.error("Error fetching cherished memories:", e);
         }
@@ -1328,7 +1318,6 @@ function setupArchiveGrid(memories) {
                 return true;
             });
 
-            console.log("Rendering grid with", filtered.length, "items (Filter:", currentFilter, ")");
 
             if (filtered.length === 0) {
                 grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">No memories found here yet. ✨</div>`;
@@ -1363,7 +1352,6 @@ function setupArchiveGrid(memories) {
     };
 
     openBtn.onclick = async () => {
-        console.log("Archive grid opening...");
         overlay.classList.add('active');
         renderGrid(); // Initial render with available data
         
@@ -1381,7 +1369,6 @@ function setupArchiveGrid(memories) {
 
     filterBtns.forEach(btn => {
         btn.onclick = () => {
-            console.log("Changing grid filter to:", btn.dataset.filter);
             filterBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilter = btn.dataset.filter;
@@ -2012,7 +1999,6 @@ function updateMapMarkers() {
     if (!window.map) return;
     // Expert Fix: Use window.GALLERY_DATA which is already sorted and fetched
     const mapList = (window.GALLERY_DATA || []).filter(item => item.lat && item.lon);
-    console.log("Updating Map Markers with", mapList.length, "items.");
     
     const bounds = [];
     mapList.forEach((item, index) => {
@@ -2030,7 +2016,7 @@ function addToMap(lat, lon, thumb, index, mapList) {
         iconAnchor: [22, 44]
     });
     const marker = L.marker([lat, lon], { icon }).addTo(window.map);
-    marker.bindPopup(`<div style="text-align:center;"><img src="${thumb}" style="width:120px; height:80px; object-fit:cover; border-radius:5px; margin-bottom:5px;"><br><span style="font-size:0.8rem; font-weight:bold; color:#fff;">Click to Open Evidence</span></div>`, { closeButton: false, offset: [0, -10] });
+    marker.bindPopup(`<img src="${thumb}" style="width:120px; height:80px; object-fit:cover; border-radius:5px;">`, { closeButton: false, offset: [0, -10] });
     marker.on('mouseover', function() { this.openPopup(); });
     marker.on('mouseout', function() { this.closePopup(); });
     marker.on('click', () => openLightbox(index, mapList));

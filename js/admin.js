@@ -1,4 +1,4 @@
-import { auth, db, storage } from "./main.js";
+import { auth, db, storage, initTheme } from "./main.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
@@ -28,6 +28,7 @@ if (loginBtn) {
 
 onAuthStateChanged(auth, user => {
     if(user) {
+        initTheme(); // Expert Fix: Sync theme on admin page
         // Check for Admin status in a separate admin_whitelist collection
         getDoc(doc(db, 'admin_whitelist', user.uid)).then(snap => {
             if(snap.exists()) {
