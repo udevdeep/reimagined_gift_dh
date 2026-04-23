@@ -427,14 +427,24 @@ window.catApp = catApp;
         player.x = canvas.width / 2; player.y = canvas.height - 40;
         score = 0; speedMultiplier = 1; obstacles = []; gameState = 'start';
         canvas.onclick = handleInput;
-        canvas.ontouchstart = (e) => { e.preventDefault(); handleInput(); };
+        canvas.ontouchstart = (e) => { 
+            if (e.cancelable) e.preventDefault(); 
+            handleInput(); 
+            // Also update position on start so ship jumps to finger
+            const r = canvas.getBoundingClientRect();
+            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+        };
         const updatePos = (x, y) => {
             if (gameState !== 'playing') return;
             player.x = Math.max(player.size, Math.min(canvas.width - player.size, x));
             player.y = Math.max(player.size, Math.min(canvas.height - player.size, y));
         };
         canvas.onmousemove = (e) => { const r = canvas.getBoundingClientRect(); updatePos(e.clientX - r.left, e.clientY - r.top); };
-        canvas.ontouchmove = (e) => { e.preventDefault(); const r = canvas.getBoundingClientRect(); updatePos(e.touches[0].clientX - r.left, e.touches[0].top); };
+        canvas.ontouchmove = (e) => { 
+            if (e.cancelable) e.preventDefault(); 
+            const r = canvas.getBoundingClientRect(); 
+            updatePos(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); 
+        };
     };
 
     window.addEventListener('mousedown', (e) => {
