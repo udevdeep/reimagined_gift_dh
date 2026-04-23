@@ -149,7 +149,8 @@ async function processImage(file, type = 'thumb') {
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement('canvas');
         let width = bitmap.width, height = bitmap.height;
-        const MAX_DIM = (type === 'thumb') ? 400 : 2500;
+        // Expert Fix: Cap at 2000px for originals, 400px for thumbs
+        const MAX_DIM = (type === 'thumb') ? 400 : 2000;
 
         if (width > height) { if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; } }
         else { if (height > MAX_DIM) { width *= MAX_DIM / height; height = MAX_DIM; } }

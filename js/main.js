@@ -332,89 +332,72 @@ async function recordVisit() {
 }
 
 async function loadAllData() {
-    const tasks = [
-        getDocs(collection(db, 'jokes')), getDocs(collection(db, 'gallery')), getDocs(collection(db, 'memories')),
-        getDoc(doc(db, 'config', 'home')), getDoc(doc(db, 'config', 'secrets')), getDoc(doc(db, 'config', 'letter')), getDoc(doc(db, 'config', 'feelingLow'))
-    ];
-    
     try {
-        const [jokesSnap, gallerySnap, memoriesSnap, homeDoc, secretsDoc, letterDoc, lowDoc] = await Promise.all(tasks);
-        let changed = false;
+        console.log("Archive: Fetching core narrative...");
+        
+        // 1. HIGH PRIORITY: Letter, Home Config, Secrets
+        const [homeDoc, secretsDoc, letterDoc] = await Promise.all([
+            getDoc(doc(db, 'config', 'home')),
+            getDoc(doc(db, 'config', 'secrets')),
+            getDoc(doc(db, 'config', 'letter'))
+        ]);
 
-        // Jokes
-        if (!jokesSnap.empty) {
-            const freshJokes = jokesSnap.docs.map(doc => doc.data());
-            if (JSON.stringify(freshJokes) !== JSON.stringify(JOKES_DATA)) {
-                JOKES_DATA = freshJokes; window.JOKES_DATA = JOKES_DATA;
-                sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
-                if (document.getElementById('jokes-container')) loadJokes();
-                changed = true;
-            }
-        }
-
-        // Gallery
-        if (!gallerySnap.empty) {
-            const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), date: doc.data().date ? new Date(doc.data().date) : new Date(0) }));
-            freshGallery.sort((a, b) => b.date - a.date);
-            if (JSON.stringify(freshGallery) !== JSON.stringify(GALLERY_DATA)) {
-                GALLERY_DATA = freshGallery; window.GALLERY_DATA = GALLERY_DATA;
-                sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
-                const grid = document.getElementById('gallery-grid');
-                if (grid) {
-                    grid.innerHTML = ''; // Force clear stale media
-                    loadGallery();
-                }
-                changed = true;
-            }
-        }
-
-        // Memories
-        if (!memoriesSnap.empty) {
-            const freshMemories = memoriesSnap.docs.map(doc => ({ folder: doc.id, meta: doc.data() }));
-            if (JSON.stringify(freshMemories) !== JSON.stringify(MEMORIES_DATA)) {
-                MEMORIES_DATA = freshMemories; window.MEMORIES_DATA = MEMORIES_DATA;
-                sessionStorage.setItem('memories_cache', JSON.stringify(MEMORIES_DATA));
-                if (document.getElementById('memories-container')) loadMemories();
-                changed = true;
-            }
-        }
-
-        // Home Config
         if (homeDoc.exists()) {
-            const freshHome = homeDoc.data();
-            if (JSON.stringify(freshHome) !== sessionStorage.getItem('home_cache')) {
-                applyHomeConfig(freshHome);
-                sessionStorage.setItem('home_cache', JSON.stringify(freshHome));
-            }
+            const data = homeDoc.data();
+            applyHomeConfig(data);
+            sessionStorage.setItem('home_cache', JSON.stringify(data));
         }
-
-        // Secrets
-        SECRET_KEY = secretsDoc.data()?.privateKey;
-        if (!SECRET_KEY) console.warn("Secret key not found in Firebase config.");
-
-        // Letter
+        if (secretsDoc.exists()) SECRET_KEY = secretsDoc.data().privateKey;
         if (letterDoc.exists()) {
-            const freshLetter = letterDoc.data();
-            if (JSON.stringify(freshLetter) !== sessionStorage.getItem('letter_cache')) {
-                LETTER_TEXT = freshLetter.text || ''; window.LETTER_CLOSING = freshLetter.closingLine || '';
-                if (document.getElementById('letter-content')) document.getElementById('letter-content').innerHTML = formatNoteText(LETTER_TEXT);
-                if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').innerHTML = formatNoteText(window.LETTER_CLOSING || "");
-                sessionStorage.setItem('letter_cache', JSON.stringify(freshLetter));
-            }
+            const data = letterDoc.data();
+            LETTER_TEXT = data.text || '';
+            window.LETTER_CLOSING = data.closingLine || '';
+            if (document.getElementById('letter-content')) document.getElementById('letter-content').innerHTML = formatNoteText(LETTER_TEXT);
+            if (document.getElementById('letter-closing-line')) document.getElementById('letter-closing-line').innerHTML = formatNoteText(window.LETTER_CLOSING || "");
+            sessionStorage.setItem('letter_cache', JSON.stringify(data));
         }
 
-        // Feeling Low
-        if (lowDoc.exists()) {
-            const freshLow = lowDoc.data();
-            if (JSON.stringify(freshLow) !== sessionStorage.getItem('feeling_low_cache')) {
-                ALONE_TEXT = freshLow.aloneText || ALONE_TEXT; window.ALONE_TEXT = ALONE_TEXT;
-                sessionStorage.setItem('feeling_low_cache', JSON.stringify(freshLow));
-            }
-        }
+        // 2. LOW PRIORITY: Lists and secondary configs (Delayed to prioritize interactivity)
+        setTimeout(async () => {
+            console.log("Archive: Fetching secondary media lists...");
+            const [jokesSnap, gallerySnap, memoriesSnap, lowDoc] = await Promise.all([
+                getDocs(collection(db, 'jokes')),
+                getDocs(collection(db, 'gallery')),
+                getDocs(collection(db, 'memories')),
+                getDoc(doc(db, 'config', 'feelingLow'))
+            ]);
 
-        if (changed) console.log("Archive refreshed with fresh data from Firebase.");
+            if (!jokesSnap.empty) {
+                JOKES_DATA = jokesSnap.docs.map(d => d.data());
+                sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
+            }
+            if (!gallerySnap.empty) {
+                const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), date: doc.data().date ? new Date(doc.data().date) : new Date(0) }));
+                freshGallery.sort((a, b) => b.date - a.date);
+                if (JSON.stringify(freshGallery) !== JSON.stringify(GALLERY_DATA)) {
+                    GALLERY_DATA = freshGallery; window.GALLERY_DATA = GALLERY_DATA;
+                    sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
+                    const grid = document.getElementById('gallery-grid');
+                    if (grid) { grid.innerHTML = ''; loadGallery(); }
+                }
+            }
+            if (!memoriesSnap.empty) {
+                const freshMemories = memoriesSnap.docs.map(doc => ({ folder: doc.id, meta: doc.data() }));
+                if (JSON.stringify(freshMemories) !== JSON.stringify(MEMORIES_DATA)) {
+                    MEMORIES_DATA = freshMemories; window.MEMORIES_DATA = MEMORIES_DATA;
+                    sessionStorage.setItem('memories_cache', JSON.stringify(MEMORIES_DATA));
+                    if (document.getElementById('memories-container')) loadMemories();
+                }
+            }
+            if (lowDoc.exists()) {
+                const data = lowDoc.data();
+                ALONE_TEXT = data.aloneText || ALONE_TEXT; window.ALONE_TEXT = ALONE_TEXT;
+                sessionStorage.setItem('feeling_low_cache', JSON.stringify(data));
+            }
+        }, 1500);
+
     } catch (e) {
-        console.error("Error revalidating archive data:", e);
+        console.error("Archive fetch error:", e);
     }
 }
 
@@ -694,7 +677,7 @@ export function loadMemories() {
 
         // 1. Audio Name Refinement
         let audioLabel = "Original Audio";
-        if (meta.audioName) audioLabel = meta.audioName;
+        if (audioLabel = meta.audioName) audioLabel = meta.audioName;
         else if (meta.song) audioLabel = meta.song;
         else if (meta.audio) audioLabel = `Audio - ${meta.title}`;
         else audioLabel = `Moment - ${meta.title}`;
@@ -1694,6 +1677,7 @@ export function loadJokes() {
 
         bubble.onclick = handleSelect;
         bubble.addEventListener('touchend', (e) => {
+            // Only handle as click if we were dragging this specific bubble
             if (obj.isDragging) handleSelect(e);
         });
 
@@ -1705,6 +1689,13 @@ export function loadJokes() {
 
     function step() {
         if (!document.getElementById('jokes-container')) return;
+        
+        // Performance Optimization: Stop loop if user switches tabs
+        if (document.hidden) {
+            physicsAnimationId = requestAnimationFrame(step);
+            return;
+        }
+
         const w = window.innerWidth, h = window.innerHeight;
         physicsBubbles.forEach((b, i) => {
             if (b.isDragging) {
@@ -1772,25 +1763,6 @@ function initMemoriesNav() {
             });
         };
     }
-
-    // Navbar visibility is now constant on memories page
-    /*
-    const memContainer = document.getElementById('memories-container');
-    if (memContainer) {
-        let lastScrollTop = 0;
-        memContainer.addEventListener('scroll', () => {
-            let st = memContainer.scrollTop;
-            if (st > lastScrollTop && st > 100) {
-                nav.classList.add('navbar-hidden');
-            } else {
-                nav.classList.remove('navbar-hidden');
-            }
-            lastScrollTop = st <= 0 ? 0 : st;
-        }, { passive: true });
-    }
-    
-    window.onmousemove = (e) => { if (e.clientY < 60) nav.classList.remove('navbar-hidden'); };
-    */
 }
 
 function initMemoryScrollbar() {
@@ -2011,50 +1983,53 @@ function initSecretGesture() {
     };
 }
 
-let map;
-function initMap() {
-    if (!document.getElementById('gallery-map') || map) return;
-    map = L.map('gallery-map').setView([20, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
+async function initMap() {
+    const mapEl = document.getElementById('gallery-map');
+    if (!mapEl) return;
+
+    if (window.map) {
+        window.map.remove();
+        window.map = null;
+    }
+
+    window.map = L.map('gallery-map', {
+        zoomControl: false,
+        attributionControl: false,
+        fadeAnimation: true,
+        markerZoomAnimation: true
+    }).setView([20, 0], 2);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+    }).addTo(window.map);
 }
 
 function updateMapMarkers() {
-    if(!map) return;
-    map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-    const showPrivate = localStorage.getItem('private_unlocked');
+    if (!window.map) return;
+    const mapList = galleryState.filter(item => item.lat && item.lon);
     const bounds = [];
-    const mapItems = galleryState.filter(item => {
-        const isVid = item.type === 'video' || item.src.match(/\.(mp4|mov)$/i);
-        return (!item.private || showPrivate) && item.src && item.lat && item.lon && !isVid;
-    });
 
-    mapItems.forEach((item, index) => {
-        addToMap(item.lat, item.lon, item.thumb || item.src, index, mapItems);
+    mapList.forEach((item, index) => {
+        addToMap(item.lat, item.lon, item.thumb || item.src, index, mapList);
         bounds.push([item.lat, item.lon]);
     });
-    if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+    if (bounds.length > 0) window.map.fitBounds(bounds, { padding: [50, 50] });
 }
 
-function addToMap(lat, lon, imgUrl, index, mapList) {
+function addToMap(lat, lon, thumb, index, mapList) {
     const icon = L.divIcon({
-        html: `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous"></div>`,
-        className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+        className: 'custom-map-marker',
+        html: `<div class="marker-thumb" style="background-image: url(${thumb})"></div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
     });
-    const marker = L.marker([lat, lon], {icon: icon}).addTo(map);
-    marker.bindPopup(`<div class="map-popup-preview"><img src="${imgUrl}" crossorigin="anonymous"></div>`, { closeButton: false, offset: [0, -10] });
+    const marker = L.marker([lat, lon], { icon }).addTo(window.map);
+    marker.bindPopup(`<img src="${thumb}" style="width:100px; border-radius:5px; margin-bottom:5px;"><br>Click to view`, { closeButton: false, offset: [0, -10] });
     marker.on('mouseover', function() { this.openPopup(); });
     marker.on('mouseout', function() { this.closePopup(); });
     marker.on('click', () => openLightbox(index, mapList));
 }
 
-let markerUpdateTimeout;
-function debouncedUpdateMapMarkers() {
-    clearTimeout(markerUpdateTimeout);
-    markerUpdateTimeout = setTimeout(updateMapMarkers, 1000);
+function extractGalleryDates() {
+    // Logic to populate a date-picker or month-jumper if needed
 }
-
-async function extractGalleryDates() {
-    // Redundant: Now handled during upload in admin.js
-}
-
-function convertDMSToDD(dms, ref) { if (!dms) return null; let dd = dms[0] + dms[1]/60 + dms[2]/3600; if (ref === "S" || ref === "W") dd = dd * -1; return dd; }

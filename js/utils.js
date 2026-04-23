@@ -108,3 +108,51 @@ export const formatNoteText = (t) => {
     if (!t) return "";
     return t.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 };
+
+/**
+ * Expert UI/UX Fix: Client-side Image Compression
+ * Resizes large images and converts to high-quality WebP.
+ * Helps reduce file sizes by up to 80% with no visible quality loss.
+ */
+export async function compressImage(file, { maxWidth = 2000, quality = 0.85 } = {}) {
+    if (!file.type.startsWith('image/')) return file; // Skip videos
+    
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Export as WebP for best compression/quality ratio
+                canvas.toBlob((blob) => {
+                    resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                        type: 'image/webp',
+                        lastModified: Date.now()
+                    }));
+                }, 'image/webp', quality);
+            };
+        };
+    });
+}
+
+/**
+ * Generates a tiny optimized thumbnail (approx 400px wide)
+ */
+export async function generateThumbnail(file, size = 400) {
+    return compressImage(file, { maxWidth: size, quality: 0.7 });
+}

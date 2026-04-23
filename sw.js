@@ -35,32 +35,32 @@ self.addEventListener('fetch', (event) => {
   
   if (event.request.method !== 'GET') return;
 
-  // Strategy: Cache-First for Media & Assets (EXCLUDING large videos to avoid Safari Range Request bugs)
+  // Strategy: Cache-First for Media & Assets
+  // EXPERT REFINEMENT: Cache thumbnails/images but let videos stream to avoid Safari range bugs
   const isVideo = url.pathname.match(/\.(mp4|webm|mov)$/i);
+  const isThumb = url.href.includes('thumb') || url.pathname.includes('thumb');
   const isImageOrAsset = url.pathname.match(/\.(jpg|jpeg|png|webp|gif|svg|woff2)$/i);
   const isCacheableDomain = CACHEABLE_DOMAINS.some(domain => url.href.includes(domain));
 
-  // Skip Service Worker for videos - let the browser's native streaming handle them
-  if (isVideo) return;
+  // Skip Service Worker for large videos, but DO cache video thumbnails
+  if (isVideo && !isThumb) return;
 
-  if (isImageOrAsset || isCacheableDomain) {
+  if (isImageOrAsset || isCacheableDomain || isThumb) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
 
-        // Try CORS fetch first (to allow caching)
+        // Try network and cache if successful
         return fetch(event.request).then((networkResponse) => {
-          // If valid response, try to cache it
-          if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          if (networkResponse && networkResponse.status === 200) {
+             const responseToCache = networkResponse.clone();
+             caches.open(CACHE_NAME).then((cache) => {
+               cache.put(event.request, responseToCache);
+             });
           }
           return networkResponse;
         }).catch(() => {
-            // FALLBACK: If CORS fetch fails, try again without forcing CORS logic 
-            // This allows images to show up even if they can't be cached.
+            // Fallback for failed fetches (privacy browsers)
             return fetch(event.request.url);
         });
       })
