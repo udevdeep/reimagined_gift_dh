@@ -224,8 +224,11 @@
             #main-view {
                 padding-top: 0; /* Remove top padding as the tab-bar now provides the spacing */
             }
-            .constellation-footer {
-                padding-bottom: 80px !important; /* Force extra space on mobile */
+            body.fullscreen-active .constellation-footer {
+                padding-bottom: 80px !important; /* Force extra space ONLY in fullscreen */
+            }
+            body.fullscreen-active #constellation-hint {
+                bottom: 160px !important; /* Move higher ONLY in fullscreen */
             }
         }
 

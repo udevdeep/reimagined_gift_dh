@@ -1147,6 +1147,7 @@ export function toggleConstellationFullscreen() {
     const backBtn = document.getElementById('back-link-container');
     const giftBtn = document.getElementById('gift-btn-container');
     const isFullscreen = card.classList.toggle('fullscreen-card');
+    document.body.classList.toggle('fullscreen-active', isFullscreen);
 
     if (isFullscreen) {
         // Change icon to "minimize"
