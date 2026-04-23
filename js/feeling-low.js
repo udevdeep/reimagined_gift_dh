@@ -13,6 +13,13 @@ window.currentHighScore = parseInt(localStorage.getItem('star_drive_highscore') 
 
 /* --- TABS --- */
 export function switchTab(id) {
+    // Expert Fix: Auto-close "A Note for You" if it's open
+    const aloneContent = document.getElementById('alone-content');
+    if (aloneContent && aloneContent.style.display === 'block') {
+        const aloneCard = document.getElementById('alone-card');
+        if (aloneCard) toggleAloneCard(aloneCard);
+    }
+
     document.querySelectorAll('.app-section').forEach(el => el.classList.remove('active'));
     const target = document.getElementById('tab-' + id);
     if(target) target.classList.add('active');
@@ -589,11 +596,11 @@ export function toggleGame() {
         const c = document.getElementById('cat-container'); if (c) c.style.display = 'none';
         document.querySelector('.grid-2')?.classList.add('compact');
         g.style.display = 'block';
-        requestAnimationFrame(() => { window.initGame(); window.gameLoop(); });
+        requestAnimationFrame(() => { window.initGame(); });
     } else {
         g.style.display = 'none';
         document.querySelector('.grid-2')?.classList.remove('compact');
-        if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
+        if (currentAnimId) cancelAnimationFrame(currentAnimId);
     }
 }
 window.toggleGame = toggleGame;
@@ -1434,5 +1441,16 @@ onAuthStateChanged(auth, user => {
                 if (el) el.innerHTML = formatNoteText(text);
             }
         });
+    }
+});
+
+// Auto-close note when tab is hidden or page is left
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        const aloneContent = document.getElementById('alone-content');
+        if (aloneContent && aloneContent.style.display === 'block') {
+            const aloneCard = document.getElementById('alone-card');
+            if (aloneCard) toggleAloneCard(aloneCard);
+        }
     }
 });
