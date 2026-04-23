@@ -541,8 +541,12 @@
 
         @keyframes flyVoidMobile {
             0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-            15% { transform: translate(30px, 100px) scale(0.9) rotate(-15deg); }
-            100% { opacity: 0; transform: translate(120vw, 120vh) scale(0.1) rotate(-60deg); }
+            /* Step 1: Move down and slightly right */
+            25% { transform: translate(50px, 150px) scale(0.9) rotate(20deg); }
+            /* Step 2: Slow down slightly (visually implied by the timing and small change) */
+            40% { transform: translate(70px, 160px) scale(0.85) rotate(10deg); }
+            /* Step 3: Accelerate up and out top right */
+            100% { opacity: 0; transform: translate(150vw, -150vh) scale(0.1) rotate(90deg); }
         }
 
         @media (max-width: 768px) {

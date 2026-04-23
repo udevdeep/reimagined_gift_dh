@@ -495,7 +495,15 @@ window.catApp = catApp;
                     if(Math.hypot(player.x - obs.x, (player.y + 12) - obs.y) < (player.size + obs.size - 5)) endGame();
                 });
                 score++; if (score % 500 === 0) speedMultiplier += 0.1;
-                drawHUD();
+                
+                // Expert Fix: Only draw canvas HUD on mini version. 
+                // Fullscreen uses HTML-based score UI.
+                if (canvas.id === 'bubble-canvas') {
+                    drawHUD();
+                } else {
+                    const fullScore = document.getElementById('full-game-score');
+                    if (fullScore) fullScore.textContent = score;
+                }
             } 
             else if (gameState === 'gameover') {
                 drawCenteredText("Game Over", -20, "30px EB Garamond", "#ff6b6b");
