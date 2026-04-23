@@ -188,21 +188,24 @@
 
         @media (max-width: 768px) {
             .tab-bar {
-                position: relative; /* Expert Fix: Make it scroll with the page */
-                top: 0;
-                bottom: auto;
-                left: 0;
-                transform: none;
-                width: 100%;
-                max-width: none;
-                justify-content: center;
-                margin: 20px 0 0; /* Add some space above */
-                background: rgba(15, 20, 35, 0.2);
-                box-shadow: none;
-                border-radius: 20px;
+                position: fixed;
+                bottom: 25px;
+                top: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: auto; /* Wrap around icons */
+                min-width: 260px;
+                max-width: 90%;
+                background: rgba(15, 20, 35, 0.6);
+                backdrop-filter: blur(25px);
+                -webkit-backdrop-filter: blur(25px);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                border-radius: 100px;
+                padding: 6px;
+                gap: 8px;
             }
             .tab-btn {
-                width: 60px; height: 60px;
+                width: 52px; height: 52px;
                 flex: none;
                 display: flex;
                 align-items: center;
@@ -212,7 +215,8 @@
                 display: none; 
             }
             #main-view {
-                padding-top: 100px; /* Adjust to clear only the Back/Gift buttons */
+                padding-top: 100px; /* Standard top spacing */
+                padding-bottom: 120px; /* Ensure content clears the bottom dock */
             }
         }
 
