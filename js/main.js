@@ -1854,10 +1854,18 @@ function initSecretGesture() {
     const logo = document.querySelector('.nav-brand');
     if (!logo) return;
     
-    // Cleanup any existing elements
-    document.getElementById('secret-loader')?.remove();
+    // Only cleanup if we haven't already initialized this logo
+    if (logo.dataset.gestureInitialized === 'true') return;
+    
+    // Safe cleanup for truly fresh initializations
+    if (!document.getElementById('secret-loader')) {
+        // No loader exists, safe to proceed
+    } else {
+        // A loader exists but dataset wasn't set? (Edge case)
+        // Just return to avoid killing an active hold
+        return;
+    }
 
-    if (logo.dataset.gestureInitialized) return;
     logo.dataset.gestureInitialized = 'true';
 
     let holdStart = 0, frameId = null, unlocked = false;
@@ -1958,6 +1966,7 @@ function initSecretGesture() {
     window.addEventListener('touchend', resetGesture, true);
     window.addEventListener('touchcancel', resetGesture, true);
     logo.addEventListener('mouseleave', resetGesture);
+
     logo.oncontextmenu = (e) => {
         if (holdStart || unlocked) e.preventDefault();
     };
