@@ -35,6 +35,9 @@ self.addEventListener('fetch', (event) => {
   
   if (event.request.method !== 'GET') return;
 
+  // Skip Vercel internal scripts and source maps to prevent 404 noise in console
+  if (url.pathname.includes('/_vercel/') || url.pathname.endsWith('.map')) return;
+
   // Strategy: Cache-First for Media & Assets
   // EXPERT REFINEMENT: Cache thumbnails/images but let videos stream to avoid Safari range bugs
   const isVideo = url.pathname.match(/\.(mp4|webm|mov)$/i);

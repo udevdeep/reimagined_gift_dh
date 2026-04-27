@@ -1,4 +1,4 @@
-import { handleUpload } from '@vercel/blob/client';
+import { handleUpload } from '@vercel/blob';
 import admin from 'firebase-admin';
 
 // Initialize Firebase Admin only once

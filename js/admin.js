@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.22.1/client";
+import { upload } from "https://unpkg.com/@vercel/blob@0.22.1/dist/index.browser.js";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 

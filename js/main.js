@@ -364,9 +364,15 @@ async function loadAllData() {
                 sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
             }
             if (!gallerySnap.empty) {
-                const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), date: doc.data().date ? new Date(doc.data().date) : new Date(0) }));
-                freshGallery.sort((a, b) => b.date - a.date);
-                if (JSON.stringify(freshGallery) !== JSON.stringify(GALLERY_DATA)) {
+                const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+                // Sort to ensure comparison is consistent
+                freshGallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                
+                // Compare length and IDs to detect real changes instead of full object stringification
+                const currentIds = GALLERY_DATA.map(i => i.id).join(',');
+                const freshIds = freshGallery.map(i => i.id).join(',');
+
+                if (freshGallery.length !== GALLERY_DATA.length || freshIds !== currentIds) {
                     GALLERY_DATA = freshGallery; window.GALLERY_DATA = GALLERY_DATA;
                     sessionStorage.setItem('gallery_cache', JSON.stringify(GALLERY_DATA));
                     const grid = document.getElementById('gallery-grid');
@@ -375,7 +381,11 @@ async function loadAllData() {
             }
             if (!memoriesSnap.empty) {
                 const freshMemories = memoriesSnap.docs.map(doc => ({ folder: doc.id, meta: doc.data() }));
-                if (JSON.stringify(freshMemories) !== JSON.stringify(MEMORIES_DATA)) {
+                
+                const currentFolders = MEMORIES_DATA.map(m => m.folder).join(',');
+                const freshFolders = freshMemories.map(m => m.folder).join(',');
+
+                if (freshMemories.length !== MEMORIES_DATA.length || freshFolders !== currentFolders) {
                     MEMORIES_DATA = freshMemories; window.MEMORIES_DATA = MEMORIES_DATA;
                     sessionStorage.setItem('memories_cache', JSON.stringify(MEMORIES_DATA));
                     if (document.getElementById('memories-container')) loadMemories();
