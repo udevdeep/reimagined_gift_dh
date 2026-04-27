@@ -777,13 +777,24 @@ export const SoundFX = {
         this.init(); if (this.ctx?.state !== 'running') return;
         const play = (f, v, t) => {
             const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            // Add a lowpass filter to make it "thumpier" and less "beepy"
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(150, this.ctx.currentTime + t);
+            
             osc.type = 'sine'; osc.frequency.setValueAtTime(f, this.ctx.currentTime + t);
-            osc.frequency.exponentialRampToValueAtTime(f * 0.6, this.ctx.currentTime + t + 0.15);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.5, this.ctx.currentTime + t + 0.15);
+            
+            // Increased volumes (from 0.2/0.15 to 0.5/0.4)
             g.gain.setValueAtTime(0, this.ctx.currentTime + t); g.gain.linearRampToValueAtTime(v, this.ctx.currentTime + t + 0.02);
             g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + t + 0.15);
-            osc.connect(g); g.connect(this.ctx.destination); osc.start(this.ctx.currentTime + t); osc.stop(this.ctx.currentTime + t + 0.15);
+            
+            osc.connect(filter); filter.connect(g); g.connect(this.ctx.destination); 
+            osc.start(this.ctx.currentTime + t); osc.stop(this.ctx.currentTime + t + 0.15);
         };
-        play(80, 0.2, 0); play(60, 0.15, 0.12);
+        // Increased gain values for both beats of the "lub-dub"
+        play(60, 0.5, 0);      // Lub
+        play(45, 0.4, 0.12);   // Dub (slightly lower pitch, slightly lower vol)
     },
     spark() {
         this.init(); if (this.ctx?.state !== 'running') return;

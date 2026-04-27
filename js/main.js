@@ -497,7 +497,7 @@ function initCinematicScroll() {
         const wasAtTop = currentScroll < 50;
         
         if (indicator) {
-            if (currentScroll > 100 || scrollActive) indicator.classList.add('hidden');
+            if (currentScroll > 100) indicator.classList.add('hidden');
             else indicator.classList.remove('hidden');
         }
 
@@ -532,7 +532,6 @@ function initCinematicScroll() {
     const startScrollLoop = () => {
         if (!scrollActive) {
             scrollActive = true;
-            if (indicator) indicator.classList.add('hidden');
             // Update currentScroll to wherever the user manually scrolled to
             currentScroll = container.scrollTop;
             requestAnimationFrame(step);
@@ -567,8 +566,6 @@ function initCinematicScroll() {
     function step() {
         if (!scrollActive) return;
         
-        if (indicator && currentScroll > 100) indicator.classList.add('hidden');
-        
         currentScroll += speed;
         container.scrollTop = currentScroll;
         
@@ -591,7 +588,7 @@ function initCinematicScroll() {
     
     setTimeout(() => {
         requestAnimationFrame(step);
-    }, 1500);
+    }, 3000);
 }
 
 let isGlobalPaused = false;
@@ -1957,6 +1954,9 @@ function initSecretGesture() {
     window.addEventListener('mouseup', resetGesture, true);
     window.addEventListener('touchend', resetGesture, true);
     logo.addEventListener('mouseleave', resetGesture);
+    logo.oncontextmenu = (e) => {
+        if (holdStart || unlocked) e.preventDefault();
+    };
 
     logo.onclick = (e) => {
         const elapsed = holdStart ? Date.now() - holdStart : 0;

@@ -271,6 +271,9 @@ p {
   letter-spacing: -1px;
   transition: all 0.3s ease;
   position: relative;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .nav-brand:hover {
@@ -522,6 +525,9 @@ p {
   font-size: 1.5rem;
   color: var(--accent-primary);
   text-decoration: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .nav-links {
@@ -695,6 +701,9 @@ p {
       padding: 5px 15px;
       border-radius: 20px;
       border: 1px solid var(--card-border);
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
   }
   
   .theme-toggle-btn {
