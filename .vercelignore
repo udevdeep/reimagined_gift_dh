@@ -1,0 +1,2 @@
+# Don't ignore node_modules/@vercel/speed-insights - we need it for the import
+!node_modules/@vercel/speed-insights/
