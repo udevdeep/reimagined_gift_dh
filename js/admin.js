@@ -847,7 +847,23 @@ async function uploadHomeVideo() {
 
     try {
         if (isLocal) {
-            // ... (keep local logic as is)
+            status.textContent = "Uploading to local server...";
+            const formData = new FormData();
+            formData.append('video', videoFile);
+            if (thumbFile) formData.append('thumb', thumbFile);
+            else {
+                const tBlob = await getVideoThumbnail(videoFile);
+                if (tBlob) formData.append('thumb', tBlob, 'thumb.jpg');
+            }
+
+            const res = await fetch('/api/local-upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || "Local upload failed");
+            vUrl = data.videoUrl;
+            tUrl = data.thumbUrl;
         } else {
             const uploadApiUrl = new URL('/api/upload', window.location.origin).href;
             console.log("1. Starting Vercel Blob handshake at:", uploadApiUrl);
@@ -860,9 +876,7 @@ async function uploadHomeVideo() {
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: uploadApiUrl,
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`
-                    },
+                    clientPayload: JSON.stringify({ idToken }),
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
@@ -888,9 +902,7 @@ async function uploadHomeVideo() {
                 const tBlob = await upload(`intro_thumb_${ts}`, thumbFile, {
                     access: 'public',
                     handleUploadUrl: uploadApiUrl,
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`
-                    }
+                    clientPayload: JSON.stringify({ idToken })
                 });
                 tUrl = tBlob.url;
             } else {
@@ -900,10 +912,8 @@ async function uploadHomeVideo() {
                     const vtBlob = await upload(`intro_thumb_auto_${ts}.jpg`, tBlobFile, {
                         access: 'public',
                         handleUploadUrl: uploadApiUrl,
-                        headers: {
-                            'Authorization': `Bearer ${idToken}`
-                        }
-                    });
+                    clientPayload: JSON.stringify({ idToken })
+                });
                     tUrl = vtBlob.url;
                 }
             }

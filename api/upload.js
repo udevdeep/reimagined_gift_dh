@@ -31,13 +31,30 @@ export default async function handler(request, response) {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         // --- SECURITY: AUTHENTICATION CHECK ---
-        // Expecting the client to send 'authorization' header with Firebase ID Token
-        const authHeader = request.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          throw new Error('Unauthorized: Missing or invalid authorization header');
+        let idToken = null;
+
+        // Try to get token from clientPayload (standard for Vercel Blob handshake)
+        if (clientPayload) {
+          try {
+            const payload = JSON.parse(clientPayload);
+            idToken = payload.idToken;
+          } catch (e) {
+            console.error("Failed to parse clientPayload:", e.message);
+          }
         }
 
-        const idToken = authHeader.split('Bearer ')[1];
+        // Fallback to Authorization header
+        if (!idToken) {
+          const authHeader = request.headers.authorization;
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            idToken = authHeader.split('Bearer ')[1];
+          }
+        }
+
+        if (!idToken) {
+          throw new Error('Unauthorized: Missing authentication token in clientPayload or header');
+        }
+
         try {
           // Verify the ID Token
           const decodedToken = await admin.auth().verifyIdToken(idToken);
