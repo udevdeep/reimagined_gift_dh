@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "mkdir -p _vercel/speed-insights && cp node_modules/@vercel/speed-insights/dist/index.mjs _vercel/speed-insights/index.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
