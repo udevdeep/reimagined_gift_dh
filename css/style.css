@@ -2381,11 +2381,15 @@ html.barbie-mode body.index-page::after { opacity: 0 !important; display: none !
 .archive-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
+    grid-auto-rows: min-content;
+    align-items: start;
+    gap: 15px 10px;
     max-width: 1000px;
     margin: 0 auto;
     width: 100%;
     overflow-y: auto;
+    flex: 1; /* Allow it to fill space and scroll correctly */
+    min-height: 0; /* Important for scrolling in flex containers */
 }
 
 .grid-item {
