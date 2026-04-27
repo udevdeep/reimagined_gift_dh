@@ -1868,7 +1868,7 @@ function initSecretGesture() {
     loader.id = 'secret-loader';
     loader.style.cssText = `
         position: fixed; 
-        bottom: 40px; 
+        bottom: 150px; 
         left: 50%; 
         transform: translateX(-50%); 
         width: 60px; 
@@ -1887,6 +1887,7 @@ function initSecretGesture() {
         background: rgba(0,0,0,0.2);
         backdrop-filter: blur(10px);
         font-family: var(--font-body);
+        pointer-events: none;
     `;
     document.body.appendChild(loader);
 
@@ -1907,7 +1908,9 @@ function initSecretGesture() {
         
         loader.style.opacity = '1';
         loader.style.background = `conic-gradient(var(--accent-primary) ${progress * 360}deg, rgba(255,255,255,0.1) 0deg)`;
-        loader.textContent = Math.ceil((REQUIRED_TIME - elapsed) / 1000);
+        
+        const remaining = Math.max(0, Math.ceil((REQUIRED_TIME - elapsed) / 1000));
+        loader.textContent = remaining > 0 ? remaining : "✨";
 
         if (progress >= 1) {
             unlocked = true;
@@ -1953,6 +1956,7 @@ function initSecretGesture() {
     logo.addEventListener('touchstart', startHold, { passive: true });
     window.addEventListener('mouseup', resetGesture, true);
     window.addEventListener('touchend', resetGesture, true);
+    window.addEventListener('touchcancel', resetGesture, true);
     logo.addEventListener('mouseleave', resetGesture);
     logo.oncontextmenu = (e) => {
         if (holdStart || unlocked) e.preventDefault();

@@ -751,50 +751,56 @@ export const SoundFX = {
                     for (let i = 0; i < bSize; i++) output[i] = Math.random() * 2 - 1;
                 }
             }
-            if (this.ctx?.state === 'suspended') this.ctx.resume();
+            // Always try to resume on interaction
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
         } catch(e) {}
     },
     click() {
-        this.init(); if (this.ctx?.state !== 'running') return;
+        this.init();
+        const now = this.ctx ? this.ctx.currentTime : 0;
         const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.05);
-        g.gain.setValueAtTime(0.05, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
-        osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+        g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+        osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(now + 0.05);
     },
     jackpot() {
-        this.init(); if (this.ctx?.state !== 'running') return;
+        this.init();
+        const now = this.ctx ? this.ctx.currentTime : 0;
         const play = (f, t, d) => {
             const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(f, this.ctx.currentTime + t);
-            g.gain.setValueAtTime(0, this.ctx.currentTime + t); g.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + t + 0.05);
-            g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + t + d);
-            osc.connect(g); g.connect(this.ctx.destination); osc.start(this.ctx.currentTime + t); osc.stop(this.ctx.currentTime + t + d);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(f, now + t);
+            g.gain.setValueAtTime(0, now + t); g.gain.linearRampToValueAtTime(0.15, now + t + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.01, now + t + d);
+            osc.connect(g); g.connect(this.ctx.destination); osc.start(now + t); osc.stop(now + t + d);
         };
         play(523.25, 0, 0.5); play(659.25, 0.1, 0.5); play(783.99, 0.2, 0.8);
     },
     thump() {
-        this.init(); if (this.ctx?.state !== 'running') return;
+        this.init();
+        // Don't bail if state is not 'running' - mobile takes a moment to resume
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
         const play = (f, v, t) => {
             const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
-            // Add a lowpass filter to make it "thumpier" and less "beepy"
             const filter = this.ctx.createBiquadFilter();
             filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(150, this.ctx.currentTime + t);
+            filter.frequency.setValueAtTime(150, now + t);
             
-            osc.type = 'sine'; osc.frequency.setValueAtTime(f, this.ctx.currentTime + t);
-            osc.frequency.exponentialRampToValueAtTime(f * 0.5, this.ctx.currentTime + t + 0.15);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(f, now + t);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.5, now + t + 0.15);
             
-            // Increased volumes (from 0.2/0.15 to 0.5/0.4)
-            g.gain.setValueAtTime(0, this.ctx.currentTime + t); g.gain.linearRampToValueAtTime(v, this.ctx.currentTime + t + 0.02);
-            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + t + 0.15);
+            g.gain.setValueAtTime(0, now + t); g.gain.linearRampToValueAtTime(v, now + t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.15);
             
             osc.connect(filter); filter.connect(g); g.connect(this.ctx.destination); 
-            osc.start(this.ctx.currentTime + t); osc.stop(this.ctx.currentTime + t + 0.15);
+            osc.start(now + t); osc.stop(now + t + 0.15);
         };
-        // Increased gain values for both beats of the "lub-dub"
-        play(60, 0.5, 0);      // Lub
-        play(45, 0.4, 0.12);   // Dub (slightly lower pitch, slightly lower vol)
+        play(60, 0.5, 0);      
+        play(45, 0.4, 0.12);   
     },
     spark() {
         this.init(); if (this.ctx?.state !== 'running') return;
