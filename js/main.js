@@ -1854,55 +1854,48 @@ function initSecretGesture() {
     const logo = document.querySelector('.nav-brand');
     if (!logo) return;
     
-    // Only cleanup if we haven't already initialized this logo
     if (logo.dataset.gestureInitialized === 'true') return;
-    
-    // Safe cleanup for truly fresh initializations
-    if (!document.getElementById('secret-loader')) {
-        // No loader exists, safe to proceed
-    } else {
-        // A loader exists but dataset wasn't set? (Edge case)
-        // Just return to avoid killing an active hold
-        return;
-    }
-
     logo.dataset.gestureInitialized = 'true';
+
+    // Ensure only one loader ever exists
+    let loader = document.getElementById('secret-loader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'secret-loader';
+        loader.style.cssText = `
+            position: fixed; 
+            bottom: 150px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 60px; 
+            height: 60px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            color: var(--text-main); 
+            font-size: 1.2rem; 
+            opacity: 0; 
+            transition: opacity 0.3s; 
+            z-index: 10000; 
+            border: 2px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            font-family: var(--font-body);
+            pointer-events: none;
+        `;
+        document.body.appendChild(loader);
+    }
 
     let holdStart = 0, frameId = null, unlocked = false;
     const REQUIRED_TIME = 3000;
-    
-    // Unified Visual: Circle with number inside
-    const loader = document.createElement('div');
-    loader.id = 'secret-loader';
-    loader.style.cssText = `
-        position: fixed; 
-        bottom: 150px; 
-        left: 50%; 
-        transform: translateX(-50%); 
-        width: 60px; 
-        height: 60px; 
-        border-radius: 50%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-weight: bold; 
-        color: var(--text-main); 
-        font-size: 1.2rem; 
-        opacity: 0; 
-        transition: opacity 0.3s; 
-        z-index: 10000; 
-        border: 2px solid rgba(255,255,255,0.05);
-        background: rgba(0,0,0,0.2);
-        backdrop-filter: blur(10px);
-        font-family: var(--font-body);
-        pointer-events: none;
-    `;
-    document.body.appendChild(loader);
 
     const updateVisuals = () => {
         if (unlocked) return;
         if (!holdStart) {
             loader.style.opacity = '0';
+            loader.style.background = 'rgba(0,0,0,0.2)'; // Reset background
             logo.style.transform = 'scale(1)';
             logo.style.textShadow = 'none';
             return;
@@ -1915,7 +1908,8 @@ function initSecretGesture() {
         logo.style.textShadow = `0 0 ${progress * 20}px var(--accent-primary)`;
         
         loader.style.opacity = '1';
-        loader.style.background = `conic-gradient(var(--accent-primary) ${progress * 360}deg, rgba(255,255,255,0.1) 0deg)`;
+        // Clean conic-gradient logic: fills clockwise
+        loader.style.background = `conic-gradient(var(--accent-primary) ${progress * 100}%, rgba(255,255,255,0.1) 0%)`;
         
         const remaining = Math.max(0, Math.ceil((REQUIRED_TIME - elapsed) / 1000));
         loader.textContent = remaining > 0 ? remaining : "✨";
@@ -1930,16 +1924,12 @@ function initSecretGesture() {
             
             const isUnlocked = localStorage.getItem('private_unlocked');
             if (isUnlocked) {
-                // Already showing private media, so hide it
                 localStorage.removeItem('private_unlocked');
                 sessionStorage.setItem('show_vault_locked_toast', 'true');
                 location.reload();
             } else {
-                // Directly trigger the vault prompt
                 showPrivatePrompt();
             }
-            
-            setTimeout(() => { loader.style.display = 'none'; }, 300);
         } else {
             frameId = requestAnimationFrame(updateVisuals);
         }
