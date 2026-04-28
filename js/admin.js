@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.22.1/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -865,8 +865,7 @@ async function uploadHomeVideo() {
             vUrl = data.videoUrl;
             tUrl = data.thumbUrl;
         } else {
-            const uploadApiUrl = new URL('/api/upload', window.location.origin).href;
-            console.log("1. Starting Vercel Blob handshake at:", uploadApiUrl);
+            console.log("1. Starting Vercel Blob handshake via /api/upload");
             status.textContent = "Connecting to Vercel (Handshake)...";
             
             // Get current user's ID token for authentication
@@ -876,13 +875,16 @@ async function uploadHomeVideo() {
             console.log(`3. ID token fetched in ${(performance.now() - startTime).toFixed(0)}ms.`);
             
             try {
-                console.log("4. Calling @vercel/blob upload function (Handshake initiated)...");
+                console.log("4. Calling @vercel/blob upload function...");
+                console.log("File Info:", { name: videoFile.name, type: videoFile.type, size: videoFile.size });
                 const uploadStart = performance.now();
+                
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
-                    handleUploadUrl: uploadApiUrl,
+                    handleUploadUrl: '/api/upload', // Relative path is more robust
                     clientPayload: JSON.stringify({ idToken }),
                     onUploadProgress: (p) => { 
+                        console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
                             status.textContent = "Buffering data stream... please wait...";

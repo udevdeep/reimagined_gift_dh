@@ -101,7 +101,10 @@ export default async function handler(request, response) {
           console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
 
           return {
-            allowedContentTypes: ['video/mp4', 'image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
+            allowedContentTypes: [
+              'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 
+              'image/jpeg', 'image/png', 'image/webp', 'image/jpg'
+            ],
             tokenPayload: JSON.stringify({ userId: uid }),
           };
         } catch (authError) {
@@ -114,7 +117,7 @@ export default async function handler(request, response) {
       },
     });
 
-    console.log("API: Handshake response generated successfully");
+    console.log("API: Handshake successful. Returning token payload to client.");
     return response.status(200).json(jsonResponse);
   } catch (error) {
     console.error("API: Vercel Blob Handler Error:", error.message);
