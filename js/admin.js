@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.2/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -877,10 +877,13 @@ async function uploadHomeVideo() {
             
             try {
                 console.log("4. Calling @vercel/blob upload function...");
-                console.log("File:", videoFile.name, "| Size:", videoFile.size);
                 const uploadStart = performance.now();
                 
-                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
+                // Keep the filename simple and predictable
+                const filename = `intro_video_${ts}.mp4`;
+                console.log("File:", filename, "| Size:", videoFile.size);
+
+                const vBlob = await upload(filename, videoFile, {
                     access: 'public',
                     handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
@@ -898,6 +901,7 @@ async function uploadHomeVideo() {
                 });
                 console.log(`5. Video upload complete! URL: ${vBlob.url} (Total time: ${((performance.now() - uploadStart)/1000).toFixed(1)}s)`);
                 vUrl = vBlob.url;
+                if(fill) fill.style.width = '100%';
             } catch (err) {
                 console.error("6. Blob Upload Step Failed:", err);
                 if (err.message.includes('4.5MB') || err.message.includes('Body exceeded')) {

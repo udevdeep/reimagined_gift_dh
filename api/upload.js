@@ -105,8 +105,8 @@ export default async function handler(request, response) {
               'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm',
               'image/jpeg', 'image/png', 'image/webp', 'image/jpg'
             ],
+            // Keep tokenPayload simple or remove it if issues persist
             tokenPayload: JSON.stringify({ userId: uid }),
-            addRandomSuffix: true, // Configuration must happen on the server side
           };
         } catch (authError) {
           console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
