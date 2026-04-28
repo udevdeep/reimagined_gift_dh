@@ -4,36 +4,45 @@ import admin from 'firebase-admin';
 // Initialize Firebase Admin only once
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Ensure private key is handled correctly (replaces literal \n with actual newlines)
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-    });
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+      console.log('Firebase Admin initialized successfully');
+    } else {
+      console.error('Missing Firebase Admin environment variables');
+    }
   } catch (error) {
     console.error('Firebase Admin Initialization Error:', error.message);
   }
 }
 
+// Vercel recommended config for Blob uploads to avoid body parsing issues
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(request, response) {
-  // 1. Ensure token exists
+  console.log("Upload API Request received:", request.method);
+
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing in Vercel Dashboard" });
+    console.error("BLOB_READ_WRITE_TOKEN is missing");
+    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing" });
   }
 
   try {
-    const body = request.body;
-
     const jsonResponse = await handleUpload({
-      body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        // --- SECURITY: AUTHENTICATION CHECK ---
+        console.log("onBeforeGenerateToken called for:", pathname);
         let idToken = null;
 
-        // Try to get token from clientPayload (standard for Vercel Blob handshake)
         if (clientPayload) {
           try {
             const payload = JSON.parse(clientPayload);
@@ -43,7 +52,6 @@ export default async function handler(request, response) {
           }
         }
 
-        // Fallback to Authorization header
         if (!idToken) {
           const authHeader = request.headers.authorization;
           if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -52,16 +60,18 @@ export default async function handler(request, response) {
         }
 
         if (!idToken) {
-          throw new Error('Unauthorized: Missing authentication token in clientPayload or header');
+          console.error("No idToken found in clientPayload or Authorization header");
+          throw new Error('Unauthorized: Missing authentication token');
         }
 
         try {
-          // Verify the ID Token
+          if (!admin.apps.length) {
+            throw new Error('Firebase Admin not initialized');
+          }
           const decodedToken = await admin.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
+          console.log("Token verified for UID:", uid);
 
-          // --- SECURITY: AUTHORIZATION CHECK ---
-          // Check if this UID is in the admin_whitelist collection in Firestore
           const db = admin.firestore();
           const adminDoc = await db.collection('admin_whitelist').doc(uid).get();
 
@@ -73,22 +83,23 @@ export default async function handler(request, response) {
           console.log(`Authorized upload for admin UID: ${uid}`);
 
           return {
-            allowedContentTypes: ['video/mp4', 'image/jpeg', 'image/png', 'image/webp'],
+            allowedContentTypes: ['video/mp4', 'image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
             tokenPayload: JSON.stringify({ userId: uid }),
           };
         } catch (authError) {
-          console.error('Auth Verification Failed:', authError.message);
+          console.error('Auth/Whitelist Verification Failed:', authError.message);
           throw new Error('Unauthorized: ' + authError.message);
         }
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        // Optional logic after upload
+        console.log("Upload completed:", blob.url);
       },
     });
 
+    console.log("handleUpload response generated");
     return response.status(200).json(jsonResponse);
   } catch (error) {
-    console.error("Vercel Blob Error:", error.message);
+    console.error("Vercel Blob Handler Error:", error.message);
     return response.status(401).json({ error: error.message });
   }
 }

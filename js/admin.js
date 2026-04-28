@@ -870,15 +870,19 @@ async function uploadHomeVideo() {
             status.textContent = "Connecting to Vercel (Handshake)...";
             
             // Get current user's ID token for authentication
+            console.log("2. Fetching ID token...");
             const idToken = await auth.currentUser.getIdToken();
+            console.log("3. ID token fetched successfully.");
             
             try {
+                console.log("4. Calling @vercel/blob upload function...");
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: uploadApiUrl,
                     clientPayload: JSON.stringify({ idToken }),
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
+                        console.log(`Upload progress: ${percent}%`);
                         if (percent === "0.00") {
                             status.textContent = "Buffering data stream... please wait...";
                         } else {
@@ -887,17 +891,18 @@ async function uploadHomeVideo() {
                         if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
                     }
                 });
-                console.log("3. Video upload complete! URL:", vBlob.url);
+                console.log("5. Video upload complete! URL:", vBlob.url);
                 vUrl = vBlob.url;
             } catch (err) {
+                console.error("6. Blob Upload Step Failed:", err);
                 if (err.message.includes('4.5MB') || err.message.includes('Body exceeded')) {
                     alert("ERROR: Vercel 4.5MB limit hit. The upload did not bypass the server correctly.");
                 }
-                console.error("Blob Upload Step Failed:", err);
                 throw err;
             }
 
             if (thumbFile) {
+                console.log("7. Uploading manual thumbnail...");
                 status.textContent = "Uploading thumbnail...";
                 const tBlob = await upload(`intro_thumb_${ts}`, thumbFile, {
                     access: 'public',
@@ -905,7 +910,9 @@ async function uploadHomeVideo() {
                     clientPayload: JSON.stringify({ idToken })
                 });
                 tUrl = tBlob.url;
+                console.log("8. Thumbnail upload complete:", tUrl);
             } else {
+                console.log("7. Generating and uploading auto-thumbnail...");
                 status.textContent = "Generating thumbnail...";
                 const tBlobFile = await getVideoThumbnail(videoFile);
                 if (tBlobFile) {
@@ -915,6 +922,7 @@ async function uploadHomeVideo() {
                     clientPayload: JSON.stringify({ idToken })
                 });
                     tUrl = vtBlob.url;
+                    console.log("8. Auto-thumbnail upload complete:", tUrl);
                 }
             }
         }
