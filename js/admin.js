@@ -877,14 +877,16 @@ async function uploadHomeVideo() {
             
             try {
                 console.log("4. Calling @vercel/blob upload function...");
-                console.log("File Info:", { name: videoFile.name, type: videoFile.type, size: videoFile.size });
+                console.log("File Name:", videoFile.name, "Type:", videoFile.type, "Size:", videoFile.size);
                 const uploadStart = performance.now();
                 
-                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
+                // Use a clean filename for Vercel
+                const cleanName = `intro_video_${ts}.mp4`;
+                
+                const vBlob = await upload(cleanName, videoFile, {
                     access: 'public',
-                    handleUploadUrl: uploadApiUrl, // Using absolute URL again
+                    handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
-                    multipart: true, // Required for large files
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
@@ -909,9 +911,9 @@ async function uploadHomeVideo() {
             if (thumbFile) {
                 console.log("7. Uploading manual thumbnail...");
                 status.textContent = "Uploading thumbnail...";
-                const tBlob = await upload(`intro_thumb_${ts}`, thumbFile, {
+                const tBlob = await upload(`intro_thumb_${ts}.jpg`, thumbFile, {
                     access: 'public',
-                    handleUploadUrl: uploadApiUrl,
+                    handleUploadUrl: '/api/upload',
                     clientPayload: JSON.stringify({ idToken })
                 });
                 tUrl = tBlob.url;
@@ -923,7 +925,7 @@ async function uploadHomeVideo() {
                 if (tBlobFile) {
                     const vtBlob = await upload(`intro_thumb_auto_${ts}.jpg`, tBlobFile, {
                         access: 'public',
-                        handleUploadUrl: uploadApiUrl,
+                        handleUploadUrl: '/api/upload',
                     clientPayload: JSON.stringify({ idToken })
                 });
                     tUrl = vtBlob.url;
