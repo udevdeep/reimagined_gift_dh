@@ -871,18 +871,19 @@ async function uploadHomeVideo() {
             
             // Get current user's ID token for authentication
             console.log("2. Fetching ID token...");
+            const startTime = performance.now();
             const idToken = await auth.currentUser.getIdToken();
-            console.log("3. ID token fetched successfully.");
+            console.log(`3. ID token fetched in ${(performance.now() - startTime).toFixed(0)}ms.`);
             
             try {
-                console.log("4. Calling @vercel/blob upload function...");
+                console.log("4. Calling @vercel/blob upload function (Handshake initiated)...");
+                const uploadStart = performance.now();
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: uploadApiUrl,
                     clientPayload: JSON.stringify({ idToken }),
                     onUploadProgress: (p) => { 
                         const percent = (p.percentage).toFixed(2);
-                        console.log(`Upload progress: ${percent}%`);
                         if (percent === "0.00") {
                             status.textContent = "Buffering data stream... please wait...";
                         } else {
@@ -891,7 +892,7 @@ async function uploadHomeVideo() {
                         if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
                     }
                 });
-                console.log("5. Video upload complete! URL:", vBlob.url);
+                console.log(`5. Video upload complete! URL: ${vBlob.url} (Total time: ${((performance.now() - uploadStart)/1000).toFixed(1)}s)`);
                 vUrl = vBlob.url;
             } catch (err) {
                 console.error("6. Blob Upload Step Failed:", err);

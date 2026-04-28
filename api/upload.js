@@ -4,43 +4,58 @@ import admin from 'firebase-admin';
 // Initialize Firebase Admin only once
 if (!admin.apps.length) {
   try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (projectId && clientEmail && privateKey) {
       admin.initializeApp({
         credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
         }),
       });
       console.log('Firebase Admin initialized successfully');
     } else {
-      console.error('Missing Firebase Admin environment variables');
+      console.error('Missing Firebase Admin environment variables:', { 
+        projectId: !!projectId, 
+        clientEmail: !!clientEmail, 
+        privateKey: !!privateKey 
+      });
     }
   } catch (error) {
     console.error('Firebase Admin Initialization Error:', error.message);
   }
 }
 
-// Vercel recommended config for Blob uploads to avoid body parsing issues
+// We re-enable bodyParser because the handshake/completion JSON is small.
+// The large file upload itself bypasses this API route.
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: true,
   },
 };
 
 export default async function handler(request, response) {
-  console.log("Upload API Request received:", request.method);
+  console.log("Upload API Request received:", request.method, "Body present:", !!request.body);
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     console.error("BLOB_READ_WRITE_TOKEN is missing");
-    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing" });
+    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing in environment variables" });
   }
 
   try {
+    const body = request.body;
+    if (!body) {
+      throw new Error("Request body is empty. Ensure bodyParser is enabled.");
+    }
+
     const jsonResponse = await handleUpload({
+      body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        console.log("onBeforeGenerateToken called for:", pathname);
+        console.log("Handshake: Generating token for", pathname);
         let idToken = null;
 
         if (clientPayload) {
@@ -48,7 +63,7 @@ export default async function handler(request, response) {
             const payload = JSON.parse(clientPayload);
             idToken = payload.idToken;
           } catch (e) {
-            console.error("Failed to parse clientPayload:", e.message);
+            console.error("Handshake: Failed to parse clientPayload:", e.message);
           }
         }
 
@@ -60,46 +75,49 @@ export default async function handler(request, response) {
         }
 
         if (!idToken) {
-          console.error("No idToken found in clientPayload or Authorization header");
+          console.error("Handshake: No idToken found");
           throw new Error('Unauthorized: Missing authentication token');
         }
 
         try {
           if (!admin.apps.length) {
+            console.error("Handshake: Firebase Admin not initialized");
             throw new Error('Firebase Admin not initialized');
           }
+          
+          console.log("Handshake: Verifying token...");
           const decodedToken = await admin.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
-          console.log("Token verified for UID:", uid);
+          console.log("Handshake: Token verified for UID:", uid);
 
           const db = admin.firestore();
           const adminDoc = await db.collection('admin_whitelist').doc(uid).get();
 
           if (!adminDoc.exists) {
-            console.error(`Unauthorized upload attempt by UID: ${uid}`);
+            console.error(`Handshake: Unauthorized upload attempt by UID: ${uid}`);
             throw new Error('Forbidden: User is not an administrator');
           }
 
-          console.log(`Authorized upload for admin UID: ${uid}`);
+          console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
 
           return {
             allowedContentTypes: ['video/mp4', 'image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
             tokenPayload: JSON.stringify({ userId: uid }),
           };
         } catch (authError) {
-          console.error('Auth/Whitelist Verification Failed:', authError.message);
+          console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
           throw new Error('Unauthorized: ' + authError.message);
         }
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log("Upload completed:", blob.url);
+        console.log("Upload completed successfully:", blob.url);
       },
     });
 
-    console.log("handleUpload response generated");
+    console.log("API: Handshake response generated successfully");
     return response.status(200).json(jsonResponse);
   } catch (error) {
-    console.error("Vercel Blob Handler Error:", error.message);
-    return response.status(401).json({ error: error.message });
+    console.error("API: Vercel Blob Handler Error:", error.message);
+    return response.status(400).json({ error: error.message });
   }
 }
