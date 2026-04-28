@@ -107,6 +107,7 @@ export default async function handler(request, response) {
               'image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif'
             ],
             tokenPayload: JSON.stringify({ userId: uid }),
+            addRandomSuffix: true, // Move security options to server-side
           };
           console.log("Handshake: Returning response payload structure");
           return responsePayload;
