@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.2/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -865,7 +865,8 @@ async function uploadHomeVideo() {
             vUrl = data.videoUrl;
             tUrl = data.thumbUrl;
         } else {
-            console.log("1. Starting Vercel Blob handshake via /api/upload");
+            const uploadApiUrl = new URL('/api/upload', window.location.origin).href;
+            console.log("1. Starting Vercel Blob handshake via:", uploadApiUrl);
             status.textContent = "Connecting to Vercel (Handshake)...";
             
             // Get current user's ID token for authentication
@@ -881,9 +882,10 @@ async function uploadHomeVideo() {
                 
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
-                    handleUploadUrl: '/api/upload', // Relative path is more robust
+                    handleUploadUrl: uploadApiUrl, // Using absolute URL again
                     clientPayload: JSON.stringify({ idToken }),
-                    multipart: true, // Required for large files to prevent hanging
+                    multipart: true, // Required for large files
+                    addRandomSuffix: true, // Recommended to prevent collisions
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);

@@ -100,13 +100,16 @@ export default async function handler(request, response) {
 
           console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
 
-          return {
+          // Return a broader set of allowed types and a simple payload
+          const responsePayload = {
             allowedContentTypes: [
-              'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 
-              'image/jpeg', 'image/png', 'image/webp', 'image/jpg'
+              'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 'video/mpeg', 'video/ogg',
+              'image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif'
             ],
             tokenPayload: JSON.stringify({ userId: uid }),
           };
+          console.log("Handshake: Returning response payload structure");
+          return responsePayload;
         } catch (authError) {
           console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
           throw new Error('Unauthorized: ' + authError.message);
