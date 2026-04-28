@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.0/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -879,15 +879,11 @@ async function uploadHomeVideo() {
                 console.log("4. Calling @vercel/blob upload function...");
                 const uploadStart = performance.now();
                 
-                // Keep the filename simple and predictable
-                const filename = `intro_video_${ts}.mp4`;
-                console.log("File:", filename, "| Size:", videoFile.size);
-
-                const vBlob = await upload(filename, videoFile, {
+                // Final production configuration: Minimal client options to prevent signature drift
+                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
-                    multipart: true,
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
@@ -899,7 +895,7 @@ async function uploadHomeVideo() {
                         if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
                     }
                 });
-                console.log(`5. Video upload complete! URL: ${vBlob.url} (Total time: ${((performance.now() - uploadStart)/1000).toFixed(1)}s)`);
+                console.log(`5. Video upload complete! URL: ${vBlob.url}`);
                 vUrl = vBlob.url;
                 if(fill) fill.style.width = '100%';
             } catch (err) {

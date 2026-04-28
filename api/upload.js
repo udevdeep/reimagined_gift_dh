@@ -100,13 +100,10 @@ export default async function handler(request, response) {
 
           console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
 
+          // Expert Fix: Disable random suffixing on server to ensure signature consistency with client
           return {
-            allowedContentTypes: [
-              'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm',
-              'image/jpeg', 'image/png', 'image/webp', 'image/jpg'
-            ],
-            // Keep tokenPayload simple or remove it if issues persist
-            tokenPayload: JSON.stringify({ userId: uid }),
+            tokenPayload: uid, // Simple string payload
+            addRandomSuffix: false,
           };
         } catch (authError) {
           console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
