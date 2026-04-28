@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.2/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -877,16 +877,15 @@ async function uploadHomeVideo() {
             
             try {
                 console.log("4. Calling @vercel/blob upload function...");
-                console.log("File Name:", videoFile.name, "Type:", videoFile.type, "Size:", videoFile.size);
+                console.log("File:", videoFile.name, "| Size:", videoFile.size);
                 const uploadStart = performance.now();
                 
-                // Use a clean filename for Vercel
-                const cleanName = `intro_video_${ts}.mp4`;
-                
-                const vBlob = await upload(cleanName, videoFile, {
+                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
+                    multipart: true,
+                    addRandomSuffix: true,
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
