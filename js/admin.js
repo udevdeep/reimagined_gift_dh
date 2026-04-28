@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.2/client";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -883,6 +883,7 @@ async function uploadHomeVideo() {
                     access: 'public',
                     handleUploadUrl: '/api/upload', // Relative path is more robust
                     clientPayload: JSON.stringify({ idToken }),
+                    multipart: true, // Required for large files to prevent hanging
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
