@@ -885,7 +885,6 @@ async function uploadHomeVideo() {
                     handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
                     multipart: true,
-                    addRandomSuffix: true,
                     onUploadProgress: (p) => { 
                         console.log(`Upload progress: ${p.percentage}%`);
                         const percent = (p.percentage).toFixed(2);
