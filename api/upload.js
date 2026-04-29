@@ -16,7 +16,6 @@ if (!admin.apps.length) {
           privateKey: privateKey.replace(/\\n/g, '\n'),
         }),
       });
-      console.log('Firebase Admin initialized successfully');
     }
   } catch (error) {
     console.error('Firebase Admin Initialization Error:', error.message);
@@ -30,36 +29,27 @@ export const config = {
 };
 
 export default async function handler(request, response) {
-  // 1. Set CORS headers
+  // Essential headers for Vercel Blob Handshake
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   response.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
-  // 2. Handle OPTIONS request (pre-flight)
-  if (request.method === 'OPTIONS') {
-    return response.status(200).end();
-  }
-
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing" });
-  }
+  if (request.method === 'OPTIONS') return response.status(200).end();
 
   try {
-    const body = request.body;
     const jsonResponse = await handleUpload({
-      body,
+      body: request.body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         let idToken = null;
-        if (clientPayload) {
-          try {
-            const payload = typeof clientPayload === 'string' ? JSON.parse(clientPayload) : clientPayload;
-            idToken = payload.idToken;
-          } catch (e) {}
+        try {
+          const payload = typeof clientPayload === 'string' ? JSON.parse(clientPayload) : clientPayload;
+          idToken = payload.idToken;
+        } catch (e) {
+          throw new Error('Could not parse auth token');
         }
 
-        if (!idToken) throw new Error('Unauthorized: Missing token');
-
+        if (!idToken) throw new Error('Missing idToken');
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const uid = decodedToken.uid;
         
@@ -69,17 +59,18 @@ export default async function handler(request, response) {
 
         return {
           tokenPayload: uid,
-          addRandomSuffix: true,
+          addRandomSuffix: true, // Crucial for Multipart stability
           allowedContentTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png']
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log("Upload completed successfully:", blob.url);
+        console.log("Upload finished:", blob.url);
       },
     });
 
     return response.status(200).json(jsonResponse);
   } catch (error) {
+    console.error("API Error:", error.message);
     return response.status(400).json({ error: error.message });
   }
 }

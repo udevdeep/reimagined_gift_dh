@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@0.27.0/client?bundle&target=browser";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client?bundle&target=browser";
 
 /* Auth */
 const loginBtn = document.getElementById('login-btn');
@@ -884,10 +884,9 @@ async function uploadHomeVideo() {
                     console.log("DEBUG: Calling upload() function...");
                     const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                         access: 'public',
-                        handleUploadUrl: window.location.origin + '/api/upload', 
+                        handleUploadUrl: '/api/upload', // Relative path is safer with pinned version
                         clientPayload: JSON.stringify({ idToken }),
-                        // Force the correct storage endpoint to bypass any environment-based redirection to vercel.com
-                        baseUrl: 'https://blob.vercel-storage.com',
+                        multipart: true, // EXPLICITLY force multipart for files > 4.5MB
                         onUploadProgress: (p) => { 
                             console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
                             const percent = (p.percentage).toFixed(2);
