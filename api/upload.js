@@ -123,6 +123,7 @@ export default async function handler(request, response) {
       },
     });
 
+    console.log("DEBUG: Final jsonResponse to client:", JSON.stringify(jsonResponse).substring(0, 100) + "...");
     console.log("API: Handshake successful. Returning token payload to client.");
     return response.status(200).json(jsonResponse);
   } catch (error) {

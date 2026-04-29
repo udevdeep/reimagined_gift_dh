@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob@latest/client?bundle&target=browser";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client?bundle&target=browser";
 
 // --- REDUNDANT INIT REMOVED: Shared from main.js ---
 
@@ -882,23 +882,29 @@ async function uploadHomeVideo() {
                 // Final production configuration: Minimal client options to prevent signature drift
                 console.log("DEBUG: Initiating upload with payload:", { idToken: idToken.substring(0, 10) + "..." });
                 
-                const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
-                    access: 'public',
-                    handleUploadUrl: '/api/upload', 
-                    clientPayload: JSON.stringify({ idToken }),
-                    onUploadProgress: (p) => { 
-                        console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
-                        const percent = (p.percentage).toFixed(2);
-                        if (percent === "0.00") {
-                            status.textContent = "Buffering data stream... please wait...";
-                        } else {
-                            status.textContent = `Uploading: ${percent}%...`;
+                try {
+                    const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
+                        access: 'public',
+                        handleUploadUrl: '/api/upload', 
+                        clientPayload: JSON.stringify({ idToken }),
+                        multipart: false, // Force single part for troubleshooting
+                        onUploadProgress: (p) => { 
+                            console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
+                            const percent = (p.percentage).toFixed(2);
+                            if (percent === "0.00") {
+                                status.textContent = "Buffering data stream... please wait...";
+                            } else {
+                                status.textContent = `Uploading: ${percent}%...`;
+                            }
+                            if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
                         }
-                        if (fill) fill.style.width = (10 + p.percentage * 0.8) + '%';
-                    }
-                });
-                console.log(`5. Video upload complete! URL: ${vBlob.url}`);
-                vUrl = vBlob.url;
+                    });
+                    console.log(`5. Video upload complete! URL: ${vBlob.url}`);
+                    vUrl = vBlob.url;
+                } catch (innerErr) {
+                    console.error("CRITICAL: upload() promise rejected immediately:", innerErr);
+                    throw innerErr;
+                }
                 if(fill) fill.style.width = '100%';
             } catch (err) {
                 console.error("6. Blob Upload Step Failed:", err);
