@@ -614,18 +614,11 @@
                 <div class="card">
                     <h3>🏠 Home Cinematic Assets</h3>
                     <div id="home-current-preview" style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);"></div>
-                    <div class="grid-2">
-                        <div>
-                            <label>New Intro Video:</label>
-                            <input type="file" id="home-video" accept="video/*">
-                        </div>
-                        <div>
-                            <label>Static Thumbnail:</label>
-                            <input type="file" id="home-thumb" accept="image/*">
-                        </div>
+                    <div>
+                        <label>Video URL:</label>
+                        <input type="text" id="home-video-url" placeholder="https://...">
                     </div>
-                    <button class="btn-admin" onclick="uploadHomeVideo()">Update Cinematic</button>
-                    <div class="progress-bar" id="home-progress"><div class="progress-fill"></div></div>
+                    <button class="btn-admin" onclick="updateHomeVideoURL()">Save Video URL</button>
                     <span class="status" id="home-status"></span>
                 </div>
 
