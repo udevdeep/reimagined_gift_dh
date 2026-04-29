@@ -462,6 +462,16 @@ function initHome() {
     }
 
     beginBtn.onclick = () => {
+        // --- Fullscreen Expert Fix: Hide address bar on interaction ---
+        try {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+        } catch (e) {
+            console.warn("Fullscreen request failed (likely browser restriction)", e);
+        }
+
         const expiry = parseInt(localStorage.getItem(LOCK_KEY) || '0', 10);
         if (!auth.currentUser || expiry < Date.now()) {
             if (overlay) {
