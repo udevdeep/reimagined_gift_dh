@@ -5,7 +5,8 @@ import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https:/
 import { runWithConcurrency, showToast } from "./utils.js";
 import { upload } from "https://esm.sh/@vercel/blob@0.27.1/client?bundle&target=browser";
 
-// --- REDUNDANT INIT REMOVED: Shared from main.js ---
+// Check if upload is correctly loaded from CDN
+console.log("SDK: upload function detected:", typeof upload);
 
 /* Auth */
 const loginBtn = document.getElementById('login-btn');
@@ -883,16 +884,16 @@ async function uploadHomeVideo() {
                 console.log("DEBUG: Initiating upload with payload:", { idToken: idToken.substring(0, 10) + "..." });
                 
                 try {
+                    console.log("DEBUG: Calling upload() function...");
                     const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                         access: 'public',
                         handleUploadUrl: '/api/upload', 
                         clientPayload: JSON.stringify({ idToken }),
-                        multipart: false, // Force single part for troubleshooting
                         onUploadProgress: (p) => { 
                             console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
                             const percent = (p.percentage).toFixed(2);
                             if (percent === "0.00") {
-                                status.textContent = "Buffering data stream... please wait...";
+                                status.textContent = "Negotiating stream with Vercel...";
                             } else {
                                 status.textContent = `Uploading: ${percent}%...`;
                             }
@@ -902,7 +903,12 @@ async function uploadHomeVideo() {
                     console.log(`5. Video upload complete! URL: ${vBlob.url}`);
                     vUrl = vBlob.url;
                 } catch (innerErr) {
-                    console.error("CRITICAL: upload() promise rejected immediately:", innerErr);
+                    console.error("CRITICAL ERROR inside upload():", innerErr);
+                    console.error("Error Detail:", {
+                        message: innerErr.message,
+                        name: innerErr.name,
+                        stack: innerErr.stack
+                    });
                     throw innerErr;
                 }
                 if(fill) fill.style.width = '100%';
