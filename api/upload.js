@@ -105,7 +105,8 @@ export default async function handler(request, response) {
           // Expert Fix: Disable random suffixing on server to ensure signature consistency with client
           return {
             tokenPayload: uid, // Simple string payload
-            addRandomSuffix: true,
+            addRandomSuffix: false,
+            allowedContentTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png']
           };
         } catch (authError) {
           console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
