@@ -880,12 +880,14 @@ async function uploadHomeVideo() {
                 const uploadStart = performance.now();
                 
                 // Final production configuration: Minimal client options to prevent signature drift
+                console.log("DEBUG: Initiating upload with payload:", { idToken: idToken.substring(0, 10) + "..." });
+                
                 const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                     access: 'public',
                     handleUploadUrl: '/api/upload', 
                     clientPayload: JSON.stringify({ idToken }),
                     onUploadProgress: (p) => { 
-                        console.log(`Upload progress: ${p.percentage}%`);
+                        console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
                         const percent = (p.percentage).toFixed(2);
                         if (percent === "0.00") {
                             status.textContent = "Buffering data stream... please wait...";

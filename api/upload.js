@@ -47,6 +47,9 @@ export default async function handler(request, response) {
 
   try {
     const body = request.body;
+    console.log("DEBUG: Request Body Type:", typeof body);
+    console.log("DEBUG: Request Body Keys:", body ? Object.keys(body) : "null");
+    
     if (!body) {
       throw new Error("Request body is empty. Ensure bodyParser is enabled.");
     }
@@ -55,7 +58,9 @@ export default async function handler(request, response) {
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        console.log("Handshake: Generating token for", pathname);
+        console.log("DEBUG: onBeforeGenerateToken for:", pathname);
+        console.log("DEBUG: clientPayload received:", clientPayload ? (typeof clientPayload === 'string' ? "String: " + clientPayload.substring(0, 50) : "Object") : "null");
+        
         let idToken = null;
 
         if (clientPayload) {
