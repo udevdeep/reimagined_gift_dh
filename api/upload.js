@@ -107,10 +107,10 @@ export default async function handler(request, response) {
 
           console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
 
-          // Expert Fix: Disable random suffixing to ensure signature consistency in browser-only environments
+          // Expert Fix: Use standard random suffixing for better reliability
           return {
             tokenPayload: uid, // Simple string payload
-            addRandomSuffix: false,
+            addRandomSuffix: true,
             allowedContentTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png']
           };
         } catch (authError) {

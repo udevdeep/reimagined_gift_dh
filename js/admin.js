@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from
 import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
-import { upload } from "https://esm.sh/@vercel/blob/client?bundle&target=browser";
+import { upload } from "https://esm.sh/@vercel/blob@0.27.0/client?bundle&target=browser";
 
 // Check if upload is correctly loaded from CDN
 console.log("SDK: upload function detected:", typeof upload);
@@ -889,7 +889,6 @@ async function uploadHomeVideo() {
                         access: 'public',
                         handleUploadUrl: '/api/upload', 
                         clientPayload: JSON.stringify({ idToken }),
-                        contentType: videoFile.type, // Explicitly pass type to avoid auto-detection issues
                         onUploadProgress: (p) => { 
                             console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
                             const percent = (p.percentage).toFixed(2);
