@@ -60,7 +60,9 @@ export default async function handler(request, response) {
 
         if (clientPayload) {
           try {
-            const payload = JSON.parse(clientPayload);
+            const payload = typeof clientPayload === 'string' 
+              ? JSON.parse(clientPayload) 
+              : clientPayload;
             idToken = payload.idToken;
           } catch (e) {
             console.error("Handshake: Failed to parse clientPayload:", e.message);
