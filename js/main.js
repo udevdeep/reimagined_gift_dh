@@ -608,7 +608,7 @@ function initCinematicScroll() {
     
     setTimeout(() => {
         requestAnimationFrame(step);
-    }, 3000);
+    }, 2000);
 }
 
 let isGlobalPaused = false;
