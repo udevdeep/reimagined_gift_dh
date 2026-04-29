@@ -17,20 +17,12 @@ if (!admin.apps.length) {
         }),
       });
       console.log('Firebase Admin initialized successfully');
-    } else {
-      console.error('Missing Firebase Admin environment variables:', { 
-        projectId: !!projectId, 
-        clientEmail: !!clientEmail, 
-        privateKey: !!privateKey 
-      });
     }
   } catch (error) {
     console.error('Firebase Admin Initialization Error:', error.message);
   }
 }
 
-// We re-enable bodyParser because the handshake/completion JSON is small.
-// The large file upload itself bypasses this API route.
 export const config = {
   api: {
     bodyParser: true,
@@ -38,96 +30,56 @@ export const config = {
 };
 
 export default async function handler(request, response) {
-  console.log("Upload API Request received:", request.method, "Body present:", !!request.body);
+  // 1. Set CORS headers
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  response.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+  // 2. Handle OPTIONS request (pre-flight)
+  if (request.method === 'OPTIONS') {
+    return response.status(200).end();
+  }
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    console.error("BLOB_READ_WRITE_TOKEN is missing");
-    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing in environment variables" });
+    return response.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is missing" });
   }
 
   try {
     const body = request.body;
-    console.log("DEBUG: Request Body Type:", typeof body);
-    console.log("DEBUG: Request Body Keys:", body ? Object.keys(body) : "null");
-    
-    if (!body) {
-      throw new Error("Request body is empty. Ensure bodyParser is enabled.");
-    }
-
     const jsonResponse = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        console.log("DEBUG: onBeforeGenerateToken for:", pathname);
-        console.log("DEBUG: clientPayload received:", clientPayload ? (typeof clientPayload === 'string' ? "String: " + clientPayload.substring(0, 50) : "Object") : "null");
-        
         let idToken = null;
-
         if (clientPayload) {
           try {
-            const payload = typeof clientPayload === 'string' 
-              ? JSON.parse(clientPayload) 
-              : clientPayload;
+            const payload = typeof clientPayload === 'string' ? JSON.parse(clientPayload) : clientPayload;
             idToken = payload.idToken;
-          } catch (e) {
-            console.error("Handshake: Failed to parse clientPayload:", e.message);
-          }
+          } catch (e) {}
         }
 
-        if (!idToken) {
-          const authHeader = request.headers.authorization;
-          if (authHeader && authHeader.startsWith('Bearer ')) {
-            idToken = authHeader.split('Bearer ')[1];
-          }
-        }
+        if (!idToken) throw new Error('Unauthorized: Missing token');
 
-        if (!idToken) {
-          console.error("Handshake: No idToken found");
-          throw new Error('Unauthorized: Missing authentication token');
-        }
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const uid = decodedToken.uid;
+        
+        const db = admin.firestore();
+        const adminDoc = await db.collection('admin_whitelist').doc(uid).get();
+        if (!adminDoc.exists) throw new Error('Forbidden: Not an admin');
 
-        try {
-          if (!admin.apps.length) {
-            console.error("Handshake: Firebase Admin not initialized");
-            throw new Error('Firebase Admin not initialized');
-          }
-          
-          console.log("Handshake: Verifying token...");
-          const decodedToken = await admin.auth().verifyIdToken(idToken);
-          const uid = decodedToken.uid;
-          console.log("Handshake: Token verified for UID:", uid);
-
-          const db = admin.firestore();
-          const adminDoc = await db.collection('admin_whitelist').doc(uid).get();
-
-          if (!adminDoc.exists) {
-            console.error(`Handshake: Unauthorized upload attempt by UID: ${uid}`);
-            throw new Error('Forbidden: User is not an administrator');
-          }
-
-          console.log(`Handshake: Authorized upload for admin UID: ${uid}`);
-
-          // Expert Fix: Use standard random suffixing for better reliability
-          return {
-            tokenPayload: uid, // Simple string payload
-            addRandomSuffix: true,
-            allowedContentTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png']
-          };
-        } catch (authError) {
-          console.error('Handshake: Auth/Whitelist Verification Failed:', authError.message);
-          throw new Error('Unauthorized: ' + authError.message);
-        }
+        return {
+          tokenPayload: uid,
+          addRandomSuffix: true,
+          allowedContentTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png']
+        };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         console.log("Upload completed successfully:", blob.url);
       },
     });
 
-    console.log("DEBUG: Final jsonResponse to client:", JSON.stringify(jsonResponse).substring(0, 100) + "...");
-    console.log("API: Handshake successful. Returning token payload to client.");
     return response.status(200).json(jsonResponse);
   } catch (error) {
-    console.error("API: Vercel Blob Handler Error:", error.message);
     return response.status(400).json({ error: error.message });
   }
 }

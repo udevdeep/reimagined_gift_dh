@@ -5,9 +5,6 @@ import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https:/
 import { runWithConcurrency, showToast } from "./utils.js";
 import { upload } from "https://esm.sh/@vercel/blob@0.27.0/client?bundle&target=browser";
 
-// Check if upload is correctly loaded from CDN
-console.log("SDK: upload function detected:", typeof upload);
-
 /* Auth */
 const loginBtn = document.getElementById('login-btn');
 if (loginBtn) {
@@ -887,8 +884,10 @@ async function uploadHomeVideo() {
                     console.log("DEBUG: Calling upload() function...");
                     const vBlob = await upload(`intro_video_${ts}.mp4`, videoFile, {
                         access: 'public',
-                        handleUploadUrl: '/api/upload', 
+                        handleUploadUrl: window.location.origin + '/api/upload', 
                         clientPayload: JSON.stringify({ idToken }),
+                        // Force the correct storage endpoint to bypass any environment-based redirection to vercel.com
+                        baseUrl: 'https://blob.vercel-storage.com',
                         onUploadProgress: (p) => { 
                             console.log(`PROGRESS: ${p.percentage}% (${p.loaded} / ${p.total} bytes)`);
                             const percent = (p.percentage).toFixed(2);
