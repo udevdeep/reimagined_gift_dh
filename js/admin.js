@@ -77,6 +77,8 @@ export async function clearSparkCounts() {
         const historySnap = await getDocs(query(collection(db, 'spark_history'), limit(400)));
         historySnap.forEach(d => batch.delete(d.ref));
         
+        batch.set(doc(db, 'config', 'stats'), { totalSparks: 0 }, { merge: true });
+        
         await batch.commit();
         showToast("All spark data cleared!", "success");
     } catch (e) { console.error(e); alert("Failed: " + e.message); }
@@ -93,6 +95,9 @@ function initDashboardStats() {
             const data = snap.data();
             if (sparksCountEl) sparksCountEl.textContent = data.totalSparks || 0;
             if (visitsCountEl) visitsCountEl.textContent = data.totalVisits || 0;
+        } else {
+            if (sparksCountEl) sparksCountEl.textContent = 0;
+            if (visitsCountEl) visitsCountEl.textContent = 0;
         }
     });
 

@@ -142,6 +142,7 @@ export async function sendSpark() {
         try {
             const timestamp = Date.now();
             await setDoc(doc(db, 'user_data', user.uid), { lastPulse: timestamp, pulseCount: increment(1) }, { merge: true });
+            await setDoc(doc(db, 'config', 'stats'), { totalSparks: increment(1) }, { merge: true });
             await addDoc(collection(db, 'spark_history'), { userId: user.uid, userName: user.displayName || "Friend", timestamp });
             const emailConfig = await getDoc(doc(db, 'config', 'emailjs'));
             if (emailConfig.exists() && typeof emailjs !== 'undefined') {
@@ -304,6 +305,7 @@ async function recordVisit() {
     const user = auth.currentUser;
     if (!user || sessionStorage.getItem('visit_recorded')) return;
     try {
+        await setDoc(doc(db, 'config', 'stats'), { totalVisits: increment(1) }, { merge: true });
         await addDoc(collection(db, 'site_visits'), { 
             userId: user.uid, 
             userName: user.displayName || "Friend", 
