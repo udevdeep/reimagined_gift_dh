@@ -366,11 +366,16 @@ async function loadAllData() {
                 sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
             }
             if (!gallerySnap.empty) {
+                const getMillis = (ts) => {
+                    if (!ts) return 0;
+                    if (typeof ts.toMillis === 'function') return ts.toMillis();
+                    if (typeof ts === 'number') return ts;
+                    return new Date(ts).getTime() || 0;
+                };
+
                 const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-                // Sort to ensure comparison is consistent
-                freshGallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                freshGallery.sort((a, b) => getMillis(b.timestamp) - getMillis(a.timestamp));
                 
-                // Compare length and IDs to detect real changes instead of full object stringification
                 const currentIds = GALLERY_DATA.map(i => i.id).join(',');
                 const freshIds = freshGallery.map(i => i.id).join(',');
 
@@ -1417,7 +1422,16 @@ export function loadGallery() {
         };
     }
 
-    const builtIn = GALLERY_DATA.map(item => ({ ...item, timestamp: item.date?.getTime() || 0 }));
+    const builtIn = GALLERY_DATA.map(item => {
+        const getMillis = (ts) => {
+            if (!ts) return 0;
+            if (typeof ts.toMillis === 'function') return ts.toMillis();
+            if (typeof ts === 'number') return ts;
+            return new Date(ts).getTime() || 0;
+        };
+        const ts = item.timestamp ? getMillis(item.timestamp) : (item.date ? new Date(item.date).getTime() : 0);
+        return { ...item, timestamp: ts };
+    });
     galleryState = builtIn.sort((a, b) => b.timestamp - a.timestamp);
     
     sortGallery(sortSelect ? sortSelect.value : 'default');

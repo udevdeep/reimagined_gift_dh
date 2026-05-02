@@ -105,7 +105,9 @@ function initDashboardStats() {
         if (!visitLogEl) return;
         visitLogEl.innerHTML = '';
         snap.forEach(doc => {
-            const v = doc.data(), date = new Date(v.timestamp);
+            const v = doc.data();
+            const rawTs = v.timestamp;
+            const date = (rawTs && typeof rawTs.toDate === 'function') ? rawTs.toDate() : new Date(rawTs || Date.now());
             const item = document.createElement('div');
             item.style.cssText = "padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 5px;";
             item.innerHTML = `<strong>${v.path || 'Home'}</strong> <br><small>${date.toLocaleString()}</small>`;
@@ -120,7 +122,9 @@ function initPulseMonitor() {
         if (!log) return;
         log.innerHTML = '';
         snap.forEach(doc => {
-            const p = doc.data(), date = new Date(p.timestamp);
+            const p = doc.data();
+            const rawTs = p.timestamp;
+            const date = (rawTs && typeof rawTs.toDate === 'function') ? rawTs.toDate() : new Date(rawTs || Date.now());
             const item = document.createElement('div');
             item.style.cssText = "padding:10px; background:rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:12px; margin-bottom:5px;";
             item.innerHTML = `<strong>${p.userName || "Friend"}</strong> sent a spark <br><small>${date.toLocaleString()}</small>`;
