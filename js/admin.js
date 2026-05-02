@@ -148,20 +148,50 @@ async function getExifData(file) {
 async function getVideoThumbnail(file) {
     return new Promise((resolve) => {
         const video = document.createElement('video');
-        video.preload = 'metadata';
+        video.preload = 'auto';
         video.muted = true;
         video.playsInline = true;
-        video.src = URL.createObjectURL(file);
-        video.onloadedmetadata = () => {
-            video.currentTime = 1;
-            video.onseeked = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                URL.revokeObjectURL(video.src);
-                canvas.toBlob(resolve, 'image/jpeg', 0.7);
-            };
+        const url = URL.createObjectURL(file);
+        
+        const cleanup = () => {
+            URL.revokeObjectURL(url);
+            video.remove();
         };
+
+        video.onloadeddata = () => {
+            // Seek to 0.5 seconds, or half duration if shorter
+            video.currentTime = Math.min(0.5, video.duration / 2);
+        };
+
+        video.onseeked = () => {
+            // Give the browser a moment to actually render the frame
+            setTimeout(() => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth; 
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0);
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                        cleanup();
+                    }, 'image/jpeg', 0.7);
+                } catch (e) {
+                    console.error("Capture failed", e);
+                    resolve(null);
+                    cleanup();
+                }
+            }, 200);
+        };
+
+        video.onerror = () => {
+            console.error("Video error");
+            resolve(null);
+            cleanup();
+        };
+
+        video.src = url;
+        video.load();
     });
 }
 
@@ -181,10 +211,30 @@ async function initGalleryUpload() {
     dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--card-border)'; handleFiles(e.dataTransfer.files); };
 }
 
-function handleFiles(files) {
+async function handleFiles(files) {
+    const status = document.getElementById('gallery-status');
+    if (status) status.textContent = "Processing files...";
+    
     for (let file of files) {
-        uploadQueue.push({ file, isPrivate: document.getElementById('gallery-private').checked });
+        const item = { 
+            file, 
+            isPrivate: document.getElementById('gallery-private').checked,
+            thumbBlob: null,
+            previewUrl: null
+        };
+        
+        if (file.type.startsWith('image')) {
+            item.thumbBlob = await processImage(file, 'thumb');
+            item.previewUrl = URL.createObjectURL(item.thumbBlob);
+        } else if (file.type.startsWith('video')) {
+            item.thumbBlob = await getVideoThumbnail(file);
+            if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+        }
+        
+        uploadQueue.push(item);
     }
+    
+    if (status) status.textContent = "";
     renderUploadPreview();
 }
 
@@ -206,24 +256,38 @@ function renderUploadPreview() {
     uploadQueue.forEach((item, i) => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.style.cssText = "padding:10px; position:relative; font-size:0.7rem; margin-bottom:0;";
+        card.style.cssText = "padding:5px; position:relative; font-size:0.65rem; margin-bottom:0; display:flex; flex-direction:column; gap:5px; overflow:hidden;";
+        
+        const previewHtml = item.previewUrl 
+            ? `<img src="${item.previewUrl}" style="width:100%; height:80px; object-fit:cover; border-radius:8px;">`
+            : `<div style="width:100%; height:80px; background:rgba(255,255,255,0.05); border-radius:8px; display:flex; align-items:center; justify-content:center;">${item.file.type.startsWith('video') ? '🎥' : '🖼️'}</div>`;
+
         card.innerHTML = `
-            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:5px;">${item.file.name}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
-                    <input type="checkbox" ${item.isPrivate ? 'checked' : ''} onchange="toggleIndividualPrivate(${i}, this.checked)" style="width:12px; height:12px; margin:0;">
-                    Private
+            ${previewHtml}
+            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 3px;">${item.file.name}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 3px 3px;">
+                <label style="display:flex; align-items:center; gap:3px; cursor:pointer; margin:0;">
+                    <input type="checkbox" ${item.isPrivate ? 'checked' : ''} onchange="toggleIndividualPrivate(${i}, this.checked)" style="width:10px; height:10px; margin:0;">
+                    Priv
                 </label>
+                <button onclick="removeFileFromQueue(${i})" style="border-radius:50%; background:rgba(255,0,0,0.7); color:white; border:none; cursor:pointer; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center;">✕</button>
             </div>
-            <button onclick="removeFileFromQueue(${i})" style="position:absolute; top:5px; right:5px; border-radius:50%; background:rgba(255,0,0,0.7); color:white; border:none; cursor:pointer; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center;">✕</button>
         `;
         container.appendChild(card);
     });
 }
 
 window.toggleIndividualPrivate = (index, val) => { if (uploadQueue[index]) uploadQueue[index].isPrivate = val; };
-window.removeFileFromQueue = (index) => { uploadQueue.splice(index, 1); renderUploadPreview(); };
-window.clearUploadQueue = () => { uploadQueue = []; renderUploadPreview(); };
+window.removeFileFromQueue = (index) => { 
+    if (uploadQueue[index] && uploadQueue[index].previewUrl) URL.revokeObjectURL(uploadQueue[index].previewUrl);
+    uploadQueue.splice(index, 1); 
+    renderUploadPreview(); 
+};
+window.clearUploadQueue = () => { 
+    uploadQueue.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+    uploadQueue = []; 
+    renderUploadPreview(); 
+};
 
 async function uploadGallery() {
     if(!uploadQueue.length) return;
@@ -233,12 +297,15 @@ async function uploadGallery() {
     
     await runWithConcurrency(uploadQueue.map(item => async () => {
         const file = item.file, ts = Date.now() + Math.floor(Math.random()*1000);
-        let mainBlob = file, thumbBlob = null;
+        let mainBlob = file, thumbBlob = item.thumbBlob;
+        
         if (file.type.startsWith('image')) {
-            [mainBlob, thumbBlob] = await Promise.all([processImage(file, 'original'), processImage(file, 'thumb')]);
+            mainBlob = await processImage(file, 'original');
+            if (!thumbBlob) thumbBlob = await processImage(file, 'thumb');
         } else if (file.type.startsWith('video')) {
-            thumbBlob = await getVideoThumbnail(file);
+            if (!thumbBlob) thumbBlob = await getVideoThumbnail(file);
         }
+
         const mainRef = ref(storage, `gallery/${ts}_${file.name}`), thumbRef = ref(storage, `gallery/thumb_${ts}_${file.name}`);
         const [mainUrl, thumbUrl] = await Promise.all([
             (async () => { await uploadBytesResumable(mainRef, mainBlob); return getDownloadURL(mainRef); })(),
@@ -248,6 +315,10 @@ async function uploadGallery() {
             src: mainUrl, thumb: thumbUrl, type: file.type.startsWith('video') ? 'video' : 'image', 
             private: item.isPrivate, filename: file.name, timestamp: Date.now() 
         });
+        
+        // Cleanup preview URL
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+
         completed++;
         if (fill) fill.style.width = (completed / uploadQueue.length * 100) + '%';
         if (status) status.textContent = `Uploaded ${completed}/${uploadQueue.length}...`;
