@@ -1477,7 +1477,12 @@ function renderGalleryGrouped(items, isFlat) {
         countEl.textContent = `${pics} Photo${pics!==1?'s':''} ${vids>0?', '+vids+' Video'+(vids!==1?'s':''):''}`;
     }
 
-    const lightboxList = visible.map(i => ({ src: i.src, type: (i.type === 'video' || i.src.match(/\.(mp4|mov)$/i)) ? 'video' : 'image' }));
+    const lightboxList = visible.map(i => ({ 
+        src: i.src, 
+        type: (i.type === 'video' || i.src.match(/\.(mp4|mov)$/i)) ? 'video' : 'image',
+        sortTs: i.sortTs,
+        filename: i.filename
+    }));
     
     const displayed = visible.slice(0, currentGalleryVisibleCount);
     const groups = {}; const order = [];
@@ -1577,6 +1582,7 @@ function navigateLightbox(dir) {
 function updateLightboxView() {
     const item = lbItems[lbIndex], img = document.getElementById('lightbox-img'), vid = document.getElementById('lightbox-video');
     const dlBtn = document.getElementById('lightbox-download');
+    const metaEl = document.getElementById('lightbox-meta');
     const lightbox = document.getElementById('lightbox');
     const leftBtn = lightbox?.querySelector('.lightbox-nav.left');
     const rightBtn = lightbox?.querySelector('.lightbox-nav.right');
@@ -1590,12 +1596,26 @@ function updateLightboxView() {
     vid.pause();
     vid.src = ''; 
     img.src = '';
+    if (metaEl) metaEl.textContent = '';
 
     if (item.type === 'video') { 
         vid.style.display = 'block'; vid.src = item.src; 
         if(lightbox?.classList.contains('active')) vid.play().catch(()=>{}); 
     }
     else { img.style.display = 'block'; img.src = item.src; img.crossOrigin = "anonymous"; }
+
+    if (metaEl && item.sortTs) {
+        const d = new Date(item.sortTs);
+        if (!isNaN(d.getTime())) {
+            metaEl.textContent = d.toLocaleString('default', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+    }
 
     if (dlBtn) {
         dlBtn.onclick = (e) => {
