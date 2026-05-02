@@ -371,9 +371,27 @@ function renderList(snap, col) {
 
 window.deleteItem = async (col, id) => {
     if(!confirm("Delete this item?")) return;
-    await deleteDoc(doc(db, col, id));
-    showToast("Deleted!", "success");
-    loadContentList();
+    try {
+        const docRef = doc(db, col, id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            const data = snap.data();
+            // Delete from Storage if it's a gallery or memory item with storage files
+            if (data.src && data.src.includes('firebasestorage.googleapis.com')) {
+                try { await deleteObject(ref(storage, data.src)); } catch(e) { console.warn("Src deletion failed", e); }
+            }
+            if (data.thumb && data.thumb.includes('firebasestorage.googleapis.com')) {
+                try { await deleteObject(ref(storage, data.thumb)); } catch(e) { console.warn("Thumb deletion failed", e); }
+            }
+            // For memories, we might have more files but this handles the main gallery case
+        }
+        await deleteDoc(docRef);
+        showToast("Deleted!", "success");
+        loadContentList();
+    } catch (e) {
+        console.error("Delete failed", e);
+        showToast("Delete failed", "error");
+    }
 };
 
 window.updateSelectUI = () => {
@@ -391,11 +409,35 @@ window.toggleSelectAll = () => {
 window.deleteSelectedItems = async () => {
     const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');
     if (!checked.length || !confirm(`Delete ${checked.length} items?`)) return;
-    const batch = writeBatch(db);
-    checked.forEach(cb => batch.delete(doc(db, col, cb.dataset.id)));
-    await batch.commit();
-    showToast("Deleted!", "success");
-    loadContentList();
+    
+    showToast(`Deleting ${checked.length} items...`, "info");
+    
+    try {
+        const batch = writeBatch(db);
+        for (const cb of checked) {
+            const id = cb.dataset.id;
+            const docRef = doc(db, col, id);
+            
+            // Attempt storage deletion before doc deletion
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.src && data.src.includes('firebasestorage.googleapis.com')) {
+                    try { await deleteObject(ref(storage, data.src)); } catch(e) {}
+                }
+                if (data.thumb && data.thumb.includes('firebasestorage.googleapis.com')) {
+                    try { await deleteObject(ref(storage, data.thumb)); } catch(e) {}
+                }
+            }
+            batch.delete(docRef);
+        }
+        await batch.commit();
+        showToast("Batch delete successful!", "success");
+        loadContentList();
+    } catch (e) {
+        console.error("Batch delete failed", e);
+        showToast("Some items failed to delete", "error");
+    }
 };
 
 window.loadNextPage = () => { currentPage++; loadContentList('next'); };
