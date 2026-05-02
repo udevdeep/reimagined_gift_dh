@@ -213,29 +213,40 @@ async function initGalleryUpload() {
 
 async function handleFiles(files) {
     const status = document.getElementById('gallery-status');
-    if (status) status.textContent = "Processing files...";
+    const isPrivate = document.getElementById('gallery-private').checked;
     
-    for (let file of files) {
-        const item = { 
-            file, 
-            isPrivate: document.getElementById('gallery-private').checked,
-            thumbBlob: null,
-            previewUrl: null
-        };
+    // Convert FileList to Array for safer iteration
+    const fileArray = Array.from(files);
+    
+    for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        if (status) status.textContent = `Processing ${i + 1}/${fileArray.length}...`;
         
-        if (file.type.startsWith('image')) {
-            item.thumbBlob = await processImage(file, 'thumb');
-            item.previewUrl = URL.createObjectURL(item.thumbBlob);
-        } else if (file.type.startsWith('video')) {
-            item.thumbBlob = await getVideoThumbnail(file);
-            if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+        try {
+            const item = { 
+                file, 
+                isPrivate: isPrivate,
+                thumbBlob: null,
+                previewUrl: null
+            };
+            
+            if (file.type.startsWith('image')) {
+                item.thumbBlob = await processImage(file, 'thumb');
+                if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+            } else if (file.type.startsWith('video')) {
+                item.thumbBlob = await getVideoThumbnail(file);
+                if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+            }
+            
+            uploadQueue.push(item);
+            // Update preview incrementally so user sees progress
+            renderUploadPreview();
+        } catch (err) {
+            console.error("Error processing file:", file.name, err);
         }
-        
-        uploadQueue.push(item);
     }
     
-    if (status) status.textContent = "";
-    renderUploadPreview();
+    if (status) status.textContent = fileArray.length > 0 ? "Ready to upload!" : "";
 }
 
 function renderUploadPreview() {
