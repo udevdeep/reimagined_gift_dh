@@ -135,7 +135,7 @@ function initDashboardStats() {
             const date = (rawTs && typeof rawTs.toDate === 'function') ? rawTs.toDate() : new Date(rawTs || Date.now());
             const item = document.createElement('div');
             item.style.cssText = "padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 5px;";
-            item.innerHTML = `<strong>${v.path || 'Home'}</strong> <br><small>${date.toLocaleString()}</small>`;
+            item.innerHTML = `<strong>${v.userName || 'Unknown User'}</strong> <span style="font-size: 0.7rem; opacity: 0.6;">(${v.userEmail || 'No Email'})</span> <br><small>${date.toLocaleString()}</small>`;
             visitLogEl.appendChild(item);
         });
     });
