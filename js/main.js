@@ -1477,7 +1477,13 @@ function renderGalleryGrouped(items, isFlat) {
     if (isFlat) { groups['All'] = displayed; order.push('All'); }
     else {
         displayed.forEach(item => {
-            const key = item.date && !isNaN(item.date) ? item.date.toLocaleString('default', { month: 'long', year: 'numeric' }) : "Unknown Date";
+            let key = "Unknown Date";
+            if (item.timestamp) {
+                const dateObj = new Date(item.timestamp);
+                if (!isNaN(dateObj.getTime())) {
+                    key = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                }
+            }
             if (!groups[key]) { groups[key] = []; order.push(key); }
             groups[key].push(item);
         });
