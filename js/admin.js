@@ -203,12 +203,24 @@ let reviewedDates = {};
 async function initGalleryUpload() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('gallery-file');
+    const globalPrivate = document.getElementById('gallery-private');
+    
     if (!dropZone) return;
+    
     dropZone.onclick = () => fileInput.click();
     fileInput.onchange = (e) => { handleFiles(e.target.files); fileInput.value = ''; };
+    
     dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent-primary)'; };
     dropZone.ondragleave = () => { dropZone.style.borderColor = 'var(--card-border)'; };
     dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--card-border)'; handleFiles(e.dataTransfer.files); };
+
+    if (globalPrivate) {
+        globalPrivate.onchange = (e) => {
+            const val = e.target.checked;
+            uploadQueue.forEach(item => { item.isPrivate = val; });
+            renderUploadPreview();
+        };
+    }
 }
 
 async function handleFiles(files) {
