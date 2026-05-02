@@ -263,6 +263,16 @@ async function getVideoThumbnail(file) {
 let uploadQueue = [];
 let videoReviewQueue = [];
 let reviewedDates = {};
+let currentReviewIndex = 0;
+
+window.closeVideoReview = () => {
+    const modal = document.getElementById('video-review-modal');
+    const player = document.getElementById('review-video-player');
+    if (modal) modal.style.display = 'none';
+    if (player) { player.pause(); player.src = ''; }
+    videoReviewQueue = [];
+    currentReviewIndex = 0;
+};
 
 async function initGalleryUpload() {
     const dropZone = document.getElementById('drop-zone');
@@ -388,6 +398,7 @@ async function uploadGallery() {
     // Separate videos for review
     videoReviewQueue = uploadQueue.filter(item => item.file.type.startsWith('video')).map(item => item.file);
     reviewedDates = {};
+    currentReviewIndex = 0;
 
     if (videoReviewQueue.length > 0) {
         processVideoReviewQueue();
@@ -398,48 +409,89 @@ async function uploadGallery() {
 window.uploadGallery = uploadGallery;
 
 function processVideoReviewQueue() {
-    if (videoReviewQueue.length === 0) {
-        document.getElementById('video-review-modal').style.display = 'none';
-        startGalleryUpload();
-        return;
-    }
-
-    const file = videoReviewQueue[0];
     const modal = document.getElementById('video-review-modal');
     const player = document.getElementById('review-video-player');
     const dateInput = document.getElementById('review-date-input');
+    const title = document.getElementById('review-title');
+    const filename = document.getElementById('review-filename');
+    const prevBtn = document.getElementById('review-prev-btn');
+    const nextBtn = document.getElementById('review-next-btn');
     const confirmBtn = document.getElementById('review-confirm-btn');
+    const finishBtn = document.getElementById('review-finish-btn');
 
     if (!modal || !player || !dateInput || !confirmBtn) {
         startGalleryUpload();
         return;
     }
 
+    if (currentReviewIndex >= videoReviewQueue.length) {
+        modal.style.display = 'none';
+        startGalleryUpload();
+        return;
+    }
+
+    const file = videoReviewQueue[currentReviewIndex];
     modal.style.display = 'flex';
-    document.getElementById('review-title').textContent = `Review Video (${videoReviewQueue.length} Left)`;
-    document.getElementById('review-filename').textContent = file.name;
+    title.textContent = `Review Video (${currentReviewIndex + 1} / ${videoReviewQueue.length})`;
+    filename.textContent = file.name;
     
     const fileUrl = URL.createObjectURL(file);
     player.src = fileUrl;
     player.load();
 
-    // Try to auto-suggest date
-    const dateToUse = new Date(file.lastModified);
+    // Use already reviewed date or auto-suggest
+    const existingDate = reviewedDates[file.name] || uploadQueue.find(i => i.file === file)?.date;
+    const dateToUse = existingDate ? new Date(existingDate) : new Date(file.lastModified);
     const offset = dateToUse.getTimezoneOffset() * 60000;
     dateInput.value = new Date(dateToUse - offset).toISOString().slice(0, 16);
 
-    confirmBtn.onclick = () => {
+    // Update Nav Buttons
+    if (prevBtn) {
+        prevBtn.disabled = currentReviewIndex === 0;
+        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+    }
+    if (nextBtn) {
+        nextBtn.disabled = currentReviewIndex === videoReviewQueue.length - 1;
+        nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+    }
+
+    const saveCurrentDate = () => {
         const isoDate = dateInput.value ? new Date(dateInput.value).toISOString() : new Date(file.lastModified).toISOString();
         reviewedDates[file.name] = isoDate;
-        
-        // Find item in uploadQueue and update its date
         const item = uploadQueue.find(i => i.file === file);
         if (item) item.date = isoDate;
-        
+        renderUploadPreview();
+    };
+
+    if (prevBtn) prevBtn.onclick = () => {
+        saveCurrentDate();
         URL.revokeObjectURL(fileUrl);
-        videoReviewQueue.shift();
+        currentReviewIndex--;
         processVideoReviewQueue();
-        renderUploadPreview(); // Update the preview cards
+    };
+
+    if (nextBtn) nextBtn.onclick = () => {
+        saveCurrentDate();
+        URL.revokeObjectURL(fileUrl);
+        currentReviewIndex++;
+        processVideoReviewQueue();
+    };
+
+    confirmBtn.onclick = () => {
+        saveCurrentDate();
+        showToast("Date confirmed for " + file.name, "success");
+        if (currentReviewIndex < videoReviewQueue.length - 1) {
+            URL.revokeObjectURL(fileUrl);
+            currentReviewIndex++;
+            processVideoReviewQueue();
+        }
+    };
+
+    if (finishBtn) finishBtn.onclick = () => {
+        saveCurrentDate();
+        URL.revokeObjectURL(fileUrl);
+        modal.style.display = 'none';
+        startGalleryUpload();
     };
 }
 

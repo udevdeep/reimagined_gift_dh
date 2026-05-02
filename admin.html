@@ -330,13 +330,20 @@
 
     <!-- Video Review Modal -->
     <div id="video-review-modal">
-        <div class="review-card">
+        <div class="review-card" style="position: relative;">
+            <button onclick="closeVideoReview()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px;">&times;</button>
             <h2 id="review-title" style="margin-top:0">Review Upload</h2>
             <p id="review-filename" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;"></p>
             <video id="review-video-player" controls style="width:100%; border-radius:15px; margin-bottom:20px; background:#000;"></video>
             <label>Confirm Capture Date:</label>
             <input type="datetime-local" id="review-date-input">
-            <button id="review-confirm-btn" class="btn-admin" style="width: 100%;">Confirm & Continue</button>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="review-prev-btn" class="btn-admin btn-secondary" style="flex: 1;">❮ Previous</button>
+                <button id="review-confirm-btn" class="btn-admin" style="flex: 2;">Confirm Date</button>
+                <button id="review-next-btn" class="btn-admin btn-secondary" style="flex: 1;">Next ❯</button>
+            </div>
+            <button id="review-finish-btn" class="btn-admin" style="width: 100%; margin-top: 10px; background: var(--accent-secondary);">Finish & Start Upload</button>
         </div>
     </div>
 
