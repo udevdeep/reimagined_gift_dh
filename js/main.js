@@ -366,15 +366,20 @@ async function loadAllData() {
                 sessionStorage.setItem('jokes_cache', JSON.stringify(JOKES_DATA));
             }
             if (!gallerySnap.empty) {
-                const getMillis = (ts) => {
-                    if (!ts) return 0;
-                    if (typeof ts.toMillis === 'function') return ts.toMillis();
-                    if (typeof ts === 'number') return ts;
-                    return new Date(ts).getTime() || 0;
+                const getMillis = (val) => {
+                    if (!val) return 0;
+                    if (typeof val.toMillis === 'function') return val.toMillis();
+                    if (typeof val === 'number') return val;
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? 0 : d.getTime();
                 };
 
-                const freshGallery = gallerySnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-                freshGallery.sort((a, b) => getMillis(b.timestamp) - getMillis(a.timestamp));
+                const freshGallery = gallerySnap.docs.map(doc => {
+                    const data = doc.data();
+                    const ts = data.date ? getMillis(data.date) : getMillis(data.timestamp);
+                    return { ...data, id: doc.id, sortTs: ts };
+                });
+                freshGallery.sort((a, b) => b.sortTs - a.sortTs);
                 
                 const currentIds = GALLERY_DATA.map(i => i.id).join(',');
                 const freshIds = freshGallery.map(i => i.id).join(',');
@@ -1423,16 +1428,18 @@ export function loadGallery() {
     }
 
     const builtIn = GALLERY_DATA.map(item => {
-        const getMillis = (ts) => {
-            if (!ts) return 0;
-            if (typeof ts.toMillis === 'function') return ts.toMillis();
-            if (typeof ts === 'number') return ts;
-            return new Date(ts).getTime() || 0;
+        const getMillis = (val) => {
+            if (!val) return 0;
+            if (typeof val.toMillis === 'function') return val.toMillis();
+            if (typeof val === 'number') return val;
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
         };
-        const ts = item.timestamp ? getMillis(item.timestamp) : (item.date ? new Date(item.date).getTime() : 0);
-        return { ...item, timestamp: ts };
+        // Prioritize 'date' (media capture date) over 'timestamp' (upload date)
+        const ts = item.date ? getMillis(item.date) : getMillis(item.timestamp);
+        return { ...item, sortTs: ts };
     });
-    galleryState = builtIn.sort((a, b) => b.timestamp - a.timestamp);
+    galleryState = builtIn.sort((a, b) => b.sortTs - a.sortTs);
     
     sortGallery(sortSelect ? sortSelect.value : 'default');
     
@@ -1478,8 +1485,8 @@ function renderGalleryGrouped(items, isFlat) {
     else {
         displayed.forEach(item => {
             let key = "Unknown Date";
-            if (item.timestamp) {
-                const dateObj = new Date(item.timestamp);
+            if (item.sortTs) {
+                const dateObj = new Date(item.sortTs);
                 if (!isNaN(dateObj.getTime())) {
                     key = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
                 }
