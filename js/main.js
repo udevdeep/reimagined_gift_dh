@@ -1456,7 +1456,7 @@ export function loadGallery() {
 
 function sortGallery(mode) {
     galleryState.sort((a, b) => {
-        const tA = a.timestamp || 0, tB = b.timestamp || 0;
+        const tA = a.sortTs || 0, tB = b.sortTs || 0;
         return mode === 'date-asc' ? tA - tB : tB - tA;
     });
     renderGalleryGrouped(galleryState, mode === 'default');
