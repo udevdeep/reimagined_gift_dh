@@ -1,6 +1,6 @@
 import { auth, db, storage, initTheme } from "./main.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, addDoc, setDoc, doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch, deleteField, FieldPath, deleteDoc, startAfter, endBefore, limitToLast, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, getDownloadURL, uploadBytesResumable, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { runWithConcurrency, showToast } from "./utils.js";
 
@@ -35,6 +35,7 @@ onAuthStateChanged(auth, user => {
                 initPulseMonitor();
                 initDashboardStats();
                 initGalleryUpload();
+                recalculateStats(); // Sync stats on load
             } else {
                 console.error("Non-admin UID attempted access:", user.uid);
                 document.getElementById('auth-status').textContent = "Access Denied.";
@@ -67,6 +68,29 @@ window.showSection = showSection;
 /* --- Pulse Monitor & Dashboard --- */
 let lastPulseTime = 0;
 
+export async function recalculateStats() {
+    try {
+        const [sparkSnap, visitSnap] = await Promise.all([
+            getCountFromServer(collection(db, 'spark_history')),
+            getCountFromServer(collection(db, 'site_visits'))
+        ]);
+        
+        const totalSparks = sparkSnap.data().count;
+        const totalVisits = visitSnap.data().count;
+        
+        await setDoc(doc(db, 'config', 'stats'), {
+            totalSparks,
+            totalVisits,
+            lastUpdated: serverTimestamp()
+        }, { merge: true });
+        
+        console.log("Stats recalculated:", { totalSparks, totalVisits });
+    } catch (e) {
+        console.error("Failed to recalculate stats:", e);
+    }
+}
+window.recalculateStats = recalculateStats;
+
 export async function clearSparkCounts() {
     if (!confirm("Are you sure you want to clear all spark counts and history?")) return;
     try {
@@ -80,6 +104,7 @@ export async function clearSparkCounts() {
         batch.set(doc(db, 'config', 'stats'), { totalSparks: 0 }, { merge: true });
         
         await batch.commit();
+        await recalculateStats(); 
         showToast("All spark data cleared!", "success");
     } catch (e) { console.error(e); alert("Failed: " + e.message); }
 }
