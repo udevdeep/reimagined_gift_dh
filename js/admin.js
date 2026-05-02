@@ -175,8 +175,38 @@ async function processImage(file, type = 'thumb') {
     } catch(e) { console.error("Image process failed", e); return file; }
 }
 
+function convertDMSToDD(dms, ref) {
+    if (!dms) return null;
+    let dd = dms[0] + dms[1]/60 + dms[2]/3600;
+    if (ref === "S" || ref === "W") dd = dd * -1;
+    return dd;
+}
+
 async function getExifData(file) {
-    return { date: new Date(file.lastModified) }; // Simplified for browser
+    return new Promise((resolve) => {
+        if (!window.EXIF || !file.type.startsWith('image')) return resolve({});
+        EXIF.getData(file, function() {
+            const lat = EXIF.getTag(this, "GPSLatitude");
+            const lon = EXIF.getTag(this, "GPSLongitude");
+            const dateStr = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime");
+            
+            let data = {};
+            if (lat && lon) {
+                data.lat = convertDMSToDD(lat, EXIF.getTag(this, "GPSLatitudeRef"));
+                data.lon = convertDMSToDD(lon, EXIF.getTag(this, "GPSLongitudeRef"));
+            }
+            if (dateStr) {
+                // EXIF date is YYYY:MM:DD HH:MM:SS
+                const parts = dateStr.split(' ');
+                if (parts.length >= 2) {
+                    const dateParts = parts[0].split(':');
+                    const timeParts = parts[1].split(':');
+                    data.date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1], timeParts[2]);
+                }
+            }
+            resolve(data);
+        });
+    });
 }
 
 async function getVideoThumbnail(file) {
@@ -348,6 +378,59 @@ window.clearUploadQueue = () => {
 
 async function uploadGallery() {
     if(!uploadQueue.length) return;
+    
+    // Separate videos for review
+    videoReviewQueue = uploadQueue.filter(item => item.file.type.startsWith('video')).map(item => item.file);
+    reviewedDates = {};
+
+    if (videoReviewQueue.length > 0) {
+        processVideoReviewQueue();
+    } else {
+        startGalleryUpload();
+    }
+}
+window.uploadGallery = uploadGallery;
+
+function processVideoReviewQueue() {
+    if (videoReviewQueue.length === 0) {
+        document.getElementById('video-review-modal').style.display = 'none';
+        startGalleryUpload();
+        return;
+    }
+
+    const file = videoReviewQueue[0];
+    const modal = document.getElementById('video-review-modal');
+    const player = document.getElementById('review-video-player');
+    const dateInput = document.getElementById('review-date-input');
+    const confirmBtn = document.getElementById('review-confirm-btn');
+
+    if (!modal || !player || !dateInput || !confirmBtn) {
+        startGalleryUpload();
+        return;
+    }
+
+    modal.style.display = 'flex';
+    document.getElementById('review-title').textContent = `Review Video (${videoReviewQueue.length} Left)`;
+    document.getElementById('review-filename').textContent = file.name;
+    
+    const fileUrl = URL.createObjectURL(file);
+    player.src = fileUrl;
+    player.load();
+
+    // Try to auto-suggest date
+    const dateToUse = new Date(file.lastModified);
+    const offset = dateToUse.getTimezoneOffset() * 60000;
+    dateInput.value = new Date(dateToUse - offset).toISOString().slice(0, 16);
+
+    confirmBtn.onclick = () => {
+        reviewedDates[file.name] = dateInput.value ? new Date(dateInput.value).toISOString() : new Date(file.lastModified).toISOString();
+        URL.revokeObjectURL(fileUrl);
+        videoReviewQueue.shift();
+        processVideoReviewQueue();
+    };
+}
+
+async function startGalleryUpload() {
     const status = document.getElementById('gallery-status'), progress = document.getElementById('gallery-progress'), fill = progress?.querySelector('.progress-fill');
     if (progress) progress.style.display = 'block';
     let completed = 0;
@@ -355,10 +438,17 @@ async function uploadGallery() {
     await runWithConcurrency(uploadQueue.map(item => async () => {
         const file = item.file, ts = Date.now() + Math.floor(Math.random()*1000);
         let mainBlob = file, thumbBlob = item.thumbBlob;
-        
+        let metadata = {};
+
         if (file.type.startsWith('image')) {
-            mainBlob = await processImage(file, 'original');
-            if (!thumbBlob) thumbBlob = await processImage(file, 'thumb');
+            const [processedMain, processedThumb, exif] = await Promise.all([
+                processImage(file, 'original'),
+                processImage(file, 'thumb'),
+                getExifData(file)
+            ]);
+            mainBlob = processedMain;
+            thumbBlob = processedThumb;
+            metadata = exif;
         } else if (file.type.startsWith('video')) {
             if (!thumbBlob) thumbBlob = await getVideoThumbnail(file);
         }
@@ -368,10 +458,26 @@ async function uploadGallery() {
             (async () => { await uploadBytesResumable(mainRef, mainBlob); return getDownloadURL(mainRef); })(),
             (async () => { if(!thumbBlob) return null; await uploadBytesResumable(thumbRef, thumbBlob); return getDownloadURL(thumbRef); })()
         ]);
-        await addDoc(collection(db, 'gallery'), { 
-            src: mainUrl, thumb: thumbUrl, type: file.type.startsWith('video') ? 'video' : 'image', 
-            private: item.isPrivate, filename: file.name, timestamp: Date.now() 
-        });
+
+        // Use reviewed date if available, otherwise use metadata date or file modified date
+        const finalDate = reviewedDates[file.name] || (metadata.date ? metadata.date.toISOString() : new Date(file.lastModified).toISOString());
+
+        const uploadData = { 
+            src: mainUrl, 
+            thumb: thumbUrl, 
+            type: file.type.startsWith('video') ? 'video' : 'image', 
+            date: finalDate,
+            private: item.isPrivate, 
+            filename: file.name, 
+            timestamp: Date.now() 
+        };
+        
+        if (metadata.lat && metadata.lon) {
+            uploadData.lat = metadata.lat;
+            uploadData.lon = metadata.lon;
+        }
+
+        await addDoc(collection(db, 'gallery'), uploadData);
         
         // Cleanup preview URL
         if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
@@ -381,11 +487,10 @@ async function uploadGallery() {
         if (status) status.textContent = `Uploaded ${completed}/${uploadQueue.length}...`;
     }), 3);
 
-    status.textContent = "Done!";
+    if (status) status.textContent = "Done!";
     uploadQueue = []; renderUploadPreview();
     setTimeout(() => { if(progress) progress.style.display = 'none'; }, 2000);
 }
-window.uploadGallery = uploadGallery;
 
 /* --- Content Management --- */
 let lastDoc = null, firstDoc = null, currentPage = 1;
@@ -426,28 +531,100 @@ function renderList(snap, col) {
     updateSelectUI();
 }
 
+async function deleteFilesForDoc(col, id, data) {
+    const filePromises = [];
+    const getRefFromUrl = (url) => {
+        if (!url || typeof url !== 'string') return null;
+        if (url.includes('firebasestorage.googleapis.com')) return ref(storage, url);
+        return null;
+    };
+
+    // Main media
+    const primaryRef = getRefFromUrl(data.src || data.videoUrl || data.video);
+    if (primaryRef) filePromises.push(deleteObject(primaryRef).catch(e => console.warn("Storage delete failed (primary):", e)));
+
+    // Thumbnails
+    const thumbRef = getRefFromUrl(data.thumb || data.thumbnailUrl);
+    if (thumbRef) filePromises.push(deleteObject(thumbRef).catch(e => console.warn("Storage delete failed (thumb):", e)));
+
+    // Memory Images/Thumbs
+    if (data.images && Array.isArray(data.images)) {
+        data.images.forEach(img => {
+            const r = getRefFromUrl(img);
+            if (r) filePromises.push(deleteObject(r).catch(e => console.warn("Storage delete failed (mem-img):", e)));
+        });
+    }
+    if (data.thumbs && Array.isArray(data.thumbs)) {
+        data.thumbs.forEach(t => {
+            const r = getRefFromUrl(t);
+            if (r) filePromises.push(deleteObject(r).catch(e => console.warn("Storage delete failed (mem-thumb):", e)));
+        });
+    }
+
+    // Audio
+    const audioRef = getRefFromUrl(data.audio);
+    if (audioRef) filePromises.push(deleteObject(audioRef).catch(e => console.warn("Storage delete failed (audio):", e)));
+
+    await Promise.all(filePromises);
+}
+
 window.deleteItem = async (col, id) => {
-    if(!confirm("Delete this item?")) return;
+    if(!confirm("Permanently delete this item and its files?")) return;
     try {
         const docRef = doc(db, col, id);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            const data = snap.data();
-            // Delete from Storage if it's a gallery or memory item with storage files
-            if (data.src && data.src.includes('firebasestorage.googleapis.com')) {
-                try { await deleteObject(ref(storage, data.src)); } catch(e) { console.warn("Src deletion failed", e); }
-            }
-            if (data.thumb && data.thumb.includes('firebasestorage.googleapis.com')) {
-                try { await deleteObject(ref(storage, data.thumb)); } catch(e) { console.warn("Thumb deletion failed", e); }
-            }
-            // For memories, we might have more files but this handles the main gallery case
+            await deleteFilesForDoc(col, id, snap.data());
         }
         await deleteDoc(docRef);
+
+        // Cleanup associated data
+        if (col === 'memories' || col === 'gallery') {
+            const commentQuery = query(collection(db, 'memory_comments'), where('memoryId', '==', id));
+            const commentSnap = await getDocs(commentQuery);
+            const deletePromises = commentSnap.docs.map(d => deleteDoc(d.ref));
+            deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `cherished_${id}`)));
+            deletePromises.push(deleteDoc(doc(db, 'shared_profile_data', `vibe_${id}`)));
+            await Promise.all(deletePromises);
+        }
+
         showToast("Deleted!", "success");
         loadContentList();
     } catch (e) {
         console.error("Delete failed", e);
         showToast("Delete failed", "error");
+    }
+};
+
+window.deleteSelectedItems = async () => {
+    const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');
+    if (!checked.length || !confirm(`Delete ${checked.length} items?`)) return;
+    
+    showToast(`Deleting ${checked.length} items...`, "info");
+    try {
+        const batch = writeBatch(db);
+        for (const cb of checked) {
+            const id = cb.dataset.id;
+            const docRef = doc(db, col, id);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                await deleteFilesForDoc(col, id, snap.data());
+            }
+            batch.delete(docRef);
+            
+            if (col === 'memories' || col === 'gallery') {
+                const commentSnap = await getDocs(query(collection(db, 'memory_comments'), where('memoryId', '==', id)));
+                commentSnap.forEach(d => batch.delete(d.ref));
+                batch.delete(doc(db, 'shared_profile_data', `cherished_${id}`));
+                batch.delete(doc(db, 'shared_profile_data', `vibe_${id}`));
+            }
+        }
+        await batch.commit();
+        showToast("Batch delete successful!", "success");
+        loadContentList();
+    } catch (e) {
+        console.error("Batch delete failed", e);
+        showToast("Some items failed to delete", "error");
     }
 };
 
@@ -461,40 +638,6 @@ window.toggleSelectAll = () => {
     const boxes = document.querySelectorAll('.item-checkbox'), allChecked = Array.from(boxes).every(b => b.checked);
     boxes.forEach(b => b.checked = !allChecked);
     window.updateSelectUI();
-};
-
-window.deleteSelectedItems = async () => {
-    const col = document.getElementById('manage-collection').value, checked = document.querySelectorAll('.item-checkbox:checked');
-    if (!checked.length || !confirm(`Delete ${checked.length} items?`)) return;
-    
-    showToast(`Deleting ${checked.length} items...`, "info");
-    
-    try {
-        const batch = writeBatch(db);
-        for (const cb of checked) {
-            const id = cb.dataset.id;
-            const docRef = doc(db, col, id);
-            
-            // Attempt storage deletion before doc deletion
-            const snap = await getDoc(docRef);
-            if (snap.exists()) {
-                const data = snap.data();
-                if (data.src && data.src.includes('firebasestorage.googleapis.com')) {
-                    try { await deleteObject(ref(storage, data.src)); } catch(e) {}
-                }
-                if (data.thumb && data.thumb.includes('firebasestorage.googleapis.com')) {
-                    try { await deleteObject(ref(storage, data.thumb)); } catch(e) {}
-                }
-            }
-            batch.delete(docRef);
-        }
-        await batch.commit();
-        showToast("Batch delete successful!", "success");
-        loadContentList();
-    } catch (e) {
-        console.error("Batch delete failed", e);
-        showToast("Some items failed to delete", "error");
-    }
 };
 
 window.loadNextPage = () => { currentPage++; loadContentList('next'); };
@@ -592,5 +735,120 @@ window.migrateAll = async () => {
 };
 
 window.signOutUser = () => signOut(auth);
-window.uploadMemory = async () => { /* Simplified */ };
-window.uploadFamiliarSound = async () => { /* Simplified */ };
+window.uploadMemory = async () => {
+    const title = document.getElementById('mem-title').value;
+    const text = document.getElementById('mem-text').value;
+    const backstory = document.getElementById('mem-backstory').value;
+    const date = document.getElementById('mem-date').value;
+    const audioName = document.getElementById('mem-audio-name').value;
+    const mediaFiles = Array.from(document.getElementById('mem-media').files);
+    const audioFile = document.getElementById('mem-audio').files[0];
+    const isPrivate = document.getElementById('mem-private').checked;
+
+    if(!title) return alert("Title is required.");
+    if(mediaFiles.length === 0) return alert("Please select at least one photo or video.");
+    
+    const status = document.getElementById('mem-status');
+    const progress = document.getElementById('mem-progress');
+    const progressFill = progress?.querySelector('.progress-fill');
+    
+    if(progress) progress.style.display = 'block';
+    status.textContent = "Analyzing and uploading media...";
+    
+    let imageUrls = [], thumbUrls = [], videoUrl = null, audioUrl = null;
+    const totalItems = mediaFiles.length + (audioFile ? 1 : 0);
+    let completed = 0;
+    const updateProg = () => { completed++; if(progressFill) progressFill.style.width = (completed / totalItems * 100) + '%'; };
+
+    // Sort files to keep videos first (optional, based on preference)
+    mediaFiles.sort((a, b) => b.type.startsWith('video') - a.type.startsWith('video'));
+
+    await runWithConcurrency(mediaFiles.map(file => async () => {
+        const ts = Date.now() + Math.floor(Math.random() * 1000);
+        const isVideo = file.type.startsWith('video');
+        
+        if (isVideo) {
+            // Process Video
+            const vRef = ref(storage, `memories/${ts}_${file.name}`);
+            await uploadBytesResumable(vRef, file);
+            const downloadUrl = await getDownloadURL(vRef);
+            
+            // If it's the first video, set it as the main 'video' field
+            if (!videoUrl) videoUrl = downloadUrl;
+            
+            // Generate and upload thumbnail
+            const tBlob = await getVideoThumbnail(file);
+            if (tBlob) {
+                const vtRef = ref(storage, `memories/vthumb_${ts}.jpg`);
+                await uploadBytesResumable(vtRef, tBlob);
+                const tUrl = await getDownloadURL(vtRef);
+                thumbUrls.push(tUrl);
+            }
+        } else {
+            // Process Image
+            const [mainBlob, thumbBlob] = await Promise.all([
+                processImage(file, 'original'), 
+                processImage(file, 'thumb')
+            ]);
+            const mRef = ref(storage, `memories/${ts}_${file.name}`);
+            const tRef = ref(storage, `memories/thumb_${ts}_${file.name}`);
+            
+            const [mUrl, tUrl] = await Promise.all([
+                (async () => { await uploadBytesResumable(mRef, mainBlob); return getDownloadURL(mRef); })(),
+                (async () => { if(!thumbBlob) return null; await uploadBytesResumable(tRef, thumbBlob); return getDownloadURL(tRef); })()
+            ]);
+            
+            imageUrls.push(mUrl);
+            thumbUrls.push(tUrl);
+        }
+        
+        updateProg();
+    }), 2); // Concurrency 2 for heavy media
+
+    if(audioFile) { 
+        status.textContent = "Uploading background music...";
+        const aRef = ref(storage, `memories/${Date.now()}_${audioFile.name}`); 
+        await uploadBytesResumable(aRef, audioFile); 
+        audioUrl = await getDownloadURL(aRef); 
+        updateProg(); 
+    }
+
+    const payload = { 
+        title, 
+        text, 
+        backstory,
+        audioName,
+        private: isPrivate, 
+        timestamp: Date.now() 
+    };
+
+    if (date) payload.date = date; 
+    if (imageUrls.length > 0) payload.images = imageUrls; 
+    if (thumbUrls.length > 0) payload.thumbs = thumbUrls; 
+    if (videoUrl) payload.video = videoUrl; // Primary video
+    if (audioUrl) payload.audio = audioUrl; // Background music
+    
+    await addDoc(collection(db, 'memories'), payload);
+    
+    status.textContent = "Reel Memory Created Successfully! ✨";
+    setTimeout(() => { 
+        if(progressFill) progressFill.style.width = '0%'; 
+        if(progress) progress.style.display = 'none'; 
+        // Clear fields
+        ['mem-title', 'mem-text', 'mem-backstory', 'mem-audio-name', 'mem-media', 'mem-audio'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = '';
+        });
+    }, 3000);
+};
+
+window.uploadFamiliarSound = async () => {
+    const file = document.getElementById('familiar-audio-file').files[0], title = document.getElementById('familiar-title').value.trim(), mood = document.getElementById('familiar-mood').value, status = document.getElementById('low-status');
+    if(!file || !title) return alert("Select file and title.");
+    status.textContent = "Uploading song...";
+    const ts = Date.now(), sRef = ref(storage, `familiar_sounds/${ts}_${file.name}`);
+    await uploadBytesResumable(sRef, file);
+    const url = await getDownloadURL(sRef);
+    await addDoc(collection(db, 'familiar_sounds'), { title, mood, src: url, timestamp: ts, filename: file.name });
+    status.textContent = "Song added!";
+};
