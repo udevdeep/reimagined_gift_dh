@@ -303,19 +303,22 @@ async function handleFiles(files) {
                 file, 
                 isPrivate: isPrivate,
                 thumbBlob: null,
-                previewUrl: null
+                previewUrl: null,
+                date: new Date(file.lastModified).toISOString() // Default to lastModified
             };
             
             if (file.type.startsWith('image')) {
                 item.thumbBlob = await processImage(file, 'thumb');
                 if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+                // Extract EXIF date immediately for preview
+                const exif = await getExifData(file);
+                if (exif.date) item.date = exif.date.toISOString();
             } else if (file.type.startsWith('video')) {
                 item.thumbBlob = await getVideoThumbnail(file);
                 if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
             }
             
             uploadQueue.push(item);
-            // Update preview incrementally so user sees progress
             renderUploadPreview();
         } catch (err) {
             console.error("Error processing file:", file.name, err);
@@ -349,9 +352,12 @@ function renderUploadPreview() {
             ? `<img src="${item.previewUrl}" style="width:100%; height:80px; object-fit:cover; border-radius:8px;">`
             : `<div style="width:100%; height:80px; background:rgba(255,255,255,0.05); border-radius:8px; display:flex; align-items:center; justify-content:center;">${item.file.type.startsWith('video') ? '🎥' : '🖼️'}</div>`;
 
+        const displayDate = item.date ? new Date(item.date).toLocaleDateString() : 'No Date';
+
         card.innerHTML = `
             ${previewHtml}
             <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 3px;">${item.file.name}</div>
+            <div style="font-size: 0.55rem; opacity: 0.7; padding: 0 3px;">📅 ${displayDate}</div>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0 3px 3px;">
                 <label style="display:flex; align-items:center; gap:3px; cursor:pointer; margin:0;">
                     <input type="checkbox" ${item.isPrivate ? 'checked' : ''} onchange="toggleIndividualPrivate(${i}, this.checked)" style="width:10px; height:10px; margin:0;">
@@ -423,10 +429,17 @@ function processVideoReviewQueue() {
     dateInput.value = new Date(dateToUse - offset).toISOString().slice(0, 16);
 
     confirmBtn.onclick = () => {
-        reviewedDates[file.name] = dateInput.value ? new Date(dateInput.value).toISOString() : new Date(file.lastModified).toISOString();
+        const isoDate = dateInput.value ? new Date(dateInput.value).toISOString() : new Date(file.lastModified).toISOString();
+        reviewedDates[file.name] = isoDate;
+        
+        // Find item in uploadQueue and update its date
+        const item = uploadQueue.find(i => i.file === file);
+        if (item) item.date = isoDate;
+        
         URL.revokeObjectURL(fileUrl);
         videoReviewQueue.shift();
         processVideoReviewQueue();
+        renderUploadPreview(); // Update the preview cards
     };
 }
 
@@ -459,8 +472,8 @@ async function startGalleryUpload() {
             (async () => { if(!thumbBlob) return null; await uploadBytesResumable(thumbRef, thumbBlob); return getDownloadURL(thumbRef); })()
         ]);
 
-        // Use reviewed date if available, otherwise use metadata date or file modified date
-        const finalDate = reviewedDates[file.name] || (metadata.date ? metadata.date.toISOString() : new Date(file.lastModified).toISOString());
+        // Use item.date (which could be EXIF or manually reviewed), fallback to reviewedDates, then metadata, then file modified
+        const finalDate = item.date || reviewedDates[file.name] || (metadata.date ? metadata.date.toISOString() : new Date(file.lastModified).toISOString());
 
         const uploadData = { 
             src: mainUrl, 
