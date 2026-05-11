@@ -527,6 +527,7 @@ function initCinematicScroll() {
         if (!nav) return;
         const currentScroll = container.scrollTop;
         const wasAtTop = currentScroll < 50;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 20;
         
         if (indicator) {
             if (currentScroll > 100) indicator.classList.add('hidden');
@@ -546,7 +547,7 @@ function initCinematicScroll() {
             return;
         }
 
-        if (wasAtTop || mouseAtTop) {
+        if (wasAtTop || mouseAtTop || isAtBottom) {
             nav.classList.remove('navbar-hidden');
         } else if (currentScroll > 100) {
             nav.classList.add('navbar-hidden');
@@ -605,6 +606,7 @@ function initCinematicScroll() {
         if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
             scrollActive = false;
             isScrolling = false; // Fully done
+            updateNavVisibility();
             return;
         }
         
