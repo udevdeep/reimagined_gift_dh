@@ -35,6 +35,7 @@ onAuthStateChanged(auth, user => {
                 initPulseMonitor();
                 initDashboardStats();
                 initGalleryUpload();
+                initMemoryUpload();
                 recalculateStats(); // Sync stats on load
             } else {
                 console.error("Non-admin UID attempted access:", user.uid);
@@ -264,6 +265,94 @@ let uploadQueue = [];
 let videoReviewQueue = [];
 let reviewedDates = {};
 let currentReviewIndex = 0;
+
+/* --- Memory Reel Upload Queue --- */
+let memoryUploadQueue = [];
+
+async function initMemoryUpload() {
+    const dropZone = document.getElementById('mem-drop-zone');
+    const fileInput = document.getElementById('mem-media');
+    if (!dropZone) return;
+
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => { handleMemoryFiles(e.target.files); fileInput.value = ''; };
+
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent-primary)'; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = 'var(--card-border)'; };
+    dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--card-border)'; handleMemoryFiles(e.dataTransfer.files); };
+}
+
+async function handleMemoryFiles(files) {
+    const status = document.getElementById('mem-status');
+    const fileArray = Array.from(files);
+    
+    for (let file of fileArray) {
+        try {
+            const item = { 
+                file, 
+                thumbBlob: null,
+                previewUrl: null,
+                type: file.type.startsWith('video') ? 'video' : 'image'
+            };
+            
+            if (item.type === 'image') {
+                item.thumbBlob = await processImage(file, 'thumb');
+                if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+            } else {
+                item.thumbBlob = await getVideoThumbnail(file);
+                if (item.thumbBlob) item.previewUrl = URL.createObjectURL(item.thumbBlob);
+            }
+            
+            memoryUploadQueue.push(item);
+            renderMemoryUploadPreview();
+        } catch (err) {
+            console.error("Error processing memory file:", file.name, err);
+        }
+    }
+}
+
+function renderMemoryUploadPreview() {
+    const container = document.getElementById('mem-preview-container');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    memoryUploadQueue.forEach((item, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.cssText = "padding:5px; position:relative; font-size:0.6rem; margin-bottom:0; display:flex; flex-direction:column; gap:3px; overflow:hidden; border-color: rgba(255,255,255,0.1);";
+        
+        const previewHtml = item.previewUrl 
+            ? `<img src="${item.previewUrl}" style="width:100%; height:70px; object-fit:cover; border-radius:6px;">`
+            : `<div style="width:100%; height:70px; background:rgba(255,255,255,0.05); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${item.type === 'video' ? '🎥' : '🖼️'}</div>`;
+
+        card.innerHTML = `
+            ${previewHtml}
+            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px;">${item.file.name}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                <div style="display:flex; gap:2px;">
+                    <button onclick="moveMemoryFile(${i}, -1)" style="background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer; width:18px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px;" ${i === 0 ? 'disabled style="opacity:0.3;"' : ''}>↑</button>
+                    <button onclick="moveMemoryFile(${i}, 1)" style="background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer; width:18px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px;" ${i === memoryUploadQueue.length - 1 ? 'disabled style="opacity:0.3;"' : ''}>↓</button>
+                </div>
+                <button onclick="removeMemoryFileFromQueue(${i})" style="border-radius:50%; background:rgba(255,0,0,0.6); color:white; border:none; cursor:pointer; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center;">✕</button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+window.moveMemoryFile = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= memoryUploadQueue.length) return;
+    const item = memoryUploadQueue.splice(index, 1)[0];
+    memoryUploadQueue.splice(newIndex, 0, item);
+    renderMemoryUploadPreview();
+};
+
+window.removeMemoryFileFromQueue = (index) => {
+    if (memoryUploadQueue[index] && memoryUploadQueue[index].previewUrl) URL.revokeObjectURL(memoryUploadQueue[index].previewUrl);
+    memoryUploadQueue.splice(index, 1);
+    renderMemoryUploadPreview();
+};
 
 window.closeVideoReview = () => {
     const modal = document.getElementById('video-review-modal');
@@ -806,12 +895,11 @@ window.uploadMemory = async () => {
     const backstory = document.getElementById('mem-backstory').value;
     const date = document.getElementById('mem-date').value;
     const audioName = document.getElementById('mem-audio-name').value;
-    const mediaFiles = Array.from(document.getElementById('mem-media').files);
     const audioFile = document.getElementById('mem-audio').files[0];
     const isPrivate = document.getElementById('mem-private').checked;
 
     if(!title) return alert("Title is required.");
-    if(mediaFiles.length === 0) return alert("Please select at least one photo or video.");
+    if(memoryUploadQueue.length === 0) return alert("Please select at least one photo or video.");
     
     const status = document.getElementById('mem-status');
     const progress = document.getElementById('mem-progress');
@@ -820,40 +908,36 @@ window.uploadMemory = async () => {
     if(progress) progress.style.display = 'block';
     status.textContent = "Analyzing and uploading media...";
     
-    let imageUrls = [], thumbUrls = [], videoUrl = null, audioUrl = null;
-    const totalItems = mediaFiles.length + (audioFile ? 1 : 0);
+    let orderedMedia = [];
+    let audioUrl = null;
+    const totalItems = memoryUploadQueue.length + (audioFile ? 1 : 0);
     let completed = 0;
     const updateProg = () => { completed++; if(progressFill) progressFill.style.width = (completed / totalItems * 100) + '%'; };
 
-    // Sort files to keep videos first (optional, based on preference)
-    mediaFiles.sort((a, b) => b.type.startsWith('video') - a.type.startsWith('video'));
-
-    await runWithConcurrency(mediaFiles.map(file => async () => {
+    // Process all media in the queue sequentially to ensure order is preserved (can use concurrency if we collect results properly)
+    for (let i = 0; i < memoryUploadQueue.length; i++) {
+        const item = memoryUploadQueue[i];
+        const file = item.file;
         const ts = Date.now() + Math.floor(Math.random() * 1000);
-        const isVideo = file.type.startsWith('video');
-        
-        if (isVideo) {
-            // Process Video
+        status.textContent = `Uploading ${i+1}/${memoryUploadQueue.length}: ${file.name}...`;
+
+        if (item.type === 'video') {
             const vRef = ref(storage, `memories/${ts}_${file.name}`);
             await uploadBytesResumable(vRef, file);
             const downloadUrl = await getDownloadURL(vRef);
             
-            // If it's the first video, set it as the main 'video' field
-            if (!videoUrl) videoUrl = downloadUrl;
-            
-            // Generate and upload thumbnail
-            const tBlob = await getVideoThumbnail(file);
-            if (tBlob) {
+            let tUrl = null;
+            if (item.thumbBlob) {
                 const vtRef = ref(storage, `memories/vthumb_${ts}.jpg`);
-                await uploadBytesResumable(vtRef, tBlob);
-                const tUrl = await getDownloadURL(vtRef);
-                thumbUrls.push(tUrl);
+                await uploadBytesResumable(vtRef, item.thumbBlob);
+                tUrl = await getDownloadURL(vtRef);
             }
+            
+            orderedMedia.push({ type: 'video', url: downloadUrl, thumb: tUrl });
         } else {
-            // Process Image
             const [mainBlob, thumbBlob] = await Promise.all([
                 processImage(file, 'original'), 
-                processImage(file, 'thumb')
+                item.thumbBlob ? Promise.resolve(item.thumbBlob) : processImage(file, 'thumb')
             ]);
             const mRef = ref(storage, `memories/${ts}_${file.name}`);
             const tRef = ref(storage, `memories/thumb_${ts}_${file.name}`);
@@ -863,12 +947,10 @@ window.uploadMemory = async () => {
                 (async () => { if(!thumbBlob) return null; await uploadBytesResumable(tRef, thumbBlob); return getDownloadURL(tRef); })()
             ]);
             
-            imageUrls.push(mUrl);
-            thumbUrls.push(tUrl);
+            orderedMedia.push({ type: 'image', url: mUrl, thumb: tUrl });
         }
-        
         updateProg();
-    }), 2); // Concurrency 2 for heavy media
+    }
 
     if(audioFile) { 
         status.textContent = "Uploading background music...";
@@ -884,18 +966,27 @@ window.uploadMemory = async () => {
         backstory,
         audioName,
         private: isPrivate, 
-        timestamp: Date.now() 
+        timestamp: Date.now(),
+        orderedMedia: orderedMedia // New ordered format
     };
+
+    // Maintain backward compatibility
+    const imageUrls = orderedMedia.filter(m => m.type === 'image').map(m => m.url);
+    const thumbUrls = orderedMedia.map(m => m.thumb).filter(t => t !== null);
+    const firstVideo = orderedMedia.find(m => m.type === 'video');
 
     if (date) payload.date = date; 
     if (imageUrls.length > 0) payload.images = imageUrls; 
     if (thumbUrls.length > 0) payload.thumbs = thumbUrls; 
-    if (videoUrl) payload.video = videoUrl; // Primary video
-    if (audioUrl) payload.audio = audioUrl; // Background music
+    if (firstVideo) payload.video = firstVideo.url; 
+    if (audioUrl) payload.audio = audioUrl; 
     
     await addDoc(collection(db, 'memories'), payload);
     
     status.textContent = "Reel Memory Created Successfully! ✨";
+    memoryUploadQueue = [];
+    renderMemoryUploadPreview();
+    
     setTimeout(() => { 
         if(progressFill) progressFill.style.width = '0%'; 
         if(progress) progress.style.display = 'none'; 
@@ -904,8 +995,10 @@ window.uploadMemory = async () => {
             const el = document.getElementById(id);
             if(el) el.value = '';
         });
+        status.textContent = "";
     }, 3000);
 };
+
 
 window.uploadFamiliarSound = async () => {
     const file = document.getElementById('familiar-audio-file').files[0], title = document.getElementById('familiar-title').value.trim(), mood = document.getElementById('familiar-mood').value, status = document.getElementById('low-status');

@@ -482,8 +482,15 @@
                     <div class="grid-2">
                         <div>
                             <label>Carousel Media (Photos/Videos):</label>
-                            <input type="file" id="mem-media" multiple accept="image/*,video/*">
-                            <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px;">Upload all images and videos for this reel.</p>
+                            <div id="mem-drop-zone" style="border: 2px dashed var(--card-border); border-radius: 20px; padding: 30px; text-align: center; background: rgba(255,255,255,0.02); transition: all 0.3s; cursor: pointer; margin-bottom: 10px;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">☁️</div>
+                                <p style="margin: 0; font-size: 0.9rem; font-weight: 500;">Drag & Drop or click to browse</p>
+                                <input type="file" id="mem-media" multiple accept="image/*,video/*" style="display: none;">
+                            </div>
+                            <div id="mem-preview-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                                <!-- Previews will be injected here -->
+                            </div>
+                            <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px;">Upload and order images/videos for this reel.</p>
                         </div>
                         <div>
                             <label>Background Music (MP3):</label>

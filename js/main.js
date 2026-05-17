@@ -658,9 +658,17 @@ export function loadMemories() {
         
         let mediaHtml = '';
         const allMedia = [];
-        if (meta.video) allMedia.push({ type: 'video', src: resolvePath(meta.video, item.folder) });
-        if (meta.images?.length) {
-            meta.images.forEach(img => allMedia.push({ type: 'image', src: resolvePath(img, item.folder) }));
+        
+        if (meta.orderedMedia && meta.orderedMedia.length > 0) {
+            meta.orderedMedia.forEach(m => {
+                allMedia.push({ type: m.type, src: resolvePath(m.url, item.folder) });
+            });
+        } else {
+            // Fallback to legacy fields
+            if (meta.video) allMedia.push({ type: 'video', src: resolvePath(meta.video, item.folder) });
+            if (meta.images?.length) {
+                meta.images.forEach(img => allMedia.push({ type: 'image', src: resolvePath(img, item.folder) }));
+            }
         }
 
         if (allMedia.length > 1) {
