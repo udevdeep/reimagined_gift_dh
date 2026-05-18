@@ -638,8 +638,13 @@ export function loadMemories() {
     const userMemories = JSON.parse(localStorage.getItem('user_memories') || '[]');
     const all = [...userMemories, ...MEMORIES_DATA];
     
-    // Sort Chronologically: Oldest to Newest
+    // Sort: Manual Order first, then Chronological (Oldest to Newest)
     all.sort((a, b) => {
+        const orderA = a.meta.order !== undefined ? a.meta.order : Number.MAX_SAFE_INTEGER;
+        const orderB = b.meta.order !== undefined ? b.meta.order : Number.MAX_SAFE_INTEGER;
+        
+        if (orderA !== orderB) return orderA - orderB;
+
         const dateA = a.meta.date ? new Date(a.meta.date) : new Date(0);
         const dateB = b.meta.date ? new Date(b.meta.date) : new Date(0);
         return dateA - dateB;

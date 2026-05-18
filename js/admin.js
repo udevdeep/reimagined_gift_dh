@@ -657,12 +657,26 @@ async function loadContentList(dir = 'first') {
     try {
         let q;
         const baseQuery = collection(db, col);
-        if (dir === 'next' && lastDoc) q = query(baseQuery, orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(pageSize));
-        else if (dir === 'prev' && firstDoc) q = query(baseQuery, orderBy('timestamp', 'desc'), endBefore(firstDoc), limitToLast(pageSize));
-        else q = query(baseQuery, orderBy('timestamp', 'desc'), limit(pageSize));
+        
+        // Memories use 'order' field for manual timeline control, others use 'timestamp'
+        const sortField = col === 'memories' ? 'order' : 'timestamp';
+        const sortDir = col === 'memories' ? 'asc' : 'desc';
 
-        const snap = await getDocs(q);
+        if (dir === 'next' && lastDoc) q = query(baseQuery, orderBy(sortField, sortDir), startAfter(lastDoc), limit(pageSize));
+        else if (dir === 'prev' && firstDoc) q = query(baseQuery, orderBy(sortField, sortDir), endBefore(firstDoc), limitToLast(pageSize));
+        else q = query(baseQuery, orderBy(sortField, sortDir), limit(pageSize));
+
+        let snap = await getDocs(q);
+        
+        // Fallback for memories: if 'order' field is missing, it won't return results. 
+        // We detect this and fallback to timestamp, but warn that reordering won't work until initialized.
+        if (snap.empty && col === 'memories' && dir === 'first') {
+            q = query(baseQuery, orderBy('timestamp', 'asc'), limit(pageSize));
+            snap = await getDocs(q);
+        }
+
         if (snap.empty) { list.innerHTML = 'No items found.'; return; }
+        
         firstDoc = snap.docs[0]; lastDoc = snap.docs[snap.docs.length - 1];
         if (info) info.textContent = `Page ${currentPage}`;
         renderList(snap, col);
@@ -672,18 +686,108 @@ window.loadContentList = loadContentList;
 
 function renderList(snap, col) {
     const list = document.getElementById('manage-list'); list.innerHTML = '';
-    snap.forEach(d => {
+    const docs = snap.docs;
+    
+    docs.forEach((d, i) => {
         const data = d.data(), item = document.createElement('div');
         item.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--card-border); gap:15px;";
+        
+        let reorderButtons = '';
+        if (col === 'memories') {
+            reorderButtons = `
+                <div style="display:flex; gap:5px;">
+                    <button class="btn-admin btn-secondary" style="margin:0; padding:5px 10px; min-width:35px;" onclick="moveMemoryOrder('${d.id}', -1)" ${i === 0 && currentPage === 1 ? 'disabled style="opacity:0.3"' : ''}>↑</button>
+                    <button class="btn-admin btn-secondary" style="margin:0; padding:5px 10px; min-width:35px;" onclick="moveMemoryOrder('${d.id}', 1)" ${i === docs.length - 1 ? 'disabled style="opacity:0.3"' : ''}>↓</button>
+                </div>
+            `;
+        }
+
         item.innerHTML = `
             <input type="checkbox" class="item-checkbox" data-id="${d.id}" style="width:20px; height:20px;" onchange="updateSelectUI()">
-            <span style="flex-grow:1;">${data.filename || data.title || d.id}</span>
+            ${reorderButtons}
+            <span style="flex-grow:1;">${data.title || data.filename || d.id}</span>
             <button class="btn-admin" style="margin:0; background:red; font-size:0.8rem;" onclick="deleteItem('${col}', '${d.id}')">Delete</button>
         `;
         list.appendChild(item);
     });
+    
+    // Add initialization button if memories are missing 'order'
+    if (col === 'memories' && docs.some(d => d.data().order === undefined)) {
+        const fixDiv = document.createElement('div');
+        fixDiv.style.padding = "15px";
+        fixDiv.style.textAlign = "center";
+        fixDiv.style.background = "rgba(255, 165, 0, 0.1)";
+        fixDiv.innerHTML = `
+            <p style="font-size: 0.8rem; margin-bottom: 10px; color: #ffa500;">Some memories are missing manual order data.</p>
+            <button class="btn-admin" style="margin:0; background: #ffa500; color: black;" onclick="initializeMemoryOrders()">Initialize Timeline Order</button>
+        `;
+        list.prepend(fixDiv);
+    }
+    
     updateSelectUI();
 }
+
+window.initializeMemoryOrders = async () => {
+    if (!confirm("This will set a manual order for all memories based on their current chronological date. Continue?")) return;
+    try {
+        showToast("Initializing order...", "info");
+        // Use timestamp asc for initial order
+        const snap = await getDocs(query(collection(db, 'memories'), orderBy('timestamp', 'asc')));
+        const batch = writeBatch(db);
+        snap.docs.forEach((d, i) => {
+            batch.update(d.ref, { order: i + 1 });
+        });
+        await batch.commit();
+        showToast("Order initialized! ✨", "success");
+        loadContentList();
+    } catch (e) {
+        console.error(e);
+        showToast("Initialization failed", "error");
+    }
+};
+
+window.moveMemoryOrder = async (id, direction) => {
+    try {
+        const col = 'memories';
+        // Fetch all to ensure we have the correct neighbors regardless of pagination
+        const snap = await getDocs(query(collection(db, col), orderBy('order', 'asc')));
+        const docs = snap.docs;
+        const index = docs.findIndex(d => d.id === id);
+        if (index === -1) return;
+
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= docs.length) return;
+
+        const currentDoc = docs[index];
+        const targetDoc = docs[newIndex];
+
+        // Ensure both have order fields. If not, use their index as base.
+        let currentOrder = currentDoc.data().order;
+        let targetOrder = targetDoc.data().order;
+        
+        if (currentOrder === undefined || targetOrder === undefined) {
+            // If any order is missing, we need to initialize all first or handle this one
+            showToast("Initializing orders first...", "info");
+            const batch = writeBatch(db);
+            docs.forEach((d, i) => {
+                batch.update(d.ref, { order: i + 1 });
+            });
+            await batch.commit();
+            // Re-run move after initialization
+            return moveMemoryOrder(id, direction);
+        }
+
+        const batch = writeBatch(db);
+        batch.update(currentDoc.ref, { order: targetOrder });
+        batch.update(targetDoc.ref, { order: currentOrder });
+
+        await batch.commit();
+        loadContentList();
+    } catch (e) {
+        console.error(e);
+        showToast("Move failed", "error");
+    }
+};
 
 async function deleteFilesForDoc(col, id, data) {
     const filePromises = [];
@@ -960,6 +1064,19 @@ window.uploadMemory = async () => {
         updateProg(); 
     }
 
+    // Get current max order to place this new memory at the end of the timeline
+    let nextOrder = 1;
+    try {
+        const memoriesSnap = await getDocs(query(collection(db, 'memories'), orderBy('order', 'desc'), limit(1)));
+        if (!memoriesSnap.empty) {
+            nextOrder = (memoriesSnap.docs[0].data().order || 0) + 1;
+        } else {
+            // Fallback if no order field exists yet
+            const allSnap = await getDocs(collection(db, 'memories'));
+            nextOrder = allSnap.size + 1;
+        }
+    } catch (e) { console.warn("Could not determine next order, defaulting to timestamp logic", e); }
+
     const payload = { 
         title, 
         text, 
@@ -967,6 +1084,7 @@ window.uploadMemory = async () => {
         audioName,
         private: isPrivate, 
         timestamp: Date.now(),
+        order: nextOrder,
         orderedMedia: orderedMedia // New ordered format
     };
 
