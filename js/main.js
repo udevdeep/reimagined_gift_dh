@@ -1238,7 +1238,23 @@ export function loadMemories() {
         
         // Download Logic
         reel.querySelector('.download-btn').onclick = () => {
-            const downloadUrl = meta.video ? resolvePath(meta.video, item.folder) : resolvePath(meta.images[0], item.folder);
+            let downloadUrl = '';
+            const carousel = reel.querySelector('.reel-carousel');
+            
+            if (carousel) {
+                const width = carousel.offsetWidth || 1;
+                const index = Math.round(carousel.scrollLeft / width);
+                if (allMedia[index]) {
+                    downloadUrl = allMedia[index].src;
+                }
+            } 
+            
+            if (!downloadUrl) {
+                downloadUrl = meta.video ? resolvePath(meta.video, item.folder) : (meta.images?.length ? resolvePath(meta.images[0], item.folder) : '');
+            }
+
+            if (!downloadUrl) return showToast("Nothing to download.", "info");
+
             showToast("Saving to your device...", "info");
             downloadResource(downloadUrl, meta.title);
         };
